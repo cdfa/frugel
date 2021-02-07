@@ -1,0 +1,15 @@
+{
+    "miso": {
+        "branch": "master",
+        "description": ":ramen: A tasty Haskell front-end framework",
+        "homepage": "https://haskell-miso.org",
+        "owner": "dmjio",
+        "repo": "miso",
+        "rev": "69f50b49adbff8217f8b51ae5f47727ee950f204",
+        "sha256": "0q44lxzz8pp89ccaiw3iwczha8x2rxjwmgzkxj8cxm97ymsm0diy",
+        "type": "tarball",
+        "url": "https://github.com/dmjio/miso/archive/1.7.1.tar.gz",
+        "url_template": "https://github.com/dmjio/miso/archive/<version>.tar.gz",
+        "version": "1.7.1"
+    }
+}
