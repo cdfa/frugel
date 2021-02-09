@@ -3,7 +3,6 @@ let
 in
   with import sources.miso {};
   let
-    ghcjsPackages = pkgs.haskell.packages.ghcjs;
     ghcPackages = pkgs.haskell.packages.ghc865;
     reload-script = pkgs.writeShellScriptBin "reload" ''
       ${pkgs.haskellPackages.ghcid}/bin/ghcid -c '\
@@ -15,7 +14,8 @@ in
           --restart=package.yaml\
           -T 'Main.main'
     '';
-    drv = ghcPackages.callCabal2nix "frugel" ./. {
+    gitIgnore = pkgs.nix-gitignore.gitignoreSourcePure;
+    drv = ghcPackages.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.) {
       miso = miso-jsaddle; /* Overrides miso dependency defined in package.yaml */
     };
   in
