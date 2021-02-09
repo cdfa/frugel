@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "lunaryorn.hlint",
+        "justusadam.language-haskell",
+        "haskell.haskell"
+    ]
+}

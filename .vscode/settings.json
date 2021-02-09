@@ -1,0 +1,37 @@
+{
+    "cSpell.words": [
+        "frugel",
+        "gmail",
+        "projectional",
+        "vdom"
+    ],
+    "cSpell.ignoreWords": [
+        "colinderoos",
+        "ghcjs",
+        "ifndef",
+        "pkgs",
+        "rtsopts"
+    ],
+    "nixEnvSelector.nixShellConfig": "${workspaceRoot}/shell.nix",
+    "cSpell.enableFiletypes": [
+        "clojure",
+        "coffeescript",
+        "fsharp",
+        "graphql",
+        "julia",
+        "jupyter",
+        "literate haskell",
+        "lua",
+        "mdx",
+        "objective-c",
+        "objective-cpp",
+        "perl",
+        "perl6",
+        "r",
+        "reason",
+        "reason_lisp",
+        "ruby",
+        "swift",
+        "vue"
+    ],
+}
