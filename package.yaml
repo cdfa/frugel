@@ -21,6 +21,9 @@ description:         A frugal projectional editor for Live Programming
 dependencies:
 - base >= 4.7 && < 5
 
+ghc-options:
+  - -Weverything
+
 library:
   source-dirs: src
 
