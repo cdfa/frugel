@@ -6,11 +6,11 @@ let
   unstablePkgs = import sources.nixpkgs-unstable { };
   stablePkgs = import sources.nixpkgs { };
   ghcPackages = pkgs.haskell.packages.ghc865;
-  gitIgnore = pkgs.nix-gitignore.gitignoreSourcePure;
+  gitIgnore = stablePkgs.nix-gitignore.gitignoreSourcePure;
   drv = ghcPackages.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.) {
     miso = miso-jsaddle; /* Overrides miso dependency defined in package.yaml */
   };
-  reload-script = pkgs.writeShellScriptBin "reload" ''
+  reload-script = stablePkgs.writeShellScriptBin "reload" ''
     ${pkgs.haskellPackages.ghcid}/bin/ghcid -c '\
         stack repl\
         --ghci-options -fno-break-on-exception\
@@ -48,6 +48,7 @@ drv.env.overrideAttrs (
       stablePkgs.ghcid
       stablePkgs.stack
       pkgs.haskell.packages.ghcjs.ghc
+      stablePkgs.git # has to be present for pre-commit-check shell hook
     ];
     shellHook = ''
       ${pre-commit-check.shellHook}
