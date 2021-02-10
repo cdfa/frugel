@@ -11,5 +11,29 @@
         "url": "https://github.com/dmjio/miso/archive/1.7.1.tar.gz",
         "url_template": "https://github.com/dmjio/miso/archive/<version>.tar.gz",
         "version": "1.7.1"
+    },
+    "nixpkgs": {
+        "branch": "nixos-20.09",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d4c29df154dc6397ea47a7ed7dd0450a46dd4695",
+        "sha256": "015xcdirr9vh49dszgfb2rayr6mqscmmv2d3dh99ghv8gjcv050y",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/d4c29df154dc6397ea47a7ed7dd0450a46dd4695.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs-unstable": {
+        "branch": "nixpkgs-unstable",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d9c6f13e13f8cfe9adcb9dc5f7191336d0d8e8a7",
+        "sha256": "13frs5qafjb3bim4waamp17ja2s6c1cnsx7j4ri23ny2v5lbhxmi",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/d9c6f13e13f8cfe9adcb9dc5f7191336d0d8e8a7.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

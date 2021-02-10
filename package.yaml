@@ -1,13 +1,13 @@
-name:                frugel
-version:             0.1.0.0
-github:              "cdfa/frugel"
-license:             GPL-3
-author:              "Colin de Roos"
-maintainer:          "colinderoos[at]gmail[dot]com"
-copyright:           "2021 Colin de Roos"
+name: frugel
+version: 0.1.0.0
+github: "cdfa/frugel"
+license: GPL-3
+author: "Colin de Roos"
+maintainer: "colinderoos[at]gmail[dot]com"
+copyright: "2021 Colin de Roos"
 
 extra-source-files:
-- README.md
+  - README.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -16,39 +16,45 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         A frugal projectional editor for Live Programming
+description: A frugal projectional editor for Live Programming
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 
 ghc-options:
-  - -Weverything
+  - -Wall
+  - -Wincomplete-uni-patterns
+  - -Wincomplete-record-updates
+  - -Wcompat
+  - -Widentities
+  - -Wredundant-constraints
+  - -fhide-source-paths
 
 library:
   source-dirs: src
 
 executables:
   frugel-exe:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - frugel
-    - miso
+      - frugel
+      - miso
     when:
-    - condition: "!impl(ghcjs)"
-      dependencies: jsaddle-warp
+      - condition: "!impl(ghcjs)"
+        dependencies: jsaddle-warp
 
 tests:
   frugel-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - frugel
+      - frugel

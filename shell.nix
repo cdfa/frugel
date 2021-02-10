@@ -6,9 +6,8 @@ in
     ghcPackages = pkgs.haskell.packages.ghc865;
     reload-script = pkgs.writeShellScriptBin "reload" ''
       ${pkgs.haskellPackages.ghcid}/bin/ghcid -c '\
-          ghci\
-          -isrc -iapp\
-          -fno-break-on-exception\
+          stack repl\
+          --ghci-options -fno-break-on-exception\
           app/Main.hs\
           '\
           --restart=package.yaml\
@@ -21,6 +20,19 @@ in
   in
     drv.env.overrideAttrs (
       old: {
-        buildInputs = old.buildInputs ++ [ reload-script pkgs.haskellPackages.ghcid ];
+        buildInputs =
+          let
+            unstablePkgs = import sources.nixpkgs-unstable {};
+            stablePkgs = import sources.nixpkgs {};
+          in
+            old.buildInputs ++ [
+              reload-script
+              stablePkgs.hlint
+              stablePkgs.haskellPackages.apply-refact
+              unstablePkgs.haskellPackages.floskell
+              stablePkgs.ghcid
+              stablePkgs.stack
+              pkgs.haskell.packages.ghcjs.ghc
+            ];
       }
     )
