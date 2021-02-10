@@ -19,7 +19,8 @@ extra-source-files:
 description: A frugal projectional editor for Live Programming
 
 dependencies:
-  - base >= 4.7 && < 5
+  - base-noprelude >= 4.7 && < 5
+  - relude
 
 ghc-options:
   - -Wall

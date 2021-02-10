@@ -9,7 +9,6 @@ module Main where
 import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
-import           Control.Monad.IO.Class
 import           Miso
 import           Miso.String
 

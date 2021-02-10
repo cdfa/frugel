@@ -2,6 +2,7 @@
     "recommendations": [
         "lunaryorn.hlint",
         "justusadam.language-haskell",
-        "haskell.haskell"
+        "haskell.haskell",
+        "rubymaniac.vscode-direnv"
     ]
 }
