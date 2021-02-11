@@ -1,4 +1,16 @@
 {
+    "base-noprelude": {
+        "branch": "master",
+        "description": "All of `base` without the `Prelude` module",
+        "homepage": "http://hackage.haskell.org/package/base-noprelude",
+        "owner": "tek",
+        "repo": "base-noprelude",
+        "rev": "d6ad765adca25c2efb06110dae854113fe1cd733",
+        "sha256": "0ffv2i29q05p5jza2jl1jzrfg0z7z6fw4ix7ay4h4ppzkzakk0ib",
+        "type": "tarball",
+        "url": "https://github.com/tek/base-noprelude/archive/d6ad765adca25c2efb06110dae854113fe1cd733.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "miso": {
         "branch": "master",
         "description": ":ramen: A tasty Haskell front-end framework",
