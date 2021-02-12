@@ -11,13 +11,7 @@ import           Language.Javascript.JSaddle.Warp as JSaddle
 
 import           Miso
 import           Miso.String
-
--- Type synonym for an application model
-type Model = Int
-
--- Sum type for application events
-data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
-    deriving ( Show, Eq )
+import           Frugel
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -40,14 +34,6 @@ main = runApp $ startApp App { .. }
     subs = [] -- empty subscription list
     mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
     logLevel = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
-
--- Updates model, optionally introduces side effects
-updateModel :: Action -> Model -> Effect Action Model
-updateModel AddOne m = noEff (m + 1)
-updateModel SubtractOne m = noEff (m - 1)
-updateModel NoOp m = noEff m
-updateModel SayHelloWorld m =
-    m <# do liftIO (putStrLn "Hello World") >> pure NoOp
 
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
