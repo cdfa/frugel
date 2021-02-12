@@ -27,14 +27,21 @@ let
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
-      floskell =
-        {
-          enable = true;
-          name = "floskell";
-          description = "A flexible Haskell source code pretty printer.";
-          entry = "${floskell}/bin/floskell";
-          files = "\\.l?hs$";
-        };
+      floskell = {
+        enable = true;
+        name = "floskell";
+        description = "A flexible Haskell source code pretty printer.";
+        entry = "${floskell}/bin/floskell";
+        files = "\\.l?hs$";
+      };
+      build = {
+        enable = true;
+        name = "build";
+        description = "A build of the project.";
+        entry = "nix-build";
+        files = "package\\.yaml$";
+        pass_filenames = false;
+      };
     };
   };
 in
