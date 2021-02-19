@@ -36,6 +36,7 @@ library:
   dependencies:
     - miso
     - megaparsec >= 9.0.1
+    - containers
 
 executables:
   frugel-exe:
