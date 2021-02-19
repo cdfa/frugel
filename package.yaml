@@ -20,7 +20,7 @@ description: A frugal projectional editor for Live Programming
 
 dependencies:
   - base-noprelude >= 4.7 && < 5
-  - relude
+  - relude >= 0.7.0.0
 
 ghc-options:
   - -Wall
@@ -35,6 +35,7 @@ library:
   source-dirs: src
   dependencies:
     - miso
+    - megaparsec >= 9.0.1
 
 executables:
   frugel-exe:

@@ -1,11 +1,12 @@
+{ sources ? import ./nix/sources.nix { }
+, ghc ? "ghcjs"
+}:
 let
-  sources = import ./nix/sources.nix { };
+  miso = import sources.miso { };
+  base-noprelude-ghcjs =
+    miso.pkgs.haskell.packages.${ghc}.callCabal2nix "base-noprelude-ghcjs" sources.base-noprelude { };
+  base = import ./base.nix { inherit sources ghc; };
 in
-with import sources.miso { };
-let
-  gitIgnore = pkgs.nix-gitignore.gitignoreSourcePure;
-  base-noprelude-ghcjs = pkgs.haskell.packages.ghcjs.callCabal2nix "base-noprelude-ghcjs" sources.base-noprelude { };
-in
-pkgs.haskell.packages.ghcjs.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.) {
+base.override {
   base-noprelude = base-noprelude-ghcjs;
 }
