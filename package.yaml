@@ -49,6 +49,7 @@ executables:
     dependencies:
       - frugel
       - miso
+      - pretty-simple
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp
