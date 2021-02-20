@@ -11,8 +11,8 @@ let
   };
 
   reload-script = stablePkgs.writeShellScriptBin "reload" ''
-    ${stablePkgs.haskellPackages.ghcid}/bin/ghcid -c '\
-        stack repl\
+    ${stablePkgs.ghcid}/bin/ghcid -c '\
+        ${stablePkgs.stack}/bin/stack repl\
         --ghci-options -fno-break-on-exception\
         app/Main.hs\
         '\
