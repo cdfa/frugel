@@ -1,11 +1,15 @@
 module ParsingUtils where
 
--- import           Text.Megaparsec
+import           Text.Megaparsec
+
 -- import           Text.Megaparsec.Char
 -- import qualified Text.Megaparsec.Char.Lexer as L
 -- type Lexer = Parsec Void Text
 data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )
+
+pToken :: MonadParsec e s m => Token s -> m (Token s)
+pToken c = token (guarded (== c)) (one . Tokens . one $ c)
 -- spaceConsumer :: Lexer ()
 -- spaceConsumer
 --     = L.space

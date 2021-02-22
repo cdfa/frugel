@@ -10,8 +10,9 @@ import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
 import           Miso
-import           Miso.String
+import qualified Miso.String
 import           Frugel
+import           Text.Pretty.Simple               ( pShowNoColor )
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -26,8 +27,8 @@ runApp app = app
 main :: IO ()
 main = runApp $ startApp App { .. }
   where
-    initialAction = SayHelloWorld -- initial action to be executed on application load
-    model = 0 -- initial model
+    initialAction = NoOp  -- initial action to be executed on application load
+    model = initialModel  -- initial model
     update = updateModel -- update function
     view = viewModel -- view function
     events = defaultEvents -- default delegated events
@@ -37,10 +38,16 @@ main = runApp $ startApp App { .. }
 
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
-viewModel x =
-    div_
+viewModel x
+    = div_
         []
-        [ button_ [ onClick AddOne ] [ text "+" ]
-        , text (ms x)
-        , button_ [ onClick SubtractOne ] [ text "-" ]
+        [ webPrint x
+        , either
+              (\errorBundle ->
+               pre_ [] [ text . Miso.String.ms $ pShowNoColor errorBundle ])
+              webPrint
+          $ parseHole "notepad" x
         ]
+
+webPrint :: Show a => a -> View Action
+webPrint x = pre_ [] [ text . Miso.String.ms $ pShowNoColor x ]

@@ -12,7 +12,7 @@
             "=": {
                 "force-linebreak": false,
                 "spaces": "both",
-                "linebreaks": "after"
+                "linebreaks": "before"
             },
             "@": {
                 "force-linebreak": false,
@@ -37,7 +37,7 @@
             "$": {
                 "force-linebreak": false,
                 "spaces": "both",
-                "linebreaks": "after"
+                "linebreaks": "before"
             },
             "record in pattern": {
                 "force-linebreak": false,

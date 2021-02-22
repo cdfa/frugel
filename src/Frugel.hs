@@ -1,37 +1,40 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Frugel where
 
-import           Miso
-import qualified ParsingUtils
+import           Miso               hiding ( node )
+import           Text.Megaparsec
+import           Text.Pretty.Simple ( pShowNoColor )
+import qualified Data.Text.Lazy     as LazyText
+import           Node
+import           Lexing
+import           Parsing
 
 -- Type synonym for an application model
-type Model = Int
+type Model = HoleContents
+
+initialModel :: HoleContents
+initialModel = frugelId'
 
 -- Sum type for application events
-data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
+-- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
+data Action = NoOp
     deriving ( Show, Eq )
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model
-updateModel AddOne m = noEff (m + 1)
-updateModel SubtractOne m = noEff (m - 1)
-updateModel NoOp m = noEff m
-updateModel SayHelloWorld m =
-    m <# do liftIO (putStrLn "Hello World") >> pure NoOp
 
-data Node =
-      Identifier Text
-    | Abstraction Text Node
-    | Application Node Node
-    | Parenthesized Node
-    | Hole (Maybe HoleContents)
-    deriving ( Eq, Ord, Show )
+-- updateModel AddOne m = noEff (m + 1)
+-- updateModel SubtractOne m = noEff (m - 1)
+updateModel NoOp = noEff
 
-data LexerToken =
-      IdentifierToken Text
-    | LambdaToken
-    | EqualsToken
-    | Parenthesis ParsingUtils.Parenthesis
-    | NodeToken Node
-    deriving ( Eq, Ord, Show )
-
-type HoleContents = Seq (Either Char Node)
+-- updateModel SayHelloWorld m =
+--     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
+parseHole :: FilePath -> HoleContents -> Either Text Node
+parseHole filePath s
+    = do lexerTokens <- runParser'' (holeContents <* eof) s
+         runParser'' (node <* eof) lexerTokens
+  where
+    runParser'' parser stream
+        = first (LazyText.toStrict . pShowNoColor)
+        $ runParser parser filePath stream

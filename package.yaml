@@ -31,12 +31,17 @@ ghc-options:
   - -Wredundant-constraints
   - -fhide-source-paths
 
+default-extensions:
+  - OverloadedStrings
+
 library:
   source-dirs: src
   dependencies:
     - miso
     - megaparsec >= 9.0.1
     - containers
+    - pretty-simple
+    - text
 
 executables:
   frugel-exe:

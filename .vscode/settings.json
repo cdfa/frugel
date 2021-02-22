@@ -11,6 +11,7 @@
         "colinderoos",
         "ghcjs",
         "ifndef",
+        "mfilter",
         "pkgs",
         "rtsopts"
     ],
