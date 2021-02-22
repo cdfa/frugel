@@ -21,3 +21,6 @@ frugelId = fromList [ Left '\\', Left 'x', Left '=', Left 'x' ]
 
 frugelId' :: HoleContents
 frugelId' = fromList [ Left '\\', Left 'x', Left '=', Right $ Identifier "x" ]
+
+app :: HoleContents
+app = fromList [ Left 'x', Right $ Identifier "x", Left 'x' ]

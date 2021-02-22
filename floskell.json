@@ -58,7 +58,7 @@
             },
             "[ in pattern": {
                 "force-linebreak": false,
-                "spaces": "both",
+                "spaces": "none",
                 "linebreaks": "after"
             },
             "[p|": {

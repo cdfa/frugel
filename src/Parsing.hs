@@ -15,12 +15,24 @@ identifier = token identifierTokenToText Set.empty <?> "an identifier"
 node :: Parser Node
 node
     = choice
-        [ Identifier <$> identifier
-        , Abstraction <$ pToken LambdaToken <*> identifier
+        [ Abstraction <$ pToken LambdaToken <*> identifier
           <* pToken EqualsToken
-          <*> node
-        , Parenthesized <$ pToken (Parenthesis ParsingUtils.Left) <*> node
+          <*> node'
+        , Parenthesized <$ pToken (Parenthesis ParsingUtils.Left) <*> node'
           <* pToken (Parenthesis ParsingUtils.Right)
+          -- Non recursive production rules at the bottom
         , token nodeTokenToNode Set.empty <?> "a node"
-        , Application <$> node <*> node -- Moved to bottom because of left recursion
+        , Identifier <$> identifier
         ]
+
+-- Extracted to remove left recursion
+node' :: Parser Node
+node'
+    = do function <- node
+         argMaybe <- optional node'
+         case argMaybe of
+             -- make application left-associative
+             Just (Application argFunction argArg) -> pure
+                 $ Application (Application function argFunction) argArg
+             Just arg -> pure $ Application function arg
+             Nothing -> pure function

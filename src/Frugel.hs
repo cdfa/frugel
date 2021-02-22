@@ -14,7 +14,7 @@ import           Parsing
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = frugelId'
+initialModel = app
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -33,7 +33,7 @@ updateModel NoOp = noEff
 parseHole :: FilePath -> HoleContents -> Either Text Node
 parseHole filePath s
     = do lexerTokens <- runParser'' (holeContents <* eof) s
-         runParser'' (node <* eof) lexerTokens
+         runParser'' (node' <* eof) lexerTokens
   where
     runParser'' parser stream
         = first (LazyText.toStrict . pShowNoColor)
