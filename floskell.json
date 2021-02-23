@@ -140,7 +140,7 @@
             "onside": 4,
             "where": 2,
             "typesig": "indent-by 4",
-            "do": "align-or-indent-by 4",
+            "do": "indent-by 4",
             "app": "indent-by 4",
             "case": "indent-by 4",
             "let-in": "indent-by 4",

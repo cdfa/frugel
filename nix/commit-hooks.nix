@@ -1,11 +1,19 @@
-{ floskell }:
+{ floskell, bash }:
 {
   floskellHook = {
     enable = false;
-    name = "floskell";
+    name = "Floskell";
     description = "A flexible Haskell source code pretty printer.";
     entry = "${floskell}/bin/floskell";
     files = "\\.l?hs$";
+  };
+  floskellConfigChangeHook = {
+    enable = false;
+    name = "Floskell config change";
+    description = "Reformatting all Haskell files because the Floskell config has changed";
+    entry = "${bash}/bin/bash -c 'shopt -s globstar; floskell {app,src,test}/**/*.hs'";
+    files = "floskell.json";
+    pass_filenames = false;
   };
   buildHook = {
     enable = false;

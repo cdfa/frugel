@@ -32,8 +32,9 @@ updateModel NoOp = noEff
 --     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
 parseHole :: FilePath -> HoleContents -> Either Text Node
 parseHole filePath s
-    = do lexerTokens <- runParser'' (holeContents <* eof) s
-         runParser'' (node' <* eof) lexerTokens
+    = do
+        lexerTokens <- runParser'' (holeContents <* eof) s
+        runParser'' (node' <* eof) lexerTokens
   where
     runParser'' parser stream
         = first (LazyText.toStrict . pShowNoColor)
