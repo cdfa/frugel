@@ -39,6 +39,7 @@ library:
   dependencies:
     - miso
     - megaparsec >= 9.0.1
+    - parser-combinators
     - containers
     - pretty-simple
     - text

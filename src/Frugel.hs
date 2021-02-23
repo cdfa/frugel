@@ -34,7 +34,7 @@ parseHole :: FilePath -> HoleContents -> Either Text Node
 parseHole filePath s
     = do
         lexerTokens <- runParser'' (holeContents <* eof) s
-        runParser'' (node' <* eof) lexerTokens
+        runParser'' (expr <* eof) lexerTokens
   where
     runParser'' parser stream
         = first (LazyText.toStrict . pShowNoColor)
