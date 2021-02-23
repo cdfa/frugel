@@ -2,10 +2,11 @@
 , ghc ? "ghcjs"
 }:
 let
-  miso = import sources.miso { };
+  miso = import ./nix/miso.nix { inherit sources ghc; };
+  pkgs = miso.pkgs;
   base-noprelude-ghcjs =
-    miso.pkgs.haskell.packages.${ghc}.callCabal2nix "base-noprelude-ghcjs" sources.base-noprelude { };
-  base = import ./base.nix { inherit sources ghc; };
+    pkgs.haskell.packages.${ghc}.callCabal2nix "base-noprelude-ghcjs" sources.base-noprelude { };
+  base = import ./base.nix { inherit sources pkgs ghc; };
 in
 base.override {
   base-noprelude = base-noprelude-ghcjs;

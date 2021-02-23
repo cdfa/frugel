@@ -42,6 +42,7 @@ library:
     - containers
     - pretty-simple
     - text
+    - prettyprinter >= 1.7.0
 
 executables:
   frugel-exe:

@@ -11,18 +11,6 @@
         "url": "https://github.com/tek/base-noprelude/archive/d6ad765adca25c2efb06110dae854113fe1cd733.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "megaparsec": {
-        "branch": "9.0.1",
-        "description": "Industrial-strength monadic parser combinator library",
-        "homepage": "",
-        "owner": "mrkkrp",
-        "repo": "megaparsec",
-        "rev": "a1830d1f91bce631a121bb91400a7cb83c721113",
-        "sha256": "0c1n1pk4n20zrgvzmhbkbkj2aab83nq4lr0vz2sksgrdyy50x0k2",
-        "type": "tarball",
-        "url": "https://github.com/mrkkrp/megaparsec/archive/a1830d1f91bce631a121bb91400a7cb83c721113.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "miso": {
         "branch": "master",
         "description": ":ramen: A tasty Haskell front-end framework",
@@ -70,18 +58,6 @@
         "sha256": "01z4d5bi35n4gbip189swdj56rp02fvqnp3mkwgm1zmpy2cg9vyp",
         "type": "tarball",
         "url": "https://github.com/cachix/pre-commit-hooks.nix/archive/9ef0d41307cfba042cc9fa65cc06875368f49c8e.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "relude": {
-        "branch": "v0.7.0.0",
-        "description": "🌀 Safe, performant, user-friendly and lightweight Haskell standard library",
-        "homepage": "https://kowainik.github.io/projects/relude",
-        "owner": "kowainik",
-        "repo": "relude",
-        "rev": "0bd21169a64d1ed1d118d03bd38379dd77cd67c9",
-        "sha256": "1wki84za8imqc5lzwbrn88ypfqydfrph3rf6fvlf7fr77kx7c82j",
-        "type": "tarball",
-        "url": "https://github.com/kowainik/relude/archive/0bd21169a64d1ed1d118d03bd38379dd77cd67c9.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

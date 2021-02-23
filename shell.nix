@@ -4,9 +4,9 @@
 let
   unstablePkgs = import sources.nixpkgs-unstable { };
   stablePkgs = import sources.nixpkgs { };
-  miso = import sources.miso { };
-  misoPkgs = miso.pkgs;
-  base = (import ./base.nix { inherit sources ghc; }).override {
+  miso = import ./nix/miso.nix { inherit sources ghc; };
+  pkgs = miso.pkgs;
+  base = (import ./base.nix { inherit sources pkgs ghc; }).override {
     miso = miso.miso-jsaddle; /* Overrides dependencies defined in package.yaml */
   };
 
@@ -50,7 +50,7 @@ base.env.overrideAttrs (
       floskell
       stablePkgs.ghcid
       stablePkgs.stack
-      misoPkgs.haskell.packages.ghcjs.ghc
+      pkgs.haskell.packages.ghcjs.ghc
       stablePkgs.git # has to be present for pre-commit-check shell hook
     ];
     shellHook = ''
