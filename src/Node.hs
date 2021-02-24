@@ -3,17 +3,18 @@
 
 module Node where
 
-import           Prelude         hiding ( group )
+import           Prelude         hiding ( group, toList )
 import           Text.Megaparsec
 import           Prettyprinter
 import           PrettyPrinting
+import           GHC.Exts
 
 data Node
     = Identifier Text
     | Abstraction Text Node
     | Application Node Node
     | Parenthesized Node
-    | Hole (Maybe HoleContents)
+    | Hole HoleContents
     deriving ( Eq, Ord, Show )
 
 newtype HoleContents = HoleContents (Seq (Either Char Node))
@@ -34,7 +35,9 @@ prettyNode (Application function arg)
     = prettyNode function `nestingLine` prettyNode arg
 prettyNode (Parenthesized node) = parens $ prettyNode node
 prettyNode (Hole contents)
-    = maybe "..." (annotate InHole . prettyHoleContents) contents
+    = if null $ toList contents
+        then "..."
+        else annotate InHole $ prettyHoleContents contents
 
 prettyHoleContents :: HoleContents -> Doc Annotation
 prettyHoleContents (HoleContents contents)
@@ -44,7 +47,7 @@ minimalHole :: HoleContents
 minimalHole = one . Right $ Identifier "x"
 
 nested :: HoleContents
-nested = one . Right . Hole $ Just minimalHole
+nested = one . Right . Hole $ minimalHole
 
 frugelId :: HoleContents
 frugelId = fromList [ Left '\\', Left 'x', Left '=', Left 'x' ]
