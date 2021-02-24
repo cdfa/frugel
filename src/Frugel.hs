@@ -6,15 +6,17 @@ import           Miso               hiding ( node )
 import           Text.Megaparsec
 import           Text.Pretty.Simple ( pShowNoColor )
 import qualified Data.Text.Lazy     as LazyText
+import           Prettyprinter
 import           Node
 import           Lexing
 import           Parsing
+import           PrettyPrinting
 
 -- Type synonym for an application model
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = app
+initialModel = frugelId
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -39,3 +41,6 @@ parseHole filePath s
     runParser'' parser stream
         = first (LazyText.toStrict . pShowNoColor)
         $ runParser parser filePath stream
+
+prettyPrintNode :: Node -> Text
+prettyPrintNode = renderNode . layoutSmart defaultLayoutOptions . prettyNode

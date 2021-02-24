@@ -9,10 +9,14 @@
     ],
     "cSpell.ignoreWords": [
         "colinderoos",
+        "fmap",
         "ghcjs",
+        "hcat",
         "ifndef",
         "mfilter",
+        "parens",
         "pkgs",
+        "prettyprinter",
         "rtsopts"
     ],
     "cSpell.enableFiletypes": [

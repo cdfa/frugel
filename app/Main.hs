@@ -41,13 +41,10 @@ viewModel :: Model -> View Action
 viewModel x
     = div_
         []
-        [ webPrint x
-        , either
-              (\errorBundle ->
-               pre_ [] [ text . Miso.String.ms $ pShowNoColor errorBundle ])
-              webPrint
+        [ webPrint $ pShowNoColor x
+        , either (webPrint . pShowNoColor) (webPrint . prettyPrintNode)
           $ parseHole "notepad" x
         ]
 
-webPrint :: Show a => a -> View Action
-webPrint x = pre_ [] [ text . Miso.String.ms $ pShowNoColor x ]
+webPrint :: Miso.String.ToMisoString a => a -> View Action
+webPrint x = pre_ [] [ text $ Miso.String.ms x ]
