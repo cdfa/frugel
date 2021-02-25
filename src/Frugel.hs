@@ -1,12 +1,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Frugel where
+module Frugel
+    ( module Frugel
+    , HoleAnnotation(..)
+    , renderHoleAnnotation
+    , prettyNode
+    , prettyHoleContents
+    ) where
 
 import           Miso               hiding ( node )
 import           Text.Megaparsec
 import           Text.Pretty.Simple ( pShowNoColor )
 import qualified Data.Text.Lazy     as LazyText
-import           Prettyprinter
 import           Node
 import           Lexing
 import           Parsing
@@ -16,7 +21,7 @@ import           PrettyPrinting
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = frugelId
+initialModel = frugelId'
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -41,6 +46,3 @@ parseHole filePath s
     runParser'' parser stream
         = first (LazyText.toStrict . pShowNoColor)
         $ runParser parser filePath stream
-
-prettyPrintNode :: Node -> Text
-prettyPrintNode = renderNode . layoutSmart defaultLayoutOptions . prettyNode

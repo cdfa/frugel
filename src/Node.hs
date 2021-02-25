@@ -3,11 +3,12 @@
 
 module Node where
 
-import           Prelude         hiding ( group, toList )
+import           Prelude                 hiding ( group, toList )
 import           Text.Megaparsec
 import           Prettyprinter
 import           PrettyPrinting
 import           GHC.Exts
+import           Steal.Megaparsec.Stream
 
 data Node
     = Identifier Text
@@ -27,21 +28,24 @@ newtype HoleContents = HoleContents (Seq (Either Char Node))
 -- test
 --     test
 --     test
-prettyNode :: Node -> Doc Annotation
+prettyNode :: Node -> Doc HoleAnnotation
 prettyNode (Identifier name) = pretty name
 prettyNode (Abstraction arg node)
     = (backslash <> pretty arg) `nestingLine` equals <+> prettyNode node
 prettyNode (Application function arg)
     = prettyNode function `nestingLine` prettyNode arg
 prettyNode (Parenthesized node) = parens $ prettyNode node
-prettyNode (Hole contents)
+prettyNode (Hole contents) = prettyHoleContents contents
+
+prettyHoleContents :: HoleContents -> Doc HoleAnnotation
+prettyHoleContents (HoleContents contents)
     = if null $ toList contents
         then "..."
-        else annotate InHole $ prettyHoleContents contents
-
-prettyHoleContents :: HoleContents -> Doc Annotation
-prettyHoleContents (HoleContents contents)
-    = fold $ either pretty prettyNode <$> contents
+        else annotate InHole
+            . foldMap
+                (either pretty (foldMap (annotate OutOfHole . prettyNode)))
+            . groupByEither
+            $ toList contents
 
 minimalHole :: HoleContents
 minimalHole = one . Right $ Identifier "x"

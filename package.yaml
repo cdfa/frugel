@@ -57,6 +57,7 @@ executables:
       - frugel
       - miso
       - pretty-simple
+      - prettyprinter >= 1.7.0
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp

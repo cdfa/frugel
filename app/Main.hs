@@ -13,6 +13,7 @@ import           Miso
 import qualified Miso.String
 import           Frugel
 import           Text.Pretty.Simple               ( pShowNoColor )
+import           Prettyprinter
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -38,13 +39,19 @@ main = runApp $ startApp App { .. }
 
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
-viewModel x
-    = div_
-        []
-        [ webPrint $ pShowNoColor x
-        , either (webPrint . pShowNoColor) (webPrint . prettyPrintNode)
-          $ parseHole "notepad" x
+viewModel
+    = div_ []
+    . flap -- apply the function in the list to the model
+        [ webPrint . pShowNoColor
+        , webPrint . renderSmart . prettyHoleContents
+        , either
+              (webPrint . pShowNoColor)
+              (webPrint . renderSmart . prettyNode)
+          . parseHole "notepad"
         ]
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
+
+renderSmart :: Doc HoleAnnotation -> Text
+renderSmart = renderHoleAnnotation . layoutSmart defaultLayoutOptions
