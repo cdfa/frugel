@@ -2,6 +2,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
@@ -13,7 +14,6 @@ import           Miso
 import qualified Miso.String
 import           Frugel
 import           Text.Pretty.Simple               ( pShowNoColor )
-import           Prettyprinter
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -43,15 +43,12 @@ viewModel
     = div_ []
     . flap -- apply the function in the list to the model
         [ webPrint . pShowNoColor
-        , webPrint . renderSmart . prettyHoleContents
+        , webPrint . renderSmart @Text . prettyHoleContents
         , either
               (webPrint . pShowNoColor)
-              (webPrint . renderSmart . prettyNode)
+              (webPrint . renderSmart @Text . prettyNode)
           . parseHole "notepad"
         ]
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
-
-renderSmart :: Doc HoleAnnotation -> Text
-renderSmart = renderHoleAnnotation . layoutSmart defaultLayoutOptions

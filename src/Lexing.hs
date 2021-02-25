@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module Lexing where
 
 import           Node
@@ -52,10 +50,3 @@ holeContents
         , Parenthesis <$> parenthesis
         , NodeToken <$> anyNode
         ]
--- instance Stream HoleContents where
---     type Token HoleContents = WithPos LexerToken
---     type Tokens HoleContents = [WithPos LexerToken]
---     tokensToChunk Proxy = id
---     chunkToTokens Proxy = id
---     chunkLength Proxy = length
---     chunkEmpty Proxy = null

@@ -2,20 +2,19 @@
 
 module Frugel
     ( module Frugel
-    , HoleAnnotation(..)
-    , renderHoleAnnotation
+    , module PrettyPrinting.Rendering
     , prettyNode
     , prettyHoleContents
     ) where
 
-import           Miso               hiding ( node )
+import           Miso                     hiding ( node )
 import           Text.Megaparsec
-import           Text.Pretty.Simple ( pShowNoColor )
-import qualified Data.Text.Lazy     as LazyText
+import           Text.Pretty.Simple       ( pShowNoColor )
+import qualified Data.Text.Lazy           as LazyText
 import           Node
 import           Lexing
 import           Parsing
-import           PrettyPrinting
+import           PrettyPrinting.Rendering
 
 -- Type synonym for an application model
 type Model = HoleContents

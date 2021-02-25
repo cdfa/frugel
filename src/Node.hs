@@ -1,4 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+
 {-# LANGUAGE UndecidableInstances #-}
 
 module Node where
@@ -9,6 +11,8 @@ import           Prettyprinter
 import           PrettyPrinting
 import           GHC.Exts
 import           Steal.Megaparsec.Stream
+import qualified Data.Text               as Text
+import           Data.Composition
 
 data Node
     = Identifier Text
@@ -20,6 +24,23 @@ data Node
 
 newtype HoleContents = HoleContents (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, One, Stream, IsList )
+
+instance VisualStream HoleContents where
+    showTokens Proxy
+        = showTokens (Proxy @String)
+        -- Convert from Text to NonEmpty Char
+        . fromList -- Assumption: prettyHoleContents of a non-empty Seq results in a non-empty render
+        . toList
+        -- Remove surrounding «»
+        . Text.tail
+        . Text.init
+        -- Convert from HoleContents to Text
+        . renderSmart @Text
+        . prettyHoleContents
+        -- Convert from NonEmpty to HoleContents
+        . fromList
+        . toList
+    tokensLength = length .: showTokens
 
 -- >>> testPrettyW 3 $ prettyNode (Abstraction "x" ( Identifier "x" ))
 -- >>> testPrettyW 8 $ prettyNode (Application (Application (Identifier "test") $ Identifier "test") $ Identifier "test")
@@ -37,6 +58,7 @@ prettyNode (Application function arg)
 prettyNode (Parenthesized node) = parens $ prettyNode node
 prettyNode (Hole contents) = prettyHoleContents contents
 
+-- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render
 prettyHoleContents :: HoleContents -> Doc HoleAnnotation
 prettyHoleContents (HoleContents contents)
     = if null $ toList contents
