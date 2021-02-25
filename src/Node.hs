@@ -24,6 +24,8 @@ data Node
 newtype HoleContents = HoleContents (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, One, Stream, IsList )
 
+type HoleContents' = [Either String [Node]]
+
 instance VisualStream HoleContents where
     showTokens Proxy
         = showTokens (Proxy @String)
@@ -68,6 +70,9 @@ prettyHoleContents (HoleContents contents)
             . groupByEither
             $ toList contents
 
+toHoleContents :: HoleContents' -> HoleContents
+toHoleContents = fromList . concatMap (either (map Left) (map Right))
+
 minimalHole :: HoleContents
 minimalHole = one . Right $ Identifier "x"
 
@@ -75,10 +80,10 @@ nested :: HoleContents
 nested = one . Right . Hole $ minimalHole
 
 frugelId :: HoleContents
-frugelId = fromList [ Left '\\', Left 'x', Left '=', Left 'x' ]
+frugelId = toHoleContents [ Left "\\x=x" ]
 
 frugelId' :: HoleContents
-frugelId' = fromList [ Left '\\', Left 'x', Left '=', Right $ Identifier "x" ]
+frugelId' = toHoleContents [ Left "\\x=", Right [ Identifier "x" ] ]
 
 app :: HoleContents
 app = fromList [ Left 'x', Right $ Identifier "x", Left 'x' ]
