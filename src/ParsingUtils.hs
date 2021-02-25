@@ -1,12 +1,17 @@
 module ParsingUtils where
 
 import           Text.Megaparsec
+import           Prettyprinter
 
 -- import           Text.Megaparsec.Char
 -- import qualified Text.Megaparsec.Char.Lexer as L
 -- type Lexer = Parsec Void Text
 data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )
+
+instance Pretty Parenthesis where
+    pretty ParsingUtils.Left = lparen
+    pretty ParsingUtils.Right = rparen
 
 pToken :: MonadParsec e s m => Token s -> m (Token s)
 pToken c = token (guarded (== c)) (one . Tokens . one $ c)

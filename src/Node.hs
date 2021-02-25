@@ -5,13 +5,12 @@
 
 module Node where
 
-import           Prelude                 hiding ( group, toList )
+import           Prelude          hiding ( group, toList )
 import           Text.Megaparsec
 import           Prettyprinter
 import           PrettyPrinting
 import           GHC.Exts
-import           Steal.Megaparsec.Stream
-import qualified Data.Text               as Text
+import qualified Data.Text        as Text
 import           Data.Composition
 
 data Node

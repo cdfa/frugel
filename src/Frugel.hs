@@ -9,12 +9,11 @@ module Frugel
 
 import           Miso                     hiding ( node )
 import           Text.Megaparsec
-import           Text.Pretty.Simple       ( pShowNoColor )
-import qualified Data.Text.Lazy           as LazyText
 import           Node
 import           Lexing
 import           Parsing
 import           PrettyPrinting.Rendering
+import           Data.String              as String
 
 -- Type synonym for an application model
 type Model = HoleContents
@@ -36,12 +35,12 @@ updateModel NoOp = noEff
 
 -- updateModel SayHelloWorld m =
 --     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
-parseHole :: FilePath -> HoleContents -> Either Text Node
+parseHole :: FilePath -> HoleContents -> Either String Node
 parseHole filePath s
     = do
         lexerTokens <- runParser'' (holeContents <* eof) s
         runParser'' (expr <* eof) lexerTokens
   where
     runParser'' parser stream
-        = first (LazyText.toStrict . pShowNoColor)
+        = first (String.unlines . map parseErrorPretty . toList . bundleErrors)
         $ runParser parser filePath stream

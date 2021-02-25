@@ -17,11 +17,13 @@
         "ghcjs",
         "hcat",
         "ifndef",
+        "lparen",
         "mfilter",
         "parens",
         "pkgs",
         "prettyprinter",
-        "rtsopts"
+        "rtsopts",
+        "unlines"
     ],
     "cSpell.enableFiletypes": [
         "!yaml",

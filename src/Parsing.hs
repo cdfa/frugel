@@ -8,7 +8,7 @@ import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
 import qualified Data.Set                       as Set
 
-type Parser = Parsec Void (Seq LexerToken)
+type Parser = Parsec Void LexerTokenStream
 
 identifier :: Parser Text
 identifier = token identifierTokenToText Set.empty <?> "an identifier"
