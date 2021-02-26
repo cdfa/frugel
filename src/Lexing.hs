@@ -64,13 +64,18 @@ parenthesis
 anyNode :: Lexer Node
 anyNode = token rightToMaybe Set.empty <?> "a node"
 
+whitespace :: Lexer ()
+whitespace
+    = void $ takeWhileP (Just "whitespace") (maybe False isSpace . leftToMaybe)
+
 holeContents :: Lexer LexerTokenStream
 holeContents
     = fmap fromList . some
-    $ choice
-        [ IdentifierToken . toText <$> some alphaNumChar
-        , LambdaToken <$ char '\\'
-        , EqualsToken <$ char '='
-        , Parenthesis <$> parenthesis
-        , NodeToken <$> anyNode
-        ]
+    $ (choice
+           [ IdentifierToken . toText <$> some alphaNumChar
+           , LambdaToken <$ char '\\'
+           , EqualsToken <$ char '='
+           , Parenthesis <$> parenthesis
+           , NodeToken <$> anyNode
+           ]
+       <* whitespace)

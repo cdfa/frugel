@@ -19,7 +19,7 @@ import           Data.String              as String
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = frugelId'
+initialModel = parensTest
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -38,7 +38,7 @@ updateModel NoOp = noEff
 parseHole :: FilePath -> HoleContents -> Either String Node
 parseHole filePath s
     = do
-        lexerTokens <- runParser'' (holeContents <* eof) s
+        lexerTokens <- runParser'' (whitespace *> holeContents <* eof) s
         runParser'' (expr <* eof) lexerTokens
   where
     runParser'' parser stream

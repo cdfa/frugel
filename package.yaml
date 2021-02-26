@@ -45,6 +45,7 @@ library:
     - text
     - prettyprinter >= 1.7.0
     - composition
+    - microlens-platform
 
 executables:
   frugel-exe:

@@ -7,6 +7,7 @@ import qualified ParsingUtils                   ( Parenthesis(..) )
 import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
 import qualified Data.Set                       as Set
+import           Lens.Micro.Platform
 
 type Parser = Parsec Void LexerTokenStream
 
@@ -16,15 +17,17 @@ identifier = token identifierTokenToText Set.empty <?> "an identifier"
 term :: Parser Node
 term
     = choice
-        [ Abstraction <$ pToken LambdaToken <*> identifier
+        [ abstraction <$ pToken LambdaToken <*> Parsing.identifier
           <* pToken EqualsToken
           <*> expr
-        , Parenthesized <$ pToken (Parenthesis ParsingUtils.Left) <*> expr
+        , set (nodeMeta . parenthesized) False
+          <$ pToken (Parenthesis ParsingUtils.Left)
+          <*> expr
           <* pToken (Parenthesis ParsingUtils.Right)
           -- Non recursive production rules at the bottom
         , token nodeTokenToNode Set.empty <?> "a node"
-        , Identifier <$> identifier
+        , Node.identifier <$> Parsing.identifier
         ]
 
 expr :: Parser Node
-expr = makeExprParser term [ [ InfixL $ pure Application ] ]
+expr = makeExprParser term [ [ InfixL $ pure application ] ]
