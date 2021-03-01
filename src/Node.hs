@@ -16,10 +16,10 @@ import           Data.Composition
 import           Optics
 import           Internal.Meta    ( Meta, defaultMeta )
 
-data Node
+data Expr
     = Identifier Meta Text
-    | Abstraction Meta Text Node
-    | Application Meta Node Node
+    | Abstraction Meta Text Expr
+    | Application Meta Expr Expr
     | Hole Meta HoleContents
     deriving ( Eq, Ord, Show )
 
@@ -27,6 +27,8 @@ newtype HoleContents = HoleContents (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, One, Stream, IsList )
 
 type HoleContents' = [Either String [Node]]
+
+type Node = Expr
 
 instance VisualStream HoleContents where
     showTokens Proxy
@@ -45,20 +47,20 @@ instance VisualStream HoleContents where
         . toList
     tokensLength = length .: showTokens
 
-identifier :: Text -> Node
+identifier :: Text -> Expr
 identifier = Identifier defaultMeta
 
-abstraction :: Text -> Node -> Node
+abstraction :: Text -> Expr -> Expr
 abstraction = Abstraction defaultMeta
 
-application :: Node -> Node -> Node
+application :: Expr -> Expr -> Expr
 application = Application defaultMeta
 
-hole :: HoleContents -> Node
+hole :: HoleContents -> Expr
 hole = Hole defaultMeta
 
-nodeMeta :: Lens' Node Meta
-nodeMeta = lens getMeta setMeta
+exprMeta :: Lens' Expr Meta
+exprMeta = lens getMeta setMeta
   where
     getMeta (Identifier meta _) = meta
     getMeta (Abstraction meta _ _) = meta
@@ -70,23 +72,23 @@ nodeMeta = lens getMeta setMeta
         = Application meta function argument
     setMeta (Hole _ contents) meta = Hole meta contents
 
--- >>> testPrettyW 3 $ prettyNode (Abstraction "x" ( Identifier "x" ))
--- >>> testPrettyW 8 $ prettyNode (Application (Application (Identifier "test") $ Identifier "test") $ Identifier "test")
+-- >>> testPrettyW 3 $ prettyExpr (Abstraction "x" ( Identifier "x" ))
+-- >>> testPrettyW 8 $ prettyExpr (Application (Application (Identifier "test") $ Identifier "test") $ Identifier "test")
 -- \x
 --     = x
 -- test
 --     test
 --     test
-prettyNode :: Node -> Doc HoleAnnotation
-prettyNode node
-    | node ^. nodeMeta % #parenthesized
-        = parens $ prettyNode (node & nodeMeta % #parenthesized .~ False)
-prettyNode (Identifier _ name) = pretty name
-prettyNode (Abstraction _ arg node)
-    = (backslash <> pretty arg) `nestingLine` equals <+> prettyNode node
-prettyNode (Application _ function arg)
-    = prettyNode function `nestingLine` prettyNode arg
-prettyNode (Hole _ contents) = prettyHoleContents contents
+prettyExpr :: Expr -> Doc HoleAnnotation
+prettyExpr expr
+    | expr ^. exprMeta % #parenthesized
+        = parens $ prettyExpr (expr & exprMeta % #parenthesized .~ False)
+prettyExpr (Identifier _ name) = pretty name
+prettyExpr (Abstraction _ arg expr)
+    = (backslash <> pretty arg) `nestingLine` equals <+> prettyExpr expr
+prettyExpr (Application _ function arg)
+    = prettyExpr function `nestingLine` prettyExpr arg
+prettyExpr (Hole _ contents) = prettyHoleContents contents
 
 -- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render
 prettyHoleContents :: HoleContents -> Doc HoleAnnotation
@@ -101,6 +103,9 @@ prettyHoleContents (HoleContents contents)
 
 toHoleContents :: HoleContents' -> HoleContents
 toHoleContents = fromList . concatMap (either (map Left) (map Right))
+
+prettyNode :: Node -> Doc HoleAnnotation
+prettyNode = prettyExpr
 
 minimalHole :: HoleContents
 minimalHole = one . Right $ identifier "x"
