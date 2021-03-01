@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -13,6 +14,7 @@ import qualified Data.Set        as Set
 import           Data.Char
 import           Prettyprinter
 import           PrettyPrinting
+import           Optics
 
 type Lexer = Parsec Void HoleContents
 
@@ -24,6 +26,8 @@ data LexerToken
     | NodeToken Node
     deriving ( Eq, Ord, Show )
 
+makePrisms ''LexerToken
+
 newtype LexerTokenStream = LexerTokenStream (Seq LexerToken)
     deriving ( Eq, Ord, Show, Stream, IsList )
 
@@ -33,14 +37,6 @@ instance VisualStream LexerTokenStream where
         . fromList -- Assumption: prettyHoleContents of a non-empty Seq results in a non-empty render
         . renderSmart
         . foldMap prettyLexerToken
-
-nodeTokenToNode :: LexerToken -> Maybe Node
-nodeTokenToNode (NodeToken node) = Just node
-nodeTokenToNode _ = Nothing
-
-identifierTokenToText :: LexerToken -> Maybe Text
-identifierTokenToText (IdentifierToken text) = Just text
-identifierTokenToText _ = Nothing
 
 prettyLexerToken :: LexerToken -> Doc HoleAnnotation
 prettyLexerToken (IdentifierToken name) = pretty name

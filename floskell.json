@@ -1,6 +1,6 @@
 {
     "style": "cramer",
-    "extensions": [],
+    "extensions": ["OverloadedLabels"],
     "fixities": [],
     "formatting": {
         "op": {

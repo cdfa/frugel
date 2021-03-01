@@ -1,27 +1,20 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
-
 {-# LANGUAGE TypeApplications #-}
 
 {-# LANGUAGE UndecidableInstances #-}
 
 module Node where
 
-import           Prelude             hiding ( group, toList )
+import           Prelude          hiding ( group, toList )
 import           Text.Megaparsec
 import           Prettyprinter
 import           PrettyPrinting
 import           GHC.Exts
-import qualified Data.Text           as Text
+import qualified Data.Text        as Text
 import           Data.Composition
-import           Lens.Micro.Platform
-
-newtype Meta = Meta { _parenthesized :: Bool }
-    deriving ( Eq, Ord, Show )
-
-$(makeLenses ''Meta)
+import           Optics
+import           Internal.Meta    ( Meta, defaultMeta )
 
 data Node
     = Identifier Meta Text
@@ -51,9 +44,6 @@ instance VisualStream HoleContents where
         . fromList
         . toList
     tokensLength = length .: showTokens
-
-defaultMeta :: Meta
-defaultMeta = Meta { _parenthesized = False }
 
 identifier :: Text -> Node
 identifier = Identifier defaultMeta
@@ -89,8 +79,8 @@ nodeMeta = lens getMeta setMeta
 --     test
 prettyNode :: Node -> Doc HoleAnnotation
 prettyNode node
-    | node ^. nodeMeta . parenthesized
-        = parens $ prettyNode (node & nodeMeta . parenthesized .~ False)
+    | node ^. nodeMeta % #parenthesized
+        = parens $ prettyNode (node & nodeMeta % #parenthesized .~ False)
 prettyNode (Identifier _ name) = pretty name
 prettyNode (Abstraction _ arg node)
     = (backslash <> pretty arg) `nestingLine` equals <+> prettyNode node

@@ -11,7 +11,7 @@
     enable = false;
     name = "Floskell config change";
     description = "Reformatting all Haskell files because the Floskell config has changed";
-    entry = "${bash}/bin/bash -c 'shopt -s globstar; floskell {app,src,test}/**/*.hs'";
+    entry = "${bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell {app,src,test}/**/*.hs'";
     files = "floskell.json";
     pass_filenames = false;
   };
