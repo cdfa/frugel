@@ -2,7 +2,6 @@
 
 module PrettyPrinting.Rendering where
 
-import           Prelude                                hiding ( group )
 import           Prettyprinter
 import           Prettyprinter.Render.Util.StackMachine
 

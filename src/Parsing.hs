@@ -5,7 +5,7 @@ import           Internal.Program               ( Program(Program) )
 import           Lexing
 import           ParsingUtils                   hiding ( Left, Right )
 import qualified ParsingUtils                   ( Parenthesis(..) )
-import           Text.Megaparsec                hiding ( some )
+import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
 import qualified Data.Set                       as Set
 import           Optics

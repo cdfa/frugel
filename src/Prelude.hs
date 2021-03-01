@@ -6,8 +6,10 @@ module Prelude
     , module Relude.Extra.Newtype
     ) where
 
-import           Relude                    hiding ( abs, init )
-import qualified Relude                    ( abs, init )
+import           Relude
+                 hiding ( Sum, abs, group, init, some, toList )
+import qualified Relude
+                 ( Sum, abs, group, init, some, toList )
 import           Relude.Extra.Newtype
 import           Prettyprinter
 import           Prettyprinter.Render.Text

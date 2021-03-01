@@ -13,7 +13,6 @@
 
 module Internal.Node where
 
-import           Prelude          hiding ( group, toList )
 import           Optics
 import           Text.Megaparsec
 import qualified Data.Text        as Text

@@ -9,7 +9,7 @@ module Lexing where
 import           Node
 import           ParsingUtils    hiding ( Left, Right )
 import qualified ParsingUtils    ( Parenthesis(..) )
-import           Text.Megaparsec hiding ( some )
+import           Text.Megaparsec
 import qualified Data.Set        as Set
 import           Data.Char
 import           Prettyprinter

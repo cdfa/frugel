@@ -17,7 +17,6 @@ module Node
     , prettyWhereClause
     ) where
 
-import           Prelude       hiding ( group )
 import           Optics
 
 import           Internal.Meta ( defaultMeta )

@@ -3,7 +3,6 @@ module PrettyPrinting
     , module PrettyPrinting.Rendering
     ) where
 
-import           Prelude                  hiding ( group )
 import           Prettyprinter
 import           PrettyPrinting.Rendering
 

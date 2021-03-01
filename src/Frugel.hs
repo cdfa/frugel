@@ -7,6 +7,7 @@ module Frugel
     , prettyHoleContents
     ) where
 
+import           Relude                   ( toList )
 import           Miso                     hiding ( node )
 import           Text.Megaparsec
 import           Node
