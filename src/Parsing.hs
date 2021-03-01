@@ -1,11 +1,11 @@
 module Parsing where
 
 import           Node
-import           Program
+import           Internal.Program               ( Program(Program) )
 import           Lexing
 import           ParsingUtils                   hiding ( Left, Right )
 import qualified ParsingUtils                   ( Parenthesis(..) )
-import           Text.Megaparsec
+import           Text.Megaparsec                hiding ( some )
 import           Control.Monad.Combinators.Expr
 import qualified Data.Set                       as Set
 import           Optics
@@ -26,12 +26,28 @@ term
           <*> expr
           <* pToken (Parenthesis ParsingUtils.Right)
           -- Non recursive production rules at the bottom
-        , token (preview _NodeToken) Set.empty <?> "an expression"
+        , token (preview (_NodeToken % _ExprNode)) Set.empty
+          <?> "an expression"
         , Node.identifier <$> Parsing.identifier
         ]
 
 expr :: Parser Expr
 expr = makeExprParser term [ [ InfixL $ pure application ] ]
 
+decl :: Parser Decl
+decl = literalDecl <|> holeDecl
+  where
+    literalDecl
+        = Decl <$> Parsing.identifier <* pToken EqualsToken
+        <*> expr
+        <*> whereClause
+    holeDecl
+        = token (preview (_NodeToken % _DeclNode)) Set.empty
+        <?> "a declaration"
+
+whereClause :: Parser WhereClause
+whereClause
+    = WhereClause . concat <$> optional (try (pToken WhereToken *> some decl))
+
 program :: Parser Program
-program = expr
+program = Program <$> expr <*> whereClause

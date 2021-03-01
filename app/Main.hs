@@ -44,7 +44,7 @@ viewModel
     . flap -- apply the function in the list to the model
         [ webPrint . pShowNoColor
         , webPrint . renderSmart @Text . prettyHoleContents
-        , either webPrint (webPrint . renderSmart @Text . prettyNode)
+        , either webPrint (webPrint . renderSmart @Text . prettyProgram)
           . parseHole "notepad"
         ]
 

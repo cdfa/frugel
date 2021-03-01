@@ -22,6 +22,7 @@ data LexerToken
     = IdentifierToken Text
     | LambdaToken
     | EqualsToken
+    | WhereToken
     | Parenthesis Parenthesis
     | NodeToken Node
     deriving ( Eq, Ord, Show )
@@ -42,11 +43,15 @@ prettyLexerToken :: LexerToken -> Doc HoleAnnotation
 prettyLexerToken (IdentifierToken name) = pretty name
 prettyLexerToken LambdaToken = "\\"
 prettyLexerToken EqualsToken = "="
+prettyLexerToken WhereToken = "where"
 prettyLexerToken (Parenthesis p) = pretty p
 prettyLexerToken (NodeToken node) = annotate OutOfHole $ prettyNode node
 
 char :: Char -> Lexer Char
 char c = token (leftToMaybe >=> guarded (== c)) (one . Tokens . one . Left $ c)
+
+string :: String -> Lexer String
+string s = s <$ chunk (fromList $ map Left s)
 
 alphaNumChar :: Lexer Char
 alphaNumChar
@@ -68,10 +73,11 @@ holeContents :: Lexer LexerTokenStream
 holeContents
     = fmap fromList . some
     $ (choice
-           [ IdentifierToken . toText <$> some alphaNumChar
-           , LambdaToken <$ char '\\'
+           [ LambdaToken <$ char '\\'
            , EqualsToken <$ char '='
+           , WhereToken <$ string "where"
            , Parenthesis <$> parenthesis
            , NodeToken <$> anyNode
+           , IdentifierToken . toText <$> some alphaNumChar
            ]
        <* whitespace)

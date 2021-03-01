@@ -18,12 +18,14 @@
         "hcat",
         "ifndef",
         "lparen",
+        "mempty",
         "mfilter",
         "parens",
         "pkgs",
         "prettyprinter",
         "rtsopts",
-        "unlines"
+        "unlines",
+        "vcat"
     ],
     "cSpell.enableFiletypes": [
         "!yaml",

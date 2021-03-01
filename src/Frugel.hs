@@ -3,14 +3,14 @@
 module Frugel
     ( module Frugel
     , module PrettyPrinting.Rendering
-    , prettyNode
+    , prettyProgram
     , prettyHoleContents
     ) where
 
 import           Miso                     hiding ( node )
 import           Text.Megaparsec
 import           Node
-import           Program
+import           Internal.Program         ( Program, prettyProgram )
 import           Lexing
 import           Parsing
 import           PrettyPrinting.Rendering
@@ -20,7 +20,7 @@ import           Data.String              as String
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = parensTest
+initialModel = declNodeTest
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld

@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Internal.Meta ( Meta(..), defaultMeta ) where
+module Internal.Meta where
 
 import           Optics
 
