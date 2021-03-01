@@ -39,8 +39,9 @@ updateModel NoOp = noEff
 parseHole :: FilePath -> HoleContents -> Either String Program
 parseHole filePath s
     = do
-        lexerTokens <- runParser'' (whitespace *> holeContents <* eof) s
-        runParser'' (program <* eof) lexerTokens
+        lexerTokens <- first ("Lexer error:\n" ++)
+            $ runParser'' (whitespace *> holeContents <* eof) s
+        first ("Parser error:\n" ++) $ runParser'' (program <* eof) lexerTokens
   where
     runParser'' parser stream
         = first (String.unlines . map parseErrorPretty . toList . bundleErrors)

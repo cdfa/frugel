@@ -73,7 +73,7 @@ whereClauseTest
 declNodeTest :: HoleContents
 declNodeTest
     = toHoleContents
-        [ Left "x where "
+        [ Left "x wher "
         , Right
               [ DeclNode
                 $ Decl { name = "y", value = identifier "z", whereClause = [] }
