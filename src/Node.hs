@@ -35,6 +35,9 @@ abstraction = Abstraction defaultMeta
 application :: Expr -> Expr -> Expr
 application = Application defaultMeta
 
+sum :: Expr -> Expr -> Expr
+sum = Sum defaultMeta
+
 hole :: HoleContents -> Expr
 hole = Hole defaultMeta
 
@@ -72,9 +75,12 @@ whereClauseTest
 declNodeTest :: HoleContents
 declNodeTest
     = toHoleContents
-        [ Left "x wher "
+        [ Left "x where "
         , Right
               [ DeclNode
                 $ Decl { name = "y", value = identifier "z", whereClause = [] }
               ]
         ]
+
+sumTest :: HoleContents
+sumTest = toHoleContents [ Right [ ExprNode $ identifier "x" ], Left "+ y x" ]

@@ -23,6 +23,7 @@ data LexerToken
     | LambdaToken
     | EqualsToken
     | WhereToken
+    | PlusToken
     | Parenthesis Parenthesis
     | NodeToken Node
     deriving ( Eq, Ord, Show )
@@ -44,6 +45,7 @@ prettyLexerToken (IdentifierToken name) = pretty name
 prettyLexerToken LambdaToken = "\\"
 prettyLexerToken EqualsToken = "="
 prettyLexerToken WhereToken = "where"
+prettyLexerToken PlusToken = "+"
 prettyLexerToken (Parenthesis p) = pretty p
 prettyLexerToken (NodeToken node) = annotate OutOfHole $ prettyNode node
 
@@ -76,6 +78,7 @@ holeContents
            [ LambdaToken <$ char '\\'
            , EqualsToken <$ char '='
            , WhereToken <$ string "where"
+           , PlusToken <$ char '+'
            , Parenthesis <$> parenthesis
            , NodeToken <$> anyNode
            , IdentifierToken . toText <$> some alphaNumChar

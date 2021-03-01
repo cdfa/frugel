@@ -1,6 +1,7 @@
 module Parsing where
 
 import           Node
+import           Internal.Meta                  ( defaultMeta )
 import           Internal.Program               ( Program(Program) )
 import           Lexing
 import           ParsingUtils                   hiding ( Left, Right )
@@ -32,7 +33,12 @@ term
         ]
 
 expr :: Parser Expr
-expr = makeExprParser term [ [ InfixL $ pure application ] ]
+expr
+    = makeExprParser
+        term
+        [ [ InfixL $ pure application ]
+        , [ InfixL (Sum defaultMeta <$ pToken PlusToken) ]
+        ]
 
 decl :: Parser Decl
 decl = literalDecl <|> holeDecl

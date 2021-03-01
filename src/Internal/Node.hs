@@ -27,6 +27,7 @@ data Expr
     = Identifier Meta Text
     | Abstraction Meta Text Expr
     | Application Meta Expr Expr
+    | Sum Meta Expr Expr
     | Hole Meta HoleContents
     deriving ( Eq, Ord, Show )
 
@@ -67,17 +68,21 @@ exprMeta = lens getMeta setMeta
     getMeta (Identifier meta _) = meta
     getMeta (Abstraction meta _ _) = meta
     getMeta (Application meta _ _) = meta
+    getMeta (Sum meta _ _) = meta
     getMeta (Hole meta _) = meta
     setMeta (Identifier _ text) meta = Identifier meta text
     setMeta (Abstraction _ argument body) meta = Abstraction meta argument body
     setMeta (Application _ function argument) meta
         = Application meta function argument
+    setMeta (Sum _ left right) meta = Application meta left right
     setMeta (Hole _ contents) meta = Hole meta contents
 
--- >>> testPrettyW 3 $ prettyExpr (Abstraction "x" ( Identifier "x" ))
--- >>> testPrettyW 8 $ prettyExpr (Application (Application (Identifier "test") $ Identifier "test") $ Identifier "test")
+-- >>> import           Internal.Meta    ( defaultMeta )
+-- >>> testPrettyW 3 . prettyExpr . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
+-- >>> testPrettyW 8 $ prettyExpr (Application defaultMeta (Application defaultMeta (Identifier defaultMeta "test") $ Identifier defaultMeta "test") $ Identifier defaultMeta "test")
 -- \x
 --     = x
+--     + x
 -- test
 --     test
 --     test
@@ -90,6 +95,8 @@ prettyExpr (Abstraction _ arg expr)
     = (backslash <> pretty arg) `nestingLine` equals <+> prettyExpr expr
 prettyExpr (Application _ function arg)
     = prettyExpr function `nestingLine` prettyExpr arg
+prettyExpr (Sum _ left right)
+    = prettyExpr left `nestingLine` "+" <+> prettyExpr right
 prettyExpr (Hole _ contents) = prettyHoleContents contents
 
 -- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render

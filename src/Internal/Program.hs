@@ -18,6 +18,7 @@ import           Prettyprinter
 data Program
     = Program { expr :: Node.Expr, whereClause :: WhereClause }
     | Hole HoleContents
+    deriving ( Show, Eq )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program
 
