@@ -28,7 +28,7 @@ data Expr
     | Abstraction Meta Text Expr
     | Application Meta Expr Expr
     | Sum Meta Expr Expr
-    | Hole Meta HoleContents
+    | ExprHole Meta HoleContents
     deriving ( Eq, Ord, Show )
 
 newtype HoleContents = HoleContents (Seq (Either Char Node))
@@ -37,7 +37,10 @@ newtype HoleContents = HoleContents (Seq (Either Char Node))
 data Node = ExprNode Expr | DeclNode Decl
     deriving ( Eq, Ord, Show )
 
-data Decl = Decl { name :: Text, value :: Expr, whereClause :: WhereClause }
+data Decl
+    = Decl { name :: Text, value :: Expr }
+      -- , whereClause :: WhereClause
+    | DeclHole HoleContents
     deriving ( Eq, Ord, Show )
 
 newtype WhereClause = WhereClause [Decl]
@@ -69,13 +72,13 @@ exprMeta = lens getMeta setMeta
     getMeta (Abstraction meta _ _) = meta
     getMeta (Application meta _ _) = meta
     getMeta (Sum meta _ _) = meta
-    getMeta (Hole meta _) = meta
+    getMeta (ExprHole meta _) = meta
     setMeta (Identifier _ text) meta = Identifier meta text
     setMeta (Abstraction _ argument body) meta = Abstraction meta argument body
     setMeta (Application _ function argument) meta
         = Application meta function argument
     setMeta (Sum _ left right) meta = Application meta left right
-    setMeta (Hole _ contents) meta = Hole meta contents
+    setMeta (ExprHole _ contents) meta = ExprHole meta contents
 
 -- >>> import           Internal.Meta    ( defaultMeta )
 -- >>> testPrettyW 3 . prettyExpr . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
@@ -97,7 +100,7 @@ prettyExpr (Application _ function arg)
     = prettyExpr function `nestingLine` prettyExpr arg
 prettyExpr (Sum _ left right)
     = prettyExpr left `nestingLine` "+" <+> prettyExpr right
-prettyExpr (Hole _ contents) = prettyHoleContents contents
+prettyExpr (ExprHole _ contents) = prettyHoleContents contents
 
 -- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render
 prettyHoleContents :: HoleContents -> Doc HoleAnnotation
@@ -115,10 +118,10 @@ prettyNode (ExprNode expr) = prettyExpr expr
 prettyNode (DeclNode decl) = prettyDecl decl
 
 prettyDecl :: Decl -> Doc HoleAnnotation
-prettyDecl Decl{..}
-    = (pretty name `nestingLine` equals <+> prettyExpr value)
-    <> prettyWhereClause whereClause
+prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value
+prettyDecl (DeclHole contents) = prettyHoleContents contents
 
+    -- <> prettyWhereClause whereClause
 prettyWhereClause :: WhereClause -> Doc HoleAnnotation
 prettyWhereClause (WhereClause decls)
     = if null decls

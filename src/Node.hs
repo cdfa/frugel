@@ -39,7 +39,7 @@ sum :: Expr -> Expr -> Expr
 sum = Sum defaultMeta
 
 hole :: HoleContents -> Expr
-hole = Hole defaultMeta
+hole = ExprHole defaultMeta
 
 toHoleContents :: HoleContents' -> HoleContents
 toHoleContents = fromList . concatMap (either (map Left) (map Right))
@@ -77,8 +77,7 @@ declNodeTest
     = toHoleContents
         [ Left "x where "
         , Right
-              [ DeclNode
-                $ Decl { name = "y", value = identifier "z", whereClause = [] }
+              [ DeclNode $ Decl { name = "y", value = identifier "z" } -- , whereClause = []
               ]
         ]
 

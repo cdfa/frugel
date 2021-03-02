@@ -9,7 +9,7 @@
 
 module Internal.Program where
 
-import           Node           hiding ( Expr(Hole) )
+import           Node           hiding ( Expr(ExprHole) )
 import qualified Node
 import           PrettyPrinting
 import           Optics

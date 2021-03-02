@@ -43,10 +43,8 @@ expr
 decl :: Parser Decl
 decl = literalDecl <|> holeDecl
   where
-    literalDecl
-        = Decl <$> Parsing.identifier <* pToken EqualsToken
-        <*> expr
-        <*> whereClause
+    literalDecl = Decl <$> Parsing.identifier <* pToken EqualsToken <*> expr
+        -- <*> whereClause
     holeDecl
         = token (preview (_NodeToken % _DeclNode)) Set.empty
         <?> "a declaration"
