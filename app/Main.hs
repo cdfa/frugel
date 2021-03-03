@@ -39,13 +39,22 @@ main = runApp $ startApp App { .. }
 
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
-viewModel
-    = div_ []
-    . flap -- apply the function in the list to the model
-        [ webPrint . pShowNoColor
-        , webPrint . renderSmart @Text . prettyHoleContents
-        , either webPrint (webPrint . renderSmart @Text . prettyProgram)
-          . parseHole "notepad"
+viewModel model
+    = div_
+        []
+        [ link_
+              [ rel_ "stylesheet"
+              , href_
+                    "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
+              ]
+        , div_ [ class_ "columns" ] . map (div_ [ class_ "column" ] . one)
+          $ flap -- apply the function in the list to the model
+              [ webPrint . pShowNoColor
+              , webPrint . renderSmart @Text . prettyHoleContents
+              , either webPrint (webPrint . renderSmart @Text . prettyProgram)
+                . parseHole "notepad"
+              ]
+              model
         ]
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action
