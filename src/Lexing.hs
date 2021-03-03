@@ -10,7 +10,6 @@ import           Node
 import           ParsingUtils    hiding ( Left, Right )
 import qualified ParsingUtils    ( Parenthesis(..) )
 import           Text.Megaparsec
-import qualified Data.Set        as Set
 import           Data.Char
 import           Prettyprinter
 import           PrettyPrinting
@@ -57,15 +56,16 @@ string s = s <$ chunk (fromList $ map Left s)
 
 alphaNumChar :: Lexer Char
 alphaNumChar
-    = token (leftToMaybe >=> guarded isAlphaNum) Set.empty
-    <?> "an alphanumeric character"
+    = namedToken
+        "an alphanumeric character"
+        (leftToMaybe >=> guarded isAlphaNum)
 
 parenthesis :: Lexer Parenthesis
 parenthesis
     = (ParsingUtils.Left <$ char '(') <|> (ParsingUtils.Right <$ char ')')
 
 anyNode :: Lexer Node
-anyNode = token rightToMaybe Set.empty <?> "a node"
+anyNode = namedToken "a node" rightToMaybe
 
 whitespace :: Lexer ()
 whitespace

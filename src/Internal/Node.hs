@@ -34,7 +34,7 @@ data Expr
 newtype HoleContents = HoleContents (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, One, Stream, IsList )
 
-data Node = ExprNode Expr | DeclNode Decl
+data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
 
 data Decl
@@ -116,6 +116,7 @@ prettyHoleContents (HoleContents contents)
 prettyNode :: Node -> Doc HoleAnnotation
 prettyNode (ExprNode expr) = prettyExpr expr
 prettyNode (DeclNode decl) = prettyDecl decl
+prettyNode (WhereNode w) = prettyWhereClause w
 
 prettyDecl :: Decl -> Doc HoleAnnotation
 prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value

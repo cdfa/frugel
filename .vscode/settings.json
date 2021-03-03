@@ -23,6 +23,7 @@
         "parens",
         "pkgs",
         "prettyprinter",
+        "rparen",
         "rtsopts",
         "unlines",
         "vcat"

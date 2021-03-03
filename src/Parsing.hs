@@ -8,27 +8,28 @@ import           ParsingUtils                   hiding ( Left, Right )
 import qualified ParsingUtils                   ( Parenthesis(..) )
 import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
-import qualified Data.Set                       as Set
 import           Optics
 
 type Parser = Parsec Void LexerTokenStream
 
 identifier :: Parser Text
-identifier = token (preview _IdentifierToken) Set.empty <?> "an identifier"
+identifier = namedToken "an identifier" $ preview _IdentifierToken
+
+node :: String -> Prism' Node w -> Parser w
+node name nodePrism = namedToken name $ preview (_NodeToken % nodePrism)
 
 term :: Parser Expr
 term
     = choice
-        [ abstraction <$ pToken LambdaToken <*> Parsing.identifier
-          <* pToken EqualsToken
+        [ abstraction <$ literalToken LambdaToken <*> Parsing.identifier
+          <* literalToken EqualsToken
           <*> expr
         , set (exprMeta % #parenthesized) False
-          <$ pToken (Parenthesis ParsingUtils.Left)
+          <$ literalToken (Parenthesis ParsingUtils.Left)
           <*> expr
-          <* pToken (Parenthesis ParsingUtils.Right)
+          <* literalToken (Parenthesis ParsingUtils.Right)
           -- Non recursive production rules at the bottom
-        , token (preview (_NodeToken % _ExprNode)) Set.empty
-          <?> "an expression"
+        , node "an expression" _ExprNode
         , Node.identifier <$> Parsing.identifier
         ]
 
@@ -37,21 +38,24 @@ expr
     = makeExprParser
         term
         [ [ InfixL $ pure application ]
-        , [ InfixL (Sum defaultMeta <$ pToken PlusToken) ]
+        , [ InfixL (Sum defaultMeta <$ literalToken PlusToken) ]
         ]
 
 decl :: Parser Decl
 decl = literalDecl <|> holeDecl
   where
-    literalDecl = Decl <$> Parsing.identifier <* pToken EqualsToken <*> expr
+    literalDecl
+        = Decl <$> Parsing.identifier <* literalToken EqualsToken <*> expr
         -- <*> whereClause
-    holeDecl
-        = token (preview (_NodeToken % _DeclNode)) Set.empty
-        <?> "a declaration"
+    holeDecl = node "a declaration" _DeclNode
 
 whereClause :: Parser WhereClause
-whereClause
-    = WhereClause . concat <$> optional (try (pToken WhereToken *> some decl))
+whereClause = literalDecl <|> holeDecl
+  where
+    literalDecl
+        = WhereClause . concat
+        <$> optional (try (literalToken WhereToken *> some decl))
+    holeDecl = node "a declaration" _WhereNode
 
 program :: Parser Program
 program = Program <$> expr <*> whereClause
