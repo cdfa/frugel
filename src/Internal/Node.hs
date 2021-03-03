@@ -43,8 +43,8 @@ data Decl
     | DeclHole HoleContents
     deriving ( Eq, Ord, Show )
 
-newtype WhereClause = WhereClause [Decl]
-    deriving ( Eq, Ord, Show, IsList )
+data WhereClause = WhereClause [Decl] | WhereHole HoleContents
+    deriving ( Eq, Ord, Show )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
@@ -124,6 +124,7 @@ prettyDecl (DeclHole contents) = prettyHoleContents contents
 
     -- <> prettyWhereClause whereClause
 prettyWhereClause :: WhereClause -> Doc HoleAnnotation
+prettyWhereClause (WhereHole contents) = prettyHoleContents contents
 prettyWhereClause (WhereClause decls)
     = if null decls
         then mempty
