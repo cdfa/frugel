@@ -17,6 +17,7 @@ self: super: {
                     optics-core = "0.3.0.1";
                     optics-extra = "0.3";
                     optics-th = "0.3.0.2";
+                    optics-vl = "0.2.1";
                     indexed-profunctors = "0.1";
                     th-abstraction = "0.3.1.0";
                     th-lift = "0.8.0.1";

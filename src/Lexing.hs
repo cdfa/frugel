@@ -7,12 +7,12 @@
 module Lexing where
 
 import           Node
-import           ParsingUtils    hiding ( Left, Right )
-import qualified ParsingUtils    ( Parenthesis(..) )
+import           ParsingUtils        hiding ( Left, Right )
+import qualified ParsingUtils        ( Parenthesis(..) )
 import           Text.Megaparsec
 import           Data.Char
 import           Prettyprinter
-import           PrettyPrinting
+import           PrettyPrinting.Text hiding ( node )
 import           Optics
 
 type Lexer = Parsec Void HoleContents
@@ -46,7 +46,7 @@ prettyLexerToken EqualsToken = "="
 prettyLexerToken WhereToken = "where"
 prettyLexerToken PlusToken = "+"
 prettyLexerToken (Parenthesis p) = pretty p
-prettyLexerToken (NodeToken node) = annotate OutOfHole $ prettyNode node
+prettyLexerToken (NodeToken node) = outOfHole $ prettyNode node
 
 char :: Char -> Lexer Char
 char c = token (leftToMaybe >=> guarded (== c)) (one . Tokens . one . Left $ c)

@@ -21,6 +21,7 @@ description: A frugal projectional editor for Live Programming
 dependencies:
   - base-noprelude >= 4.7 && < 5
   - relude >= 0.7.0.0
+  - optics >= 0.3
 
 ghc-options:
   - -Wall
@@ -47,7 +48,6 @@ library:
     - text
     - prettyprinter >= 1.7.0
     - composition
-    - optics >= 0.3
 
 executables:
   frugel-exe:
@@ -62,6 +62,8 @@ executables:
       - miso
       - pretty-simple
       - prettyprinter >= 1.7.0
+      - lens
+      - optics-vl
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp

@@ -15,13 +15,13 @@ module Internal.Node where
 
 import           Optics
 import           Text.Megaparsec
-import qualified Data.Text        as Text
+import qualified Data.Text           as Text
 import           GHC.Exts
 import           Prettyprinter
 import           Data.Composition
 
-import           Internal.Meta    ( Meta )
-import           PrettyPrinting
+import           Internal.Meta       ( Meta )
+import           PrettyPrinting.Text
 
 data Expr
     = Identifier Meta Text
@@ -107,9 +107,8 @@ prettyHoleContents :: HoleContents -> Doc HoleAnnotation
 prettyHoleContents (HoleContents contents)
     = if null $ toList contents
         then "..."
-        else annotate InHole
-            . foldMap
-                (either pretty (foldMap (annotate OutOfHole . prettyNode)))
+        else inHole
+            . foldMap (either pretty (foldMap (outOfHole . prettyNode)))
             . groupByEither
             $ toList contents
 

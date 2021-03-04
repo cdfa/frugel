@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 {-# OPTIONS_GHC -Wno-unused-imports #-} -- because exporting unused qualified imports
 
 module Prelude
@@ -11,8 +13,10 @@ import           Relude
 import qualified Relude
                  ( Sum, abs, group, init, some, toList )
 import           Relude.Extra.Newtype
-import           Prettyprinter
+import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
+import           Optics
+import           Data.List                 ( dropWhileEnd, stripPrefix )
 
 testPrettyW :: Int -> Doc ann -> IO String
 testPrettyW w doc
@@ -39,3 +43,30 @@ groupByEither = listCase [] (go . init)
     go acc (ab : abs) = adjust acc : go (init ab) abs
     adjust = bimap reverse reverse
     init = bimap pure pure
+
+concatByPrism :: (Is k An_AffineFold, Is k A_Review, Monoid a)
+    => Optic' k is s a
+    -> [s]
+    -> [s]
+concatByPrism p = concatBy (preview p) (review p)
+
+-- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
+-- [Left "hi",Right 1]
+concatBy :: Monoid b => (a -> Maybe b) -> (b -> a) -> [a] -> [a]
+concatBy _ _ [] = []
+concatBy toMonoid toElement xs
+    = case spanMaybe toMonoid xs of
+        ([], y : ys) -> y : concatBy' ys
+        (zs, ys) -> toElement (mconcat zs) : concatBy' ys
+  where
+    concatBy' = concatBy toMonoid toElement
+
+-- From https://hackage.haskell.org/package/Cabal-3.4.0.0/docs/src/Distribution.Utils.Generic.html#spanMaybe
+-- >>> spanMaybe leftToMaybe [Left "h", Left "i", Right 1]
+-- (["h","i"],[Right 1])
+spanMaybe :: (t -> Maybe a) -> [t] -> ([a], [t])
+spanMaybe _ xs@[] = ([], xs)
+spanMaybe p xs@(x : xs')
+    = case p x of
+        Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
+        Nothing -> ([], xs)

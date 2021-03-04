@@ -1,21 +1,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Frugel
-    ( module Frugel
-    , module PrettyPrinting.Rendering
-    , prettyProgram
-    , prettyHoleContents
-    ) where
+module Frugel ( module Frugel, prettyProgram, prettyHoleContents ) where
 
-import           Relude                   ( toList )
-import           Miso                     hiding ( node )
+import           Relude           ( toList )
+import           Miso             hiding ( node )
 import           Text.Megaparsec
 import           Node
-import           Internal.Program         ( Program, prettyProgram )
+import           Internal.Program ( Program, prettyProgram )
 import           Lexing
 import           Parsing
-import           PrettyPrinting.Rendering
-import           Data.String              as String
+import           Data.String      as String
 
 -- Type synonym for an application model
 type Model = HoleContents
