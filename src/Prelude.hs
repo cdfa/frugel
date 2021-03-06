@@ -70,3 +70,17 @@ spanMaybe p xs@(x : xs')
     = case p x of
         Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
         Nothing -> ([], xs)
+
+-- Modified from https://hackage.haskell.org/package/hledger-lib-1.20.4/docs/src/Hledger.Utils.html#splitAtElement
+-- >>> splitOn ' ' " switch   the accumulator to the other mode   "
+-- ["","switch","","","the","accumulator","to","the","other","mode","","",""]
+splitOn :: Eq a => a -> [a] -> [[a]]
+splitOn x l = prefix : rest'
+  where
+    (prefix, rest) = break (x ==) l
+    rest'
+        = case rest of
+            [] -> []
+            e : es
+                | e == x -> splitOn x es
+            es -> splitOn x es
