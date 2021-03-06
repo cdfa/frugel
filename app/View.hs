@@ -7,11 +7,15 @@
 module View where
 
 import           Miso                                    hiding ( node )
+import           Miso.String                             ( MisoString )
 import qualified Miso.String
 import           Prettyprinter
 import           Prettyprinter.Render.Util.SimpleDocTree
 import           Frugel
 import           PrettyPrinting
+                 hiding ( inHole, node, outOfHole )
+import qualified PrettyPrinting
+                 ( inHole, node, outOfHole )
 import           Optics                                  hiding ( views )
 import           Data.Data.Lens
 import           Data.Data
@@ -51,12 +55,12 @@ textLeavesConcat
 
 renderTrees :: [DocTextTree] -> View Action
 renderTrees [tree] = renderTree tree
-renderTrees trees = span_ [] $ map renderTree trees
+renderTrees trees = span [] $ map renderTree trees
 
 renderTree :: DocTextTree -> View Action
 renderTree
     = \case
-        TextLeaf t -> span_ [] [ text $ Miso.String.ms t ]
+        TextLeaf t -> text $ Miso.String.ms t
         Line -> br_ []
         Annotated annotation subTrees ->
             encloseInTagFor annotation $ map renderTree subTrees
@@ -64,9 +68,9 @@ renderTree
 encloseInTagFor :: HoleAnnotation -> [View Action] -> View Action
 encloseInTagFor ann views
     = case ann of
-        InHole -> span_ [ class_ "has-background-warning" ] views
-        OutOfHole -> span_ [ class_ "has-background-white" ] views
-        Node -> span_ [] views
+        InHole -> inHole [] views
+        OutOfHole -> outOfHole [] views
+        Node -> node [] views
 
 codeStyle :: Attribute action
 codeStyle
@@ -76,14 +80,52 @@ codeStyle
         , ("font-family", "\"Courier New\", monospace")
         ]
 
+spanStyle :: Attribute action
+spanStyle = style_ $ fromList [ ("display", "inline-block") ]
+
+span :: [Attribute action] -> [View action] -> View action
+span = span_ . (spanStyle :)
+
+inHoleStyles :: [Attribute action]
+inHoleStyles
+    = [ spanStyle
+      , style_ $ fromList [ ("background-color", "hsl(48, 100%, 85%)") ]
+      ]
+
+inHole :: [Attribute action] -> [View action] -> View action
+inHole = span_ . (++ inHoleStyles)
+
+outOfHole :: [Attribute action] -> [View action] -> View action
+outOfHole attrs = span_ (spanStyle : class_ "has-background-white" : attrs)
+
+nodeStyle :: Attribute action
+nodeStyle = style_ $ fromList [ ("margin-top", "2px") ]
+
+node :: [Attribute action] -> [View action] -> View action
+node attrs
+    = span
+        (class_ "node" : style_ (fromList [ ("margin-top", "2px") ]) : attrs)
+
 test :: Doc HoleAnnotation
 test
     = let
         prettyType
-            = align . sep . zipWith (<+>) ("::" : repeat "->") . map node
-        prettySig name ty = node (node (pretty name) <+> prettyType ty)
+            = align
+            . sep
+            . zipWith (<+>) ("::" : repeat "->")
+            . map PrettyPrinting.node
+        prettySig name ty
+            = PrettyPrinting.node
+                (PrettyPrinting.node (pretty name) <+> prettyType ty)
         in
-            inHole
+            PrettyPrinting.inHole
             $ prettySig
                 ("ex   ample" :: Text)
-                [ outOfHole "Int", "Bool", "Char", "IO ()" ]
+                [ PrettyPrinting.outOfHole "Int", "Bool", "Char", "IO ()" ]
+
+test2 :: Doc HoleAnnotation
+test2
+    = "outS0"
+    <> PrettyPrinting.inHole
+        ("inS1" <> PrettyPrinting.outOfHole (line <> "x" <> line) <> "inE1")
+    <> "outE0"
