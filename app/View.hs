@@ -37,7 +37,7 @@ textTreeForm
         STEmpty -> one $ TextLeaf ""
         STChar c -> one . TextLeaf $ one c
         STText _ t -> one $ TextLeaf t
-        STLine w -> [ Line, TextLeaf . toText $ replicate w ' ' ]
+        STLine w -> Line : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
         STAnn ann content -> one . Annotated ann $ textTreeForm content
         STConcat contents -> concatMap textTreeForm contents
 
