@@ -62,8 +62,6 @@ executables:
       - miso
       - pretty-simple
       - prettyprinter >= 1.7.0
-      - lens
-      - optics-vl
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp

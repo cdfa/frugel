@@ -1,12 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
 module PrettyPrinting where
 
 import           Prettyprinter
-import           Data.Data
 
 data HoleAnnotation = InHole | OutOfHole | Node
-    deriving ( Show, Eq, Data )
+    deriving ( Show, Eq )
 
 inHole, outOfHole, node :: Doc HoleAnnotation -> Doc HoleAnnotation
 inHole = annotate InHole

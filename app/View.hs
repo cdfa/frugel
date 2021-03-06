@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -17,17 +16,12 @@ import           PrettyPrinting
 import qualified PrettyPrinting
                  ( inHole, node, outOfHole )
 import           Optics                                  hiding ( views )
-import           Data.Data.Lens
-import           Data.Data
 
 data DocTextTree
     = TextLeaf Text | Line | Annotated HoleAnnotation [DocTextTree]
-    deriving ( Show, Eq, Data, Typeable )
+    deriving ( Show, Eq )
 
 makePrisms ''DocTextTree
-
-subTreesTraversal :: Traversal' DocTextTree [DocTextTree]
-subTreesTraversal = traversalVL $ template @DocTextTree @[DocTextTree]
 
 renderSmart :: Doc HoleAnnotation -> View Action
 renderSmart
@@ -50,7 +44,7 @@ textTreeForm
 textLeavesConcat :: [DocTextTree] -> [DocTextTree]
 textLeavesConcat
     = over
-        (mapped % subTreesTraversal)
+        (mapped % _Annotated % _2)
         (textLeavesConcat . concatByPrism _TextLeaf)
 
 renderTrees :: [DocTextTree] -> View Action
