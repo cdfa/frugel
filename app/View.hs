@@ -1,10 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
-
-{-# LANGUAGE TypeApplications #-}
-
 module View where
 
 import           Prelude                                 hiding ( lines )
@@ -13,33 +8,12 @@ import qualified Miso.String
 import           Prettyprinter
 import           Prettyprinter.Render.Util.SimpleDocTree
 import           Frugel
+
 import           PrettyPrinting
                  hiding ( inHole, node, outOfHole )
-import qualified PrettyPrinting
-                 ( inHole, node, outOfHole )
+import           View.Elements
+import           View.ViewModel                          as ViewModel
 import           Optics                                  hiding ( views )
-
-data HorizontalOpenness
-    = HorizontalOpenness { openLeft :: Bool, openRight :: Bool }
-    deriving ( Show, Eq )
-
-data RenderAnnotation = Node | HoleAnnotation Depth HorizontalOpenness
-    deriving ( Show, Eq )
-
-data DocTextTree ann = TextLeaf Text | Line | Annotated ann [DocTextTree ann]
-    deriving ( Show, Eq )
-
-makePrisms ''DocTextTree
-
-singleLineOpenness, firstLineOpenness, middleLinesOpenness, lastLineOpenness
-    :: HorizontalOpenness
-singleLineOpenness = HorizontalOpenness { openLeft = False, openRight = False }
-
-firstLineOpenness = HorizontalOpenness { openLeft = False, openRight = True }
-
-middleLinesOpenness = HorizontalOpenness { openLeft = True, openRight = True }
-
-lastLineOpenness = HorizontalOpenness { openLeft = True, openRight = False }
 
 renderSmart :: Doc Annotation -> View Action
 renderSmart
@@ -81,7 +55,7 @@ splitMultiLineAnnotations
   where
     reannotateTrees ann treeLines
         = case ann of
-            PrettyPrinting.Node -> map (Annotated View.Node) treeLines
+            PrettyPrinting.Node -> map (Annotated ViewModel.Node) treeLines
             PrettyPrinting.HoleAnnotation
                 depth -> reAnnotateHole depth treeLines
     reAnnotateHole depth treeLines
@@ -95,7 +69,7 @@ splitMultiLineAnnotations
                 reannotatedLastLine = reannotate lastLineOpenness lastLine
             _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
       where
-        reannotate = Annotated . View.HoleAnnotation depth
+        reannotate = Annotated . ViewModel.HoleAnnotation depth
 
 isEmptyAnnotation :: DocTextTree ann -> Bool
 isEmptyAnnotation tree
@@ -116,77 +90,6 @@ renderTree
 encloseInTagFor :: RenderAnnotation -> [View Action] -> View Action
 encloseInTagFor ann views
     = case ann of
-        View.HoleAnnotation InHole v -> inHole v [] views
-        View.HoleAnnotation OutOfHole v -> outOfHole v [] views
-        View.Node -> node [] views
-
-codeStyle :: Attribute action
-codeStyle
-    = style_
-    $ fromList
-        [ ("white-space", "pre")
-        , ("font-family", "\"Courier New\", monospace")
-        ]
-
-spanStyle :: Attribute action
-spanStyle = style_ $ fromList [ ("display", "inline-block") ]
-
-span :: [Attribute action] -> [View action] -> View action
-span = span_ . (spanStyle :)
-
-paddingStyle :: HorizontalOpenness -> Attribute action
-paddingStyle HorizontalOpenness{..}
-    = style_
-    $ fromList
-        [ ( "padding"
-          , Miso.String.ms
-            $ unwords [ "4px", padding openRight, "4px", padding openLeft ]
-          )
-        ]
-  where
-    padding present = if present then "0px" else "4px"
-
-inHoleStyles :: HorizontalOpenness -> [Attribute action]
-inHoleStyles v
-    = [ style_ $ fromList [ ("background-color", "hsl(48, 100%, 85%)") ]
-      , paddingStyle v
-      ]
-
-inHole
-    :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-inHole v = span . (++ inHoleStyles v)
-
-outOfHoleStyles :: HorizontalOpenness -> [Attribute action]
-outOfHoleStyles v = [ class_ "has-background-white", paddingStyle v ]
-
-outOfHole
-    :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-outOfHole v = span . (++ outOfHoleStyles v)
-
-node :: [Attribute action] -> [View action] -> View action
-node = span . (class_ "node" :)
-
-test :: Doc Annotation
-test
-    = let
-        prettyType
-            = align
-            . sep
-            . zipWith (<+>) ("::" : repeat "->")
-            . map PrettyPrinting.node
-        prettySig name ty
-            = PrettyPrinting.node
-                (PrettyPrinting.node (pretty name) <+> prettyType ty)
-        in
-            PrettyPrinting.inHole
-            $ prettySig
-                ("ex   ample" :: Text)
-                [ PrettyPrinting.outOfHole "Int", "Bool", "Char", "IO ()" ]
-
-test2 :: Doc Annotation
-test2
-    = PrettyPrinting.inHole
-        ("outS0"
-         <> PrettyPrinting.outOfHole
-             ("inS1" <> PrettyPrinting.inHole (line <> "x" <> line) <> "inE1")
-         <> "outE0")
+        ViewModel.HoleAnnotation InHole v -> inHole v [] views
+        ViewModel.HoleAnnotation OutOfHole v -> outOfHole v [] views
+        ViewModel.Node -> node [] views

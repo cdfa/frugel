@@ -14,6 +14,7 @@ import qualified Miso.String
 import           Frugel
 import           Text.Pretty.Simple               ( pShowNoColor )
 import           View
+import           View.Elements
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -60,3 +61,26 @@ viewModel model
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
+-- test :: Doc Annotation
+-- test
+--     = let
+--         prettyType
+--             = align
+--             . sep
+--             . zipWith (<+>) ("::" : repeat "->")
+--             . map PrettyPrinting.node
+--         prettySig name ty
+--             = PrettyPrinting.node
+--                 (PrettyPrinting.node (pretty name) <+> prettyType ty)
+--         in
+--             PrettyPrinting.inHole
+--             $ prettySig
+--                 ("ex   ample" :: Text)
+--                 [ PrettyPrinting.outOfHole "Int", "Bool", "Char", "IO ()" ]
+-- test2 :: Doc Annotation
+-- test2
+--     = PrettyPrinting.inHole
+--         ("outS0"
+--          <> PrettyPrinting.outOfHole
+--              ("inS1" <> PrettyPrinting.inHole (line <> "x" <> line) <> "inE1")
+--          <> "outE0")
