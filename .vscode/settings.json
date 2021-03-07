@@ -8,6 +8,8 @@
         "gmail",
         "monospace",
         "projectional",
+        "reannotate",
+        "reannotated",
         "relude",
         "stylesheet",
         "uncurry",
@@ -31,6 +33,7 @@
         "rparen",
         "rtsopts",
         "unlines",
+        "unwords",
         "vcat"
     ],
     "cSpell.enableFiletypes": [

@@ -39,7 +39,7 @@ instance VisualStream LexerTokenStream where
         . renderSmart
         . foldMap prettyLexerToken
 
-prettyLexerToken :: LexerToken -> Doc HoleAnnotation
+prettyLexerToken :: LexerToken -> Doc Annotation
 prettyLexerToken (IdentifierToken name) = pretty name
 prettyLexerToken LambdaToken = "\\"
 prettyLexerToken EqualsToken = "="

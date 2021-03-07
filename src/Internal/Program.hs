@@ -22,6 +22,6 @@ data Program
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program
 
-prettyProgram :: Program -> Doc HoleAnnotation
+prettyProgram :: Program -> Doc Annotation
 prettyProgram Program{..} = prettyExpr expr <> prettyWhereClause whereClause
 prettyProgram (Hole contents) = prettyHoleContents contents

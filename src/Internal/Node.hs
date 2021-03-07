@@ -89,7 +89,7 @@ exprMeta = lens getMeta setMeta
 -- test
 --     test
 --     test
-prettyExpr :: Expr -> Doc HoleAnnotation
+prettyExpr :: Expr -> Doc Annotation
 prettyExpr expr
     | expr ^. exprMeta % #parenthesized
         = parens $ prettyExpr (expr & exprMeta % #parenthesized .~ False)
@@ -103,7 +103,7 @@ prettyExpr (Sum _ left right)
 prettyExpr (ExprHole _ contents) = prettyHoleContents contents
 
 -- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render
-prettyHoleContents :: HoleContents -> Doc HoleAnnotation
+prettyHoleContents :: HoleContents -> Doc Annotation
 prettyHoleContents (HoleContents contents)
     = if null $ toList contents
         then "..."
@@ -112,17 +112,17 @@ prettyHoleContents (HoleContents contents)
             . groupByEither
             $ toList contents
 
-prettyNode :: Node -> Doc HoleAnnotation
+prettyNode :: Node -> Doc Annotation
 prettyNode (ExprNode expr) = prettyExpr expr
 prettyNode (DeclNode decl) = prettyDecl decl
 prettyNode (WhereNode w) = prettyWhereClause w
 
-prettyDecl :: Decl -> Doc HoleAnnotation
+prettyDecl :: Decl -> Doc Annotation
 prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value
 prettyDecl (DeclHole contents) = prettyHoleContents contents
 
     -- <> prettyWhereClause whereClause
-prettyWhereClause :: WhereClause -> Doc HoleAnnotation
+prettyWhereClause :: WhereClause -> Doc Annotation
 prettyWhereClause (WhereHole contents) = prettyHoleContents contents
 prettyWhereClause (WhereClause decls)
     = if null decls

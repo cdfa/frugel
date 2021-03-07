@@ -6,15 +6,13 @@
 module Main where
 
 #ifndef __GHCJS__
-import           Language.Javascript.JSaddle.Warp        as JSaddle
+import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
 import           Miso
 import qualified Miso.String
 import           Frugel
-import           Text.Pretty.Simple                      ( pShowNoColor )
-import           Prettyprinter
-import           Prettyprinter.Render.Util.SimpleDocTree
+import           Text.Pretty.Simple               ( pShowNoColor )
 import           View
 
 #ifndef __GHCJS__
@@ -43,24 +41,21 @@ main = runApp $ startApp App { .. }
 viewModel :: Model -> View Action
 viewModel model
     = div_
-        [ codeStyle ]
+        [ codeStyle, class_ "has-background-white-bis" ]
         [ link_
               [ rel_ "stylesheet"
               , href_
                     "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
               ]
-          --   , renderTrees . textLeavesConcat . textTreeForm . treeForm
-          --     $ layoutSmart
-          --         (LayoutOptions { layoutPageWidth = AvailablePerLine 20 1 })
-          --         test
+          --   , renderSmart test2
         , div_ [ class_ "columns" ] . map (div_ [ class_ "column" ] . one)
           $ flap -- apply the function in the list to the model
-              [ webPrint . pShowNoColor
-              , renderSmart . prettyHoleContents
+              [ renderSmart . prettyHoleContents
               , either webPrint (renderSmart . prettyProgram)
                 . parseHole "notepad"
               ]
               model
+        , webPrint $ pShowNoColor model
         ]
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action

@@ -9,17 +9,15 @@ import           PrettyPrinting
 import           Prettyprinter
 import           Prettyprinter.Render.Util.StackMachine
 
-annotationStart, annotationEnd :: IsString p => HoleAnnotation -> p
-annotationStart InHole = "«"
-annotationStart OutOfHole = "»"
+annotationStart, annotationEnd :: IsString p => Annotation -> p
+annotationStart (HoleAnnotation depth) = prettyDepth depth
 annotationStart Node = ""
 
-annotationEnd InHole = "»"
-annotationEnd OutOfHole = "«"
+annotationEnd (HoleAnnotation depth) = prettyDepth $ flipDepth depth
 annotationEnd Node = ""
 
 class Render a where
-    rendered :: SimpleDocStream HoleAnnotation -> a
+    rendered :: SimpleDocStream Annotation -> a
 
 instance Render Text where
     rendered = renderSimplyDecorated id annotationStart annotationEnd
@@ -27,5 +25,5 @@ instance Render Text where
 instance Render [Char] where
     rendered = renderSimplyDecorated toString annotationStart annotationEnd
 
-renderSmart :: Render a => Doc HoleAnnotation -> a
+renderSmart :: Render a => Doc Annotation -> a
 renderSmart = rendered . layoutSmart defaultLayoutOptions
