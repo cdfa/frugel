@@ -15,6 +15,7 @@ import           Frugel
 import           Text.Pretty.Simple               ( pShowNoColor )
 import           View
 import           View.Elements
+import           Test
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
