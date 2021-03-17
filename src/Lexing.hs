@@ -12,7 +12,7 @@ import qualified ParsingUtils        ( Parenthesis(..) )
 import           Text.Megaparsec
 import           Data.Char
 import           Prettyprinter
-import           PrettyPrinting.Text hiding ( node )
+import           PrettyPrinting.Text
 import           Optics
 
 type Lexer = Parsec Void HoleContents

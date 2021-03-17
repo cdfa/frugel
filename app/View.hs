@@ -10,7 +10,7 @@ import           Prettyprinter.Render.Util.SimpleDocTree
 import           Frugel
 
 import           PrettyPrinting
-                 hiding ( inHole, node, outOfHole )
+                 hiding ( inHole, outOfHole )
 import           View.Elements
 import           View.ViewModel                          as ViewModel
 import           Optics                                  hiding ( views )
@@ -49,16 +49,11 @@ splitMultiLineAnnotations
         Line -> [ Line ]
         Annotated ann trees -> filter isEmptyAnnotation
             . intersperse Line
-            . reannotateTrees ann
+            . reAnnotateHole ann
             . splitOn Line
             $ splitMultiLineAnnotations trees
   where
-    reannotateTrees ann treeLines
-        = case ann of
-            PrettyPrinting.Node -> map (Annotated ViewModel.Node) treeLines
-            PrettyPrinting.HoleAnnotation
-                depth -> reAnnotateHole depth treeLines
-    reAnnotateHole depth treeLines
+    reAnnotateHole (PrettyPrinting.HoleAnnotation depth) treeLines
         = case treeLines of
             (firstLine : middleLines) :> lastLine -> reannotatedFirstLine
                 : (reannotatedMiddleLines |> reannotatedLastLine)
@@ -92,4 +87,3 @@ encloseInTagFor ann views
     = case ann of
         ViewModel.HoleAnnotation InHole v -> inHole v [] views
         ViewModel.HoleAnnotation OutOfHole v -> outOfHole v [] views
-        ViewModel.Node -> node [] views

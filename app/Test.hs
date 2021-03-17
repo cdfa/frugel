@@ -6,14 +6,8 @@ import           PrettyPrinting
 test :: Doc Annotation
 test
     = let
-        prettyType
-            = align
-            . sep
-            . zipWith (<+>) ("::" : repeat "->")
-            . map PrettyPrinting.node
-        prettySig name ty
-            = PrettyPrinting.node
-                (PrettyPrinting.node (pretty name) <+> prettyType ty)
+        prettyType = align . sep . zipWith (<+>) ("::" : repeat "->")
+        prettySig name ty = pretty name <+> prettyType ty
         in
             PrettyPrinting.inHole
             $ prettySig

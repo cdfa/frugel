@@ -5,16 +5,15 @@ import           Prettyprinter
 data Depth = InHole | OutOfHole
     deriving ( Show, Eq )
 
-data Annotation = Node | HoleAnnotation Depth
+newtype Annotation = HoleAnnotation Depth
     deriving ( Show, Eq )
 
-inHole, outOfHole, node :: Doc Annotation -> Doc Annotation
+inHole, outOfHole :: Doc Annotation -> Doc Annotation
 inHole = annotate $ HoleAnnotation InHole
 
 outOfHole = annotate $ HoleAnnotation OutOfHole
 
-node = annotate Node
-
+-- node = annotate Node
 prettyDepth :: IsString p => Depth -> p
 prettyDepth InHole = "«"
 prettyDepth OutOfHole = "»"

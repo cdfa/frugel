@@ -10,7 +10,7 @@ data HorizontalOpenness
     = HorizontalOpenness { openLeft :: Bool, openRight :: Bool }
     deriving ( Show, Eq )
 
-data RenderAnnotation = Node | HoleAnnotation Depth HorizontalOpenness
+data RenderAnnotation = HoleAnnotation Depth HorizontalOpenness
     deriving ( Show, Eq )
 
 data DocTextTree ann = TextLeaf Text | Line | Annotated ann [DocTextTree ann]

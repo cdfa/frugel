@@ -11,10 +11,8 @@ import           Prettyprinter.Render.Util.StackMachine
 
 annotationStart, annotationEnd :: IsString p => Annotation -> p
 annotationStart (HoleAnnotation depth) = prettyDepth depth
-annotationStart Node = ""
 
 annotationEnd (HoleAnnotation depth) = prettyDepth $ flipDepth depth
-annotationEnd Node = ""
 
 class Render a where
     rendered :: SimpleDocStream Annotation -> a
