@@ -13,8 +13,13 @@ data HorizontalOpenness
 data RenderAnnotation = HoleAnnotation Depth HorizontalOpenness
     deriving ( Show, Eq )
 
-data DocTextTree ann = TextLeaf Text | Line | Annotated ann [DocTextTree ann]
+data DocTextTree ann
+    = TextLeaf Text | LineLeaf | Annotated ann [DocTextTree ann]
     deriving ( Show, Eq )
+
+data AnnotationTree = Leaf Text | Node RenderAnnotation [AnnotationTree]
+
+newtype Line = Line [AnnotationTree]
 
 makePrisms ''DocTextTree
 
@@ -27,3 +32,7 @@ firstLineOpenness = HorizontalOpenness { openLeft = False, openRight = True }
 middleLinesOpenness = HorizontalOpenness { openLeft = True, openRight = True }
 
 lastLineOpenness = HorizontalOpenness { openLeft = True, openRight = False }
+
+isEmptyAnnotation :: DocTextTree ann -> Bool
+isEmptyAnnotation tree
+    = has (_Annotated % _2 % traversed) tree || isn't _Annotated tree

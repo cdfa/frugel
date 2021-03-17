@@ -18,6 +18,7 @@ import           Optics                                  hiding ( views )
 renderSmart :: Doc Annotation -> View Action
 renderSmart
     = renderTrees
+    . annotationTreeForm
     . splitMultiLineAnnotations
     . textLeavesConcat
     . textTreeForm
@@ -30,7 +31,7 @@ textTreeForm
         STEmpty -> one $ TextLeaf ""
         STChar c -> one . TextLeaf $ one c
         STText _ t -> one $ TextLeaf t
-        STLine w -> Line : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
+        STLine w -> LineLeaf : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
         STAnn ann content -> one . Annotated ann $ textTreeForm content
         STConcat contents -> concatMap textTreeForm contents
 
@@ -46,11 +47,11 @@ splitMultiLineAnnotations
     = foldMap
     $ \case
         TextLeaf t -> [ TextLeaf t ]
-        Line -> [ Line ]
+        LineLeaf -> [ LineLeaf ]
         Annotated ann trees -> filter isEmptyAnnotation
-            . intersperse Line
+            . intersperse LineLeaf
             . reAnnotateHole ann
-            . splitOn Line
+            . splitOn LineLeaf
             $ splitMultiLineAnnotations trees
   where
     reAnnotateHole (PrettyPrinting.HoleAnnotation depth) treeLines
@@ -66,20 +67,23 @@ splitMultiLineAnnotations
       where
         reannotate = Annotated . ViewModel.HoleAnnotation depth
 
-isEmptyAnnotation :: DocTextTree ann -> Bool
-isEmptyAnnotation tree
-    = has (_Annotated % _2 % traversed) tree || isn't _Annotated tree
+annotationTreeForm :: [DocTextTree RenderAnnotation] -> [Line]
+annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
+  where
+    transform
+        = \case
+            TextLeaf t -> Leaf t
+            LineLeaf -> error "unexpected LineLeaf"
+            Annotated ann trees -> Node ann $ map transform trees
 
-renderTrees :: [DocTextTree RenderAnnotation] -> View Action
-renderTrees [tree] = renderTree tree
-renderTrees trees = span [] $ map renderTree trees
+renderTrees :: [Line] -> View Action
+renderTrees = div_ [] . map (div_ [] . map renderTree . un)
 
-renderTree :: DocTextTree RenderAnnotation -> View Action
+renderTree :: AnnotationTree -> View Action
 renderTree
     = \case
-        TextLeaf t -> text $ Miso.String.ms t
-        Line -> br_ []
-        Annotated annotation subTrees ->
+        Leaf t -> text $ Miso.String.ms t
+        Node annotation subTrees ->
             encloseInTagFor annotation $ map renderTree subTrees
 
 encloseInTagFor :: RenderAnnotation -> [View Action] -> View Action
