@@ -29,6 +29,7 @@ term
           <*> expr
           <* literalToken (Parenthesis ParsingUtils.Right)
           -- Non recursive production rules at the bottom
+        , hole (HoleContents empty) <$ literalToken EmptyHoleToken
         , node "an expression" _ExprNode
         , Node.identifier <$> Parsing.identifier
         ]
