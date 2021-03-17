@@ -1,4 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -22,6 +27,7 @@ import           Data.Composition
 
 import           Internal.Meta       ( Meta )
 import           PrettyPrinting.Text
+import           Data.Has
 
 data Expr
     = Identifier Meta Text
@@ -29,10 +35,11 @@ data Expr
     | Application Meta Expr Expr
     | Sum Meta Expr Expr
     | ExprHole Meta HoleContents
-    deriving ( Eq, Ord, Show )
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 newtype HoleContents = HoleContents (Seq (Either Char Node))
-    deriving ( Eq, Ord, Show, One, Stream, IsList )
+    deriving ( Eq, Ord, Show )
+    deriving newtype ( One, Stream, IsList )
 
 data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
@@ -66,19 +73,7 @@ instance VisualStream HoleContents where
     tokensLength = length .: showTokens
 
 exprMeta :: Lens' Expr Meta
-exprMeta = lens getMeta setMeta
-  where
-    getMeta (Identifier meta _) = meta
-    getMeta (Abstraction meta _ _) = meta
-    getMeta (Application meta _ _) = meta
-    getMeta (Sum meta _ _) = meta
-    getMeta (ExprHole meta _) = meta
-    setMeta (Identifier _ text) meta = Identifier meta text
-    setMeta (Abstraction _ argument body) meta = Abstraction meta argument body
-    setMeta (Application _ function argument) meta
-        = Application meta function argument
-    setMeta (Sum _ left right) meta = Application meta left right
-    setMeta (ExprHole _ contents) meta = ExprHole meta contents
+exprMeta = hasLens
 
 -- >>> import           Internal.Meta    ( defaultMeta )
 -- >>> testPrettyW 3 . prettyExpr . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )

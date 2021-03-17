@@ -17,6 +17,7 @@ import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
 import           Optics
 import           Data.List                 ( dropWhileEnd, stripPrefix )
+import           Data.Has
 
 testPrettyW :: Int -> Doc ann -> IO String
 testPrettyW w doc
@@ -90,3 +91,6 @@ l +~ n = over l (+ n)
 
 (-~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l -~ n = over l (subtract n)
+
+hasLens :: Has a s => Lens' s a
+hasLens = lens getter (\t b -> modifier (const b) t)
