@@ -9,10 +9,10 @@ module Internal.Meta where
 
 import           Optics
 
-newtype Meta = Meta { parenthesized :: Bool }
+newtype Meta = Meta { parenthesisLevels :: Int }
     deriving ( Eq, Ord, Show )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Meta
 
 defaultMeta :: Meta
-defaultMeta = Meta { parenthesized = False }
+defaultMeta = Meta { parenthesisLevels = 0 }

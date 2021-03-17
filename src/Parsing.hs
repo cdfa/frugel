@@ -24,7 +24,7 @@ term
         [ abstraction <$ literalToken LambdaToken <*> Parsing.identifier
           <* literalToken EqualsToken
           <*> expr
-        , set (exprMeta % #parenthesized) False
+        , ((exprMeta % #parenthesisLevels) +~ 1)
           <$ literalToken (Parenthesis ParsingUtils.Left)
           <*> expr
           <* literalToken (Parenthesis ParsingUtils.Right)

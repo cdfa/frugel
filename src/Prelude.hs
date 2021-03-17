@@ -84,3 +84,9 @@ splitOn x l = prefix : rest'
             e : es
                 | e == x -> splitOn x es
             es -> splitOn x es
+
+(+~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
+l +~ n = over l (+ n)
+
+(-~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
+l -~ n = over l (subtract n)

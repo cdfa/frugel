@@ -15,7 +15,7 @@ import           Data.String      as String
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = Node.sumTest
+initialModel = Node.parensTest
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld

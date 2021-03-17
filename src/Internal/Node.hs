@@ -91,8 +91,8 @@ exprMeta = lens getMeta setMeta
 --     test
 prettyExpr :: Expr -> Doc Annotation
 prettyExpr expr
-    | expr ^. exprMeta % #parenthesized
-        = parens $ prettyExpr (expr & exprMeta % #parenthesized .~ False)
+    | (expr ^. exprMeta % #parenthesisLevels) > 0
+        = parens $ prettyExpr (expr & exprMeta % #parenthesisLevels -~ 1)
 prettyExpr (Identifier _ n) = pretty n
 prettyExpr (Abstraction _ arg expr)
     = (backslash <> pretty arg) `nestingLine` equals <+> prettyExpr expr

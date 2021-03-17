@@ -65,7 +65,7 @@ app = [ Left 'x', Right . ExprNode $ identifier "x", Left 'x' ]
 parensTest :: HoleContents
 parensTest
     = toHoleContents
-        [ Left "(\\x=(", Right [ ExprNode $ identifier "x" ], Left "))" ]
+        [ Left "(((\\x=(", Right [ ExprNode $ identifier "x" ], Left "))))" ]
 
 whereClauseTest :: HoleContents
 whereClauseTest
