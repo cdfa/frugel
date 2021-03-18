@@ -56,8 +56,8 @@ splitMultiLineAnnotations
   where
     reAnnotateHole (PrettyPrinting.HoleAnnotation depth) treeLines
         = case treeLines of
-            (firstLine : middleLines) :> lastLine -> reannotatedFirstLine
-                : (reannotatedMiddleLines |> reannotatedLastLine)
+            (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
+                <| (reannotatedMiddleLines |> reannotatedLastLine)
               where
                 reannotatedFirstLine = reannotate firstLineOpenness firstLine
                 reannotatedMiddleLines
