@@ -1,15 +1,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Frugel ( module Frugel, prettyProgram, prettyHoleContents ) where
+module Frugel
+    ( module Frugel
+    , prettyProgram
+    , prettyHoleContents
+    , parseErrorPretty
+    ) where
 
-import           Relude           ( toList )
 import           Miso             hiding ( node )
 import           Text.Megaparsec
 import           Node
 import           Internal.Program ( Program, prettyProgram )
-import           Lexing
 import           Parsing
-import           Data.String      as String
 
 -- Type synonym for an application model
 type Model = HoleContents
@@ -31,13 +33,8 @@ updateModel NoOp = noEff
 
 -- updateModel SayHelloWorld m =
 --     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
-parseHole :: FilePath -> HoleContents -> Either String Program
-parseHole filePath s
-    = do
-        lexerTokens <- first ("Lexer error:\n" ++)
-            $ runParser'' (holeContents <* eof) s
-        first ("Parser error:\n" ++) $ runParser'' (program <* eof) lexerTokens
-  where
-    runParser'' parser stream
-        = first (String.unlines . map parseErrorPretty . toList . bundleErrors)
-        $ runParser parser filePath stream
+parseHole :: FilePath
+    -> HoleContents
+    -> Either (NonEmpty (ParseError HoleContents Void)) Program
+parseHole filePath holeContents
+    = first bundleErrors $ runParser (program <* eof) filePath holeContents

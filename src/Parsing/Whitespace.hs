@@ -9,19 +9,23 @@
 module Parsing.Whitespace where
 
 import           Data.Has
-import qualified Data.Set        as Set
 import           Internal.Meta   ( Meta )
 import           Optics
 import           Text.Megaparsec
-import           Lexing
+import           Node
+import           Data.Char
+import           Parsing.Utils
 
 type WithWhitespace a = ([Text], a)
 
-whitespaceToken :: (MonadParsec e s m, Token s ~ LexerToken) => m Text
-whitespaceToken
-    = fromMaybe "" <$> optional (token (preview _WhitespaceToken) Set.empty)
+whitespaceToken :: (MonadParsec e s m, Token s ~ Either Char Node) => m Text
+whitespaceToken = fromMaybe "" <$> optional whitespace'
+  where
+    whitespace'
+        = fmap toText . some
+        $ namedToken "<whitespace>" (leftToMaybe >=> guarded isSpace)
 
-whitespace :: (MonadParsec e s m, Token s ~ LexerToken)
+whitespace :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m (WithWhitespace ())
 whitespace = (, ()) . one <$> whitespaceToken
 
@@ -42,7 +46,7 @@ infixl 4 <$%>, <$%, <*%>, <*%
 (<$%) :: Functor f => a -> f b -> f (WithWhitespace a)
 (<$%) a fb = const a <$%> fb
 
-(<*%>) :: (MonadParsec e s m, Token s ~ LexerToken)
+(<*%>) :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m (WithWhitespace (a -> b))
     -> m a
     -> m (WithWhitespace b)
@@ -52,19 +56,19 @@ infixl 4 <$%>, <$%, <*%>, <*%
     <*> whitespaceToken
     <*> fa
 
-(<*%) :: (MonadParsec e s m, Token s ~ LexerToken)
+(<*%) :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m (WithWhitespace a)
     -> m b
     -> m (WithWhitespace a)
 (<*%) fa fb = const <<$>> fa <*%> fb
 
-(*%>) :: (MonadParsec e s m, Token s ~ LexerToken)
+(*%>) :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace b)
     -> m (WithWhitespace b)
 (*%>) fa fb = (first . (:)) <$ fa <*> whitespaceToken <*> fb
 
-wSome :: (MonadParsec e s m, Token s ~ LexerToken)
+wSome :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace [a])
 wSome fa
@@ -72,7 +76,7 @@ wSome fa
     <*> whitespaceToken
     <*> wMany fa
 
-wMany :: (MonadParsec e s m, Token s ~ LexerToken)
+wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace [a])
 wMany fa = wSome fa <|> pure (noWhitespace [])

@@ -11,7 +11,6 @@ module Prelude
 import           Relude
                  hiding ( Sum, abs, group, init, some, toList )
 import qualified Relude
-                 ( Sum, abs, group, init, some, toList )
 import           Relude.Extra.Newtype
 import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text

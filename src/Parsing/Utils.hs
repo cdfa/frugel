@@ -3,6 +3,9 @@ module Parsing.Utils where
 import           Text.Megaparsec
 import qualified Data.Set        as Set
 import           Prettyprinter
+import           Node
+
+type Parser = Parsec Void HoleContents
 
 data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )
