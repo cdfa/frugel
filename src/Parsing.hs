@@ -1,14 +1,17 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Parsing where
 
 import           Node
-import           Internal.Meta                  ( defaultMeta )
-import           Internal.Program               ( Program(Program) )
+import           Internal.Program               as Program ( Program, program )
 import           Lexing
-import           ParsingUtils                   hiding ( Left, Right )
-import qualified ParsingUtils                   ( Parenthesis(..) )
+import           Parsing.Utils                  hiding ( Left, Right )
+import qualified Parsing.Utils                  ( Parenthesis(..) )
+import           Parsing.Whitespace
 import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
 import           Optics
+import           Internal.Meta                  ( defaultExprMeta )
 
 type Parser = Parsec Void LexerTokenStream
 
@@ -20,43 +23,68 @@ node name nodePrism = namedToken name $ preview (_NodeToken % nodePrism)
 
 term :: Parser Expr
 term
-    = choice
-        [ abstraction <$ literalToken LambdaToken <*> Parsing.identifier
-          <* literalToken EqualsToken
-          <*> expr
+    = setWhitespace
+    <$> choice
+        [ abstraction <$% literalToken LambdaToken <*%> Parsing.identifier
+          <*% literalToken EqualsToken
+          <*%> expr
         , ((exprMeta % #parenthesisLevels) +~ 1)
-          <$ literalToken (Parenthesis ParsingUtils.Left)
-          <*> expr
-          <* literalToken (Parenthesis ParsingUtils.Right)
+          <$% literalToken (Parenthesis Parsing.Utils.Left)
+          <*%> expr
+          <*% literalToken (Parenthesis Parsing.Utils.Right)
           -- Non recursive production rules at the bottom
-        , hole (HoleContents empty) <$ literalToken EmptyHoleToken
-        , node "an expression" _ExprNode
-        , Node.identifier <$> Parsing.identifier
+        , hole (HoleContents empty) <$% literalToken EmptyHoleToken
+        , noWhitespace <$> node "an expression node" _ExprNode
+        , Node.identifier <$%> Parsing.identifier
         ]
 
 expr :: Parser Expr
 expr
     = makeExprParser
         term
-        [ [ InfixL $ pure application ]
-        , [ InfixL (Sum defaultMeta <$ literalToken PlusToken) ]
+        [ [ InfixL
+            $ try
+                (Application . setWhitespace
+                 <$> (defaultExprMeta <<$> Parsing.Whitespace.whitespace
+                      <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
+                          (literalToken PlusToken
+                           <|> literalToken WhereToken
+                           <|> snd
+                           <$> (IdentifierToken <$%> Parsing.identifier
+                                <*% literalToken EqualsToken))))
+          ]
+        , [ InfixL
+            $ try
+                (Sum . setWhitespace
+                 <$> (defaultExprMeta <$% pure ()
+                      <*% literalToken PlusToken
+                      <*% pure ()))
+          ]
         ]
 
 decl :: Parser Decl
-decl = literalDecl <|> holeDecl
+decl = setWhitespace <$> (literalDecl <|> holeDecl)
   where
     literalDecl
-        = Decl <$> Parsing.identifier <* literalToken EqualsToken <*> expr
-        -- <*> whereClause
-    holeDecl = node "a declaration" _DeclNode
+        = Node.decl <$%> Parsing.identifier <*% literalToken EqualsToken
+        <*%> expr -- <*%> whereClause
+    holeDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
-whereClause = literalDecl <|> holeDecl
+whereClause = setWhitespace <$> (literalDecl <|> holeDecl)
   where
     literalDecl
-        = WhereClause . concat
-        <$> optional (try (literalToken WhereToken *> some decl))
-    holeDecl = node "a declaration" _WhereNode
+        = (Node.whereClause . concat)
+        <<$>> wOptional (literalToken WhereToken *%> wSome Parsing.decl)
+    holeDecl = noWhitespace <$> node "a declaration node" _WhereNode
 
 program :: Parser Program
-program = Program <$> expr <*> whereClause
+program
+    = setProgramWhitespace
+    <$> (Program.program <$%> expr <*%> Parsing.whereClause <*% pure ())
+  where
+    setProgramWhitespace :: WithWhitespace Program -> Program
+    setProgramWhitespace (whitespaceFragments :> trailingWhitespace, p)
+        = set (#meta % #trailingWhitespace) trailingWhitespace
+        $ setWhitespace (whitespaceFragments, p)
+    setProgramWhitespace _ = error "not enough whitespace fragments"

@@ -5,6 +5,7 @@
         "concat",
         "fmap",
         "frugel",
+        "gadts",
         "gmail",
         "monospace",
         "projectional",

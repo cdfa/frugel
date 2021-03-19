@@ -19,7 +19,7 @@ module Node
 
 import           Optics
 
-import           Internal.Meta ( defaultMeta )
+import           Internal.Meta ( defaultExprMeta, defaultMeta )
 import           Internal.Node
 
 makePrisms ''Node
@@ -27,19 +27,25 @@ makePrisms ''Node
 type HoleContents' = [Either String [Node]]
 
 identifier :: Text -> Expr
-identifier = Identifier defaultMeta
+identifier = Identifier defaultExprMeta
 
 abstraction :: Text -> Expr -> Expr
-abstraction = Abstraction defaultMeta
+abstraction = Abstraction defaultExprMeta
 
 application :: Expr -> Expr -> Expr
-application = Application defaultMeta
+application = Application defaultExprMeta
 
 sum :: Expr -> Expr -> Expr
-sum = Sum defaultMeta
+sum = Sum defaultExprMeta
 
 hole :: HoleContents -> Expr
-hole = ExprHole defaultMeta
+hole = ExprHole defaultExprMeta
+
+decl :: Text -> Expr -> Decl
+decl = Decl defaultMeta
+
+whereClause :: [Decl] -> WhereClause
+whereClause = WhereClause defaultMeta
 
 toHoleContents :: HoleContents' -> HoleContents
 toHoleContents = fromList . concatMap (either (map Left) (map Right))
@@ -70,14 +76,17 @@ parensTest
 whereClauseTest :: HoleContents
 whereClauseTest
     = toHoleContents
-        [ Left "x where y = ", Right [ ExprNode $ identifier "z" ] ]
+        [ Left "x where\n  y = "
+        , Right [ ExprNode $ identifier "z" ]
+        , Left "\n  u = w"
+        ]
 
 declNodeTest :: HoleContents
 declNodeTest
     = toHoleContents
         [ Left "x where "
         , Right
-              [ DeclNode $ Decl { name = "y", value = identifier "z" } -- , whereClause = []
+              [ DeclNode $ decl "y" $ identifier "z" -- , whereClause = []
               ]
         ]
 

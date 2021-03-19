@@ -94,3 +94,8 @@ l -~ n = over l (subtract n)
 
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
+
+infixl 4 <<$>
+
+(<<$>) :: (Functor f, Functor g) => a -> f (g b) -> f (g a)
+(<<$>) a ffb = (a <$) <$> ffb

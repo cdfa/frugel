@@ -25,17 +25,9 @@ import           GHC.Exts
 import           Prettyprinter
 import           Data.Composition
 
-import           Internal.Meta       ( Meta )
+import           Internal.Meta       ( ExprMeta(standardMeta), Meta )
 import           PrettyPrinting.Text
 import           Data.Has
-
-data Expr
-    = Identifier Meta Text
-    | Abstraction Meta Text Expr
-    | Application Meta Expr Expr
-    | Sum Meta Expr Expr
-    | ExprHole Meta HoleContents
-    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 newtype HoleContents = HoleContents (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )
@@ -44,14 +36,22 @@ newtype HoleContents = HoleContents (Seq (Either Char Node))
 data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
 
-data Decl
-    = Decl { name :: Text, value :: Expr }
-      -- , whereClause :: WhereClause
-    | DeclHole HoleContents
-    deriving ( Eq, Ord, Show )
+data Expr
+    = Identifier ExprMeta Text
+    | Abstraction ExprMeta Text Expr
+    | Application ExprMeta Expr Expr
+    | Sum ExprMeta Expr Expr
+    | ExprHole ExprMeta HoleContents
+    deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
 
-data WhereClause = WhereClause [Decl] | WhereHole HoleContents
-    deriving ( Eq, Ord, Show )
+data Decl
+    = Decl { meta :: Meta, name :: Text, value :: Expr }
+      -- , whereClause :: WhereClause
+    | DeclHole Meta HoleContents
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
+
+data WhereClause = WhereClause Meta [Decl] | WhereHole Meta HoleContents
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
@@ -72,10 +72,14 @@ instance VisualStream HoleContents where
         . toList
     tokensLength = length .: showTokens
 
-exprMeta :: Lens' Expr Meta
+instance Has Meta Expr where
+    getter e = standardMeta $ getter e
+    modifier = over (exprMeta % #standardMeta)
+
+exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
--- >>> import           Internal.Meta    ( defaultMeta )
+-- >>> import           Internal.ExprMeta    ( defaultMeta )
 -- >>> testPrettyW 3 . prettyExpr . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
 -- >>> testPrettyW 8 $ prettyExpr (Application defaultMeta (Application defaultMeta (Identifier defaultMeta "test") $ Identifier defaultMeta "test") $ Identifier defaultMeta "test")
 -- \x
@@ -114,12 +118,12 @@ prettyNode (WhereNode w) = prettyWhereClause w
 
 prettyDecl :: Decl -> Doc Annotation
 prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value
-prettyDecl (DeclHole contents) = prettyHoleContents contents
+prettyDecl (DeclHole _ contents) = prettyHoleContents contents
 
     -- <> prettyWhereClause whereClause
 prettyWhereClause :: WhereClause -> Doc Annotation
-prettyWhereClause (WhereHole contents) = prettyHoleContents contents
-prettyWhereClause (WhereClause decls)
+prettyWhereClause (WhereHole _ contents) = prettyHoleContents contents
+prettyWhereClause (WhereClause _ decls)
     = if null decls
         then mempty
         else nest

@@ -1,4 +1,4 @@
-module ParsingUtils where
+module Parsing.Utils where
 
 import           Text.Megaparsec
 import qualified Data.Set        as Set
@@ -8,8 +8,8 @@ data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )
 
 instance Pretty Parenthesis where
-    pretty ParsingUtils.Left = lparen
-    pretty ParsingUtils.Right = rparen
+    pretty Parsing.Utils.Left = lparen
+    pretty Parsing.Utils.Right = rparen
 
 literalToken :: MonadParsec e s m => Token s -> m (Token s)
 literalToken c = token (guarded (== c)) (one . Tokens . one $ c)

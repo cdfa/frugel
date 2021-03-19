@@ -15,7 +15,7 @@ import           Data.String      as String
 type Model = HoleContents
 
 initialModel :: HoleContents
-initialModel = Node.parensTest
+initialModel = Node.whereClauseTest
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -35,7 +35,7 @@ parseHole :: FilePath -> HoleContents -> Either String Program
 parseHole filePath s
     = do
         lexerTokens <- first ("Lexer error:\n" ++)
-            $ runParser'' (whitespace *> holeContents <* eof) s
+            $ runParser'' (holeContents <* eof) s
         first ("Parser error:\n" ++) $ runParser'' (program <* eof) lexerTokens
   where
     runParser'' parser stream
