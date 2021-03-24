@@ -24,6 +24,8 @@ newtype Line = Line [AnnotationTree]
 
 makePrisms ''DocTextTree
 
+makePrisms ''Line
+
 singleLineOpenness, firstLineOpenness, middleLinesOpenness, lastLineOpenness
     :: HorizontalOpenness
 singleLineOpenness = HorizontalOpenness { openLeft = False, openRight = False }

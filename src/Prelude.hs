@@ -2,16 +2,10 @@
 
 {-# OPTIONS_GHC -Wno-unused-imports #-} -- because exporting unused qualified imports
 
-module Prelude
-    ( module Prelude
-    , module Relude
-    , module Relude.Extra.Newtype
-    ) where
+module Prelude ( module Prelude, module Relude ) where
 
 import           Relude
                  hiding ( Sum, abs, group, init, some, toList )
-import qualified Relude
-import           Relude.Extra.Newtype
 import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
 import           Optics

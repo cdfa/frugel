@@ -3,7 +3,7 @@
 module View where
 
 import           Prelude                                 hiding ( lines )
-import           Miso                                    hiding ( node )
+import           Miso                                    hiding ( node, view )
 import qualified Miso.String
 import           Prettyprinter
 import           Prettyprinter.Render.Util.SimpleDocTree
@@ -79,7 +79,7 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
             Annotated ann trees -> Node ann $ map transform trees
 
 renderTrees :: [Line] -> View Action
-renderTrees = div_ [] . map (div_ [] . map renderTree . un)
+renderTrees = div_ [] . map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
 renderTree
