@@ -32,22 +32,22 @@ paddingStyle HorizontalOpenness{..}
   where
     padding present = if present then "0px" else "4px"
 
-inHoleStyles :: HorizontalOpenness -> [Attribute action]
-inHoleStyles v
+inConstructionStyles :: HorizontalOpenness -> [Attribute action]
+inConstructionStyles v
     = [ style_ $ fromList [ ("background-color", "hsl(48, 100%, 85%)") ]
       , paddingStyle v
       ]
 
-inHole
+inConstruction
     :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-inHole v = span . (++ inHoleStyles v)
+inConstruction v = span . (++ inConstructionStyles v)
 
-outOfHoleStyles :: HorizontalOpenness -> [Attribute action]
-outOfHoleStyles v = [ class_ "has-background-white", paddingStyle v ]
+completeStyles :: HorizontalOpenness -> [Attribute action]
+completeStyles v = [ class_ "has-background-white", paddingStyle v ]
 
-outOfHole
+complete
     :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-outOfHole v = span . (++ outOfHoleStyles v)
+complete v = span . (++ completeStyles v)
 
 node :: [Attribute action] -> [View action] -> View action
 node = span . (class_ "node" :)

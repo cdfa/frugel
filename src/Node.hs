@@ -5,13 +5,13 @@
 module Node
     ( module Node
     , Expr(..)
-    , HoleContents(..)
+    , CstrMaterials(..)
     , Decl(Decl)
     , Node(..)
     , WhereClause(..)
     , exprMeta
     , prettyExpr
-    , prettyHoleContents
+    , prettyCstrMaterials
     , prettyNode
     , prettyDecl
     , prettyWhereClause
@@ -24,7 +24,7 @@ import           Internal.Node
 
 makePrisms ''Node
 
-type HoleContents' = [Either String [Node]]
+type CstrMaterials' = [Either String [Node]]
 
 identifier :: Text -> Expr
 identifier = Identifier defaultExprMeta
@@ -38,8 +38,8 @@ application = Application defaultExprMeta
 sum :: Expr -> Expr -> Expr
 sum = Sum defaultExprMeta
 
-hole :: HoleContents -> Expr
-hole = ExprHole defaultExprMeta
+exprCstrSite :: CstrMaterials -> Expr
+exprCstrSite = ExprCstrSite defaultExprMeta
 
 decl :: Text -> Expr -> Decl
 decl = Decl defaultMeta
@@ -47,48 +47,49 @@ decl = Decl defaultMeta
 whereClause :: [Decl] -> WhereClause
 whereClause = WhereClause defaultMeta
 
-toHoleContents :: HoleContents' -> HoleContents
-toHoleContents = fromList . concatMap (either (map Left) (map Right))
+toCstrMaterials :: CstrMaterials' -> CstrMaterials
+toCstrMaterials = fromList . concatMap (either (map Left) (map Right))
 
-minimalHole :: HoleContents
-minimalHole = one . Right . ExprNode $ identifier "x"
+minimalCstrSite :: CstrMaterials
+minimalCstrSite = one . Right . ExprNode $ identifier "x"
 
-nested :: HoleContents
-nested = one . Right . ExprNode . hole $ minimalHole
+nested :: CstrMaterials
+nested = one . Right . ExprNode . exprCstrSite $ minimalCstrSite
 
-frugelId :: HoleContents
-frugelId = toHoleContents [ Left "\\x=x" ]
+frugelId :: CstrMaterials
+frugelId = toCstrMaterials [ Left "\\x=x" ]
 
-frugelId' :: HoleContents
-frugelId' = toHoleContents [ Left "\\x=", Right [ ExprNode $ identifier "x" ] ]
+frugelId' :: CstrMaterials
+frugelId'
+    = toCstrMaterials [ Left "\\x=", Right [ ExprNode $ identifier "x" ] ]
 
-whitespaceId :: HoleContents
-whitespaceId = toHoleContents [ Left "  \t\n\\  \tx \n=x  \t\n\n" ]
+whitespaceId :: CstrMaterials
+whitespaceId = toCstrMaterials [ Left "  \t\n\\  \tx \n=x  \t\n\n" ]
 
-app :: HoleContents
+app :: CstrMaterials
 app = [ Left 'x', Right . ExprNode $ identifier "x", Left 'x' ]
 
-parensTest :: HoleContents
+parensTest :: CstrMaterials
 parensTest
-    = toHoleContents
+    = toCstrMaterials
         [ Left "(((\\x=(", Right [ ExprNode $ identifier "x" ], Left "))))" ]
 
-whereClauseTest :: HoleContents
+whereClauseTest :: CstrMaterials
 whereClauseTest
-    = toHoleContents
+    = toCstrMaterials
         [ Left "x where\n  y = "
         , Right [ ExprNode $ identifier "z" ]
         , Left "\n  u = w"
         ]
 
-declNodeTest :: HoleContents
+declNodeTest :: CstrMaterials
 declNodeTest
-    = toHoleContents
+    = toCstrMaterials
         [ Left "x where "
         , Right
               [ DeclNode $ decl "y" $ identifier "z" -- , whereClause = []
               ]
         ]
 
-sumTest :: HoleContents
-sumTest = toHoleContents [ Right [ ExprNode $ identifier "x" ], Left "+ y x" ]
+sumTest :: CstrMaterials
+sumTest = toCstrMaterials [ Right [ ExprNode $ identifier "x" ], Left "+ y x" ]

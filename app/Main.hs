@@ -54,11 +54,11 @@ viewModel model
           --   , renderSmart test2
         , div_ [ class_ "columns" ] . map (div_ [ class_ "column" ] . one)
           $ flap -- apply the functions in the list to the model
-              [ renderSmart . prettyHoleContents
+              [ renderSmart . prettyCstrMaterials
               , either
                     (webPrint . String.unlines . map parseErrorPretty . toList)
                     (renderSmart . prettyProgram)
-                . parseHole "notepad"
+                . parseCstrSite "notepad"
               ]
               model
         , webPrint $ pShowNoColor model

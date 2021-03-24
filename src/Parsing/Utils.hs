@@ -5,7 +5,7 @@ import qualified Data.Set        as Set
 import           Prettyprinter
 import           Node
 
-type Parser = Parsec Void HoleContents
+type Parser = Parsec Void CstrMaterials
 
 data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )

@@ -26,7 +26,7 @@ data Program
               , expr        :: Node.Expr
               , whereClause :: WhereClause
               }
-    | Hole ProgramMeta HoleContents
+    | ProgramCstrSite ProgramMeta CstrMaterials
     deriving ( Show, Eq, Generic, Has ProgramMeta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program
@@ -43,4 +43,4 @@ program = Program defaultProgramMeta
 
 prettyProgram :: Program -> Doc Annotation
 prettyProgram Program{..} = prettyExpr expr <> prettyWhereClause whereClause
-prettyProgram (Hole _ contents) = prettyHoleContents contents
+prettyProgram (ProgramCstrSite _ contents) = prettyCstrMaterials contents

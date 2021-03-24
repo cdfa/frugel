@@ -9,15 +9,21 @@ test
         prettyType = align . sep . zipWith (<+>) ("::" : repeat "->")
         prettySig name ty = pretty name <+> prettyType ty
         in
-            PrettyPrinting.inHole
+            PrettyPrinting.annotateInConstruction
             $ prettySig
                 ("ex   ample" :: Text)
-                [ PrettyPrinting.outOfHole "Int", "Bool", "Char", "IO ()" ]
+                [ PrettyPrinting.annotateComplete "Int"
+                , "Bool"
+                , "Char"
+                , "IO ()"
+                ]
 
 test2 :: Doc Annotation
 test2
-    = PrettyPrinting.inHole
+    = PrettyPrinting.annotateInConstruction
         ("outS0"
-         <> PrettyPrinting.outOfHole
-             ("inS1" <> PrettyPrinting.inHole (line <> "x" <> line) <> "inE1")
+         <> PrettyPrinting.annotateComplete
+             ("inS1"
+              <> PrettyPrinting.annotateInConstruction (line <> "x" <> line)
+              <> "inE1")
          <> "outE0")

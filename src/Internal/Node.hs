@@ -29,7 +29,7 @@ import           Internal.Meta       ( ExprMeta(standardMeta), Meta )
 import           PrettyPrinting.Text
 import           Data.Has
 
-newtype HoleContents = HoleContents (Seq (Either Char Node))
+newtype CstrMaterials = CstrMaterials (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )
     deriving newtype ( One, Stream, IsList )
 
@@ -41,33 +41,33 @@ data Expr
     | Abstraction ExprMeta Text Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
-    | ExprHole ExprMeta HoleContents
+    | ExprCstrSite ExprMeta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
 
 data Decl
     = Decl { meta :: Meta, name :: Text, value :: Expr }
       -- , whereClause :: WhereClause
-    | DeclHole Meta HoleContents
+    | DeclCstrSite Meta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
-data WhereClause = WhereClause Meta [Decl] | WhereHole Meta HoleContents
+data WhereClause = WhereClause Meta [Decl] | WhereCstrSite Meta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
-instance VisualStream HoleContents where
+instance VisualStream CstrMaterials where
     showTokens Proxy
         = showTokens (Proxy @String)
         -- Convert from Text to NonEmpty Char
-        . fromList -- Assumption: prettyHoleContents of a non-empty Seq results in a non-empty render
+        . fromList -- Assumption: prettyCstrMaterials of a non-empty Seq results in a non-empty render
         . toList
         -- Remove surrounding «»
         . Text.tail
         . Text.init
-        -- Convert from HoleContents to Text
+        -- Convert from CstrMaterials to Text
         . renderSmart @Text
-        . prettyHoleContents
-        -- Convert from NonEmpty to HoleContents
+        . prettyCstrMaterials
+        -- Convert from NonEmpty to CstrMaterials
         . fromList
         . toList
     tokensLength = length .: showTokens
@@ -99,15 +99,15 @@ prettyExpr (Application _ function arg)
     = prettyExpr function `nestingLine` prettyExpr arg
 prettyExpr (Sum _ left right)
     = prettyExpr left `nestingLine` "+" <+> prettyExpr right
-prettyExpr (ExprHole _ contents) = prettyHoleContents contents
+prettyExpr (ExprCstrSite _ contents) = prettyCstrMaterials contents
 
--- Invariant: prettyHoleContents of a non-empty Seq results in a non-empty render
-prettyHoleContents :: HoleContents -> Doc Annotation
-prettyHoleContents (HoleContents contents)
+-- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
+prettyCstrMaterials :: CstrMaterials -> Doc Annotation
+prettyCstrMaterials (CstrMaterials contents)
     = if null $ toList contents
         then "..."
-        else inHole
-            . foldMap (either pretty (foldMap (outOfHole . prettyNode)))
+        else annotateInConstruction
+            . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
             . groupByEither
             $ toList contents
 
@@ -118,11 +118,12 @@ prettyNode (WhereNode w) = prettyWhereClause w
 
 prettyDecl :: Decl -> Doc Annotation
 prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value
-prettyDecl (DeclHole _ contents) = prettyHoleContents contents
+prettyDecl (DeclCstrSite _ contents) = prettyCstrMaterials contents
 
     -- <> prettyWhereClause whereClause
 prettyWhereClause :: WhereClause -> Doc Annotation
-prettyWhereClause (WhereHole _ contents) = prettyHoleContents contents
+prettyWhereClause (WhereCstrSite _ contents) = prettyCstrMaterials contents
+
 prettyWhereClause (WhereClause _ decls)
     = if null decls
         then mempty

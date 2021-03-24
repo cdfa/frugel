@@ -10,9 +10,11 @@ import           Prettyprinter
 import           Prettyprinter.Render.Util.StackMachine
 
 annotationStart, annotationEnd :: IsString p => Annotation -> p
-annotationStart (HoleAnnotation depth) = prettyDepth depth
+annotationStart (CompletionAnnotation completionStatus)
+    = prettyCompletionStatus completionStatus
 
-annotationEnd (HoleAnnotation depth) = prettyDepth $ flipDepth depth
+annotationEnd (CompletionAnnotation completionStatus)
+    = prettyCompletionStatus $ flipCompletionStatus completionStatus
 
 class Render a where
     rendered :: SimpleDocStream Annotation -> a

@@ -3,7 +3,7 @@
 module Frugel
     ( module Frugel
     , prettyProgram
-    , prettyHoleContents
+    , prettyCstrMaterials
     , parseErrorPretty
     ) where
 
@@ -14,9 +14,9 @@ import           Internal.Program ( Program, prettyProgram )
 import           Parsing
 
 -- Type synonym for an application model
-type Model = HoleContents
+type Model = CstrMaterials
 
-initialModel :: HoleContents
+initialModel :: CstrMaterials
 initialModel = Node.whereClauseTest
 
 -- Sum type for application events
@@ -33,8 +33,8 @@ updateModel NoOp = noEff
 
 -- updateModel SayHelloWorld m =
 --     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
-parseHole :: FilePath
-    -> HoleContents
-    -> Either (NonEmpty (ParseError HoleContents Void)) Program
-parseHole filePath holeContents
-    = first bundleErrors $ runParser (program <* eof) filePath holeContents
+parseCstrSite :: FilePath
+    -> CstrMaterials
+    -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
+parseCstrSite filePath cstrMaterials
+    = first bundleErrors $ runParser (program <* eof) filePath cstrMaterials

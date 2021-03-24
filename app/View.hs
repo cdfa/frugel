@@ -10,7 +10,6 @@ import           Prettyprinter.Render.Util.SimpleDocTree
 import           Frugel
 
 import           PrettyPrinting
-                 hiding ( inHole, outOfHole )
 import           View.Elements
 import           View.ViewModel                          as ViewModel
 import           Optics                                  hiding ( views )
@@ -50,11 +49,13 @@ splitMultiLineAnnotations
         LineLeaf -> [ LineLeaf ]
         Annotated ann trees -> filter isEmptyAnnotation
             . intersperse LineLeaf
-            . reAnnotateHole ann
+            . reAnnotateCstrSite ann
             . splitOn LineLeaf
             $ splitMultiLineAnnotations trees
   where
-    reAnnotateHole (PrettyPrinting.HoleAnnotation depth) treeLines
+    reAnnotateCstrSite
+        (PrettyPrinting.CompletionAnnotation completionStatus)
+        treeLines
         = case treeLines of
             (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
                 <| (reannotatedMiddleLines |> reannotatedLastLine)
@@ -65,7 +66,8 @@ splitMultiLineAnnotations
                 reannotatedLastLine = reannotate lastLineOpenness lastLine
             _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
       where
-        reannotate = Annotated . ViewModel.HoleAnnotation depth
+        reannotate
+            = Annotated . ViewModel.CompletionAnnotation completionStatus
 
 annotationTreeForm :: [DocTextTree RenderAnnotation] -> [Line]
 annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
@@ -89,5 +91,6 @@ renderTree
 encloseInTagFor :: RenderAnnotation -> [View Action] -> View Action
 encloseInTagFor ann views
     = case ann of
-        ViewModel.HoleAnnotation InHole v -> inHole v [] views
-        ViewModel.HoleAnnotation OutOfHole v -> outOfHole v [] views
+        ViewModel.CompletionAnnotation InConstruction v ->
+            inConstruction v [] views
+        ViewModel.CompletionAnnotation Complete v -> complete v [] views

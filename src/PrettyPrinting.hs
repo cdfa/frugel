@@ -2,25 +2,25 @@ module PrettyPrinting where
 
 import           Prettyprinter
 
-data Depth = InHole | OutOfHole
+data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq )
 
-newtype Annotation = HoleAnnotation Depth
+newtype Annotation = CompletionAnnotation CompletionStatus
     deriving ( Show, Eq )
 
-inHole, outOfHole :: Doc Annotation -> Doc Annotation
-inHole = annotate $ HoleAnnotation InHole
+annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation
+annotateInConstruction = annotate $ CompletionAnnotation InConstruction
 
-outOfHole = annotate $ HoleAnnotation OutOfHole
+annotateComplete = annotate $ CompletionAnnotation Complete
 
 -- node = annotate Node
-prettyDepth :: IsString p => Depth -> p
-prettyDepth InHole = "«"
-prettyDepth OutOfHole = "»"
+prettyCompletionStatus :: IsString p => CompletionStatus -> p
+prettyCompletionStatus InConstruction = "«"
+prettyCompletionStatus Complete = "»"
 
-flipDepth :: Depth -> Depth
-flipDepth InHole = OutOfHole
-flipDepth OutOfHole = InHole
+flipCompletionStatus :: CompletionStatus -> CompletionStatus
+flipCompletionStatus InConstruction = Complete
+flipCompletionStatus Complete = InConstruction
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = group $ flatAlt (x <> nest 4 (line <> y)) (x <+> y)

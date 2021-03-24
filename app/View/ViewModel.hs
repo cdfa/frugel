@@ -10,7 +10,8 @@ data HorizontalOpenness
     = HorizontalOpenness { openLeft :: Bool, openRight :: Bool }
     deriving ( Show, Eq )
 
-data RenderAnnotation = HoleAnnotation Depth HorizontalOpenness
+data RenderAnnotation
+    = CompletionAnnotation CompletionStatus HorizontalOpenness
     deriving ( Show, Eq )
 
 data DocTextTree ann

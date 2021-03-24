@@ -30,7 +30,7 @@ term
           <*%> expr
           <*% (Parsing.Utils.Right <$ char ')')
           -- Non recursive production rules at the bottom
-        , hole (HoleContents empty) <$% string "???"
+        , exprCstrSite (CstrMaterials empty) <$% string "???"
         , noWhitespace <$> node "an expression node" _ExprNode
         , Node.identifier <$%> Parsing.identifier
         ]
@@ -56,18 +56,18 @@ expr
         ]
 
 decl :: Parser Decl
-decl = setWhitespace <$> (literalDecl <|> holeDecl)
+decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
   where
     literalDecl = Node.decl <$%> Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
-    holeDecl = noWhitespace <$> node "a declaration node" _DeclNode
+    cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
-whereClause = setWhitespace <$> (literalDecl <|> holeDecl)
+whereClause = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
   where
     literalDecl
         = (Node.whereClause . concat)
         <<$>> wOptional (string "where" *%> wSome Parsing.decl)
-    holeDecl = noWhitespace <$> node "a declaration node" _WhereNode
+    cstrSiteDecl = noWhitespace <$> node "a declaration node" _WhereNode
 
 program :: Parser Program
 program
