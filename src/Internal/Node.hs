@@ -21,7 +21,7 @@ module Internal.Node where
 import           Optics
 import           Text.Megaparsec
 import qualified Data.Text           as Text
-import           GHC.Exts
+-- import           GHC.Exts
 import           Prettyprinter
 import           Data.Composition
 
@@ -55,6 +55,8 @@ data WhereClause = WhereClause Meta [Decl] | WhereCstrSite Meta CstrMaterials
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
+makePrisms ''CstrMaterials
+
 instance VisualStream CstrMaterials where
     showTokens Proxy
         = showTokens (Proxy @String)
@@ -68,8 +70,7 @@ instance VisualStream CstrMaterials where
         . renderSmart @Text
         . prettyCstrMaterials
         -- Convert from NonEmpty to CstrMaterials
-        . fromList
-        . toList
+        . fromFoldable
     tokensLength = length .: showTokens
 
 instance Has Meta Expr where

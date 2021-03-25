@@ -9,6 +9,7 @@ module Node
     , Decl(Decl)
     , Node(..)
     , WhereClause(..)
+    , _CstrMaterials
     , exprMeta
     , prettyExpr
     , prettyCstrMaterials
@@ -24,6 +25,8 @@ import           Internal.Node
 
 makePrisms ''Node
 
+-- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
+-- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 type CstrMaterials' = [Either String [Node]]
 
 identifier :: Text -> Expr

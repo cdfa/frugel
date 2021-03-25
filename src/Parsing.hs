@@ -79,3 +79,10 @@ program
         = set (#meta % #trailingWhitespace) trailingWhitespace
         $ setWhitespace (whitespaceFragments, p)
     setProgramWhitespace _ = error "not enough whitespace fragments"
+
+parseCstrSite :: FilePath
+    -> CstrMaterials
+    -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
+parseCstrSite filePath cstrMaterials
+    = first bundleErrors
+    $ runParser (Parsing.program <* eof) filePath cstrMaterials

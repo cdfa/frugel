@@ -2,22 +2,19 @@
 
 module Frugel
     ( module Frugel
+    , module Model
     , prettyProgram
     , prettyCstrMaterials
     , parseErrorPretty
+    , parseCstrSite
     ) where
 
 import           Miso             hiding ( node )
 import           Text.Megaparsec
 import           Node
-import           Internal.Program ( Program, prettyProgram )
+import           Internal.Program ( prettyProgram )
 import           Parsing
-
--- Type synonym for an application model
-type Model = CstrMaterials
-
-initialModel :: CstrMaterials
-initialModel = Node.whereClauseTest
+import           Model
 
 -- Sum type for application events
 -- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
@@ -30,11 +27,5 @@ updateModel :: Action -> Model -> Effect Action Model
 -- updateModel AddOne m = noEff (m + 1)
 -- updateModel SubtractOne m = noEff (m - 1)
 updateModel NoOp = noEff
-
 -- updateModel SayHelloWorld m =
 --     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
-parseCstrSite :: FilePath
-    -> CstrMaterials
-    -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
-parseCstrSite filePath cstrMaterials
-    = first bundleErrors $ runParser (program <* eof) filePath cstrMaterials

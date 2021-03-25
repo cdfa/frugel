@@ -9,10 +9,8 @@ module Main where
 import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
-import           Relude                           ( toList )
 import           Miso
 import qualified Miso.String
-import           Data.String                      as String
 import           Frugel
 import           Text.Pretty.Simple               ( pShowNoColor )
 import           View
@@ -52,15 +50,7 @@ viewModel model
                     "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
               ]
           --   , renderSmart test2
-        , div_ [ class_ "columns" ] . map (div_ [ class_ "column" ] . one)
-          $ flap -- apply the functions in the list to the model
-              [ renderSmart . prettyCstrMaterials
-              , either
-                    (webPrint . String.unlines . map parseErrorPretty . toList)
-                    (renderSmart . prettyProgram)
-                . parseCstrSite "notepad"
-              ]
-              model
+        , renderSmart . prettyProgram $ program model
         , webPrint $ pShowNoColor model
         ]
 

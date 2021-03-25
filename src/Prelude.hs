@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-unused-imports #-} -- because exporting unused qualified imports
 
-module Prelude ( module Prelude, module Relude ) where
+module Prelude ( module Prelude, module Relude, (><), toList ) where
 
 import           Relude
                  hiding ( Sum, abs, group, init, some, toList )
@@ -11,6 +11,9 @@ import           Prettyprinter.Render.Text
 import           Optics
 import           Data.List                 ( dropWhileEnd, stripPrefix )
 import           Data.Has
+import           Data.Sequence             ( (><) )
+import           GHC.Exts
+import qualified Data.Foldable             as Foldable
 
 testPrettyW :: Int -> Doc ann -> IO String
 testPrettyW w doc
@@ -85,6 +88,12 @@ l +~ n = over l (+ n)
 (-~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l -~ n = over l (subtract n)
 
+(-=) :: (MonadState s m, Num a, Is k A_Setter)
+    => Optic k is s s a a
+    -> a
+    -> m ()
+l -= b = modify (l -~ b)
+
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
 
@@ -92,3 +101,22 @@ infixl 4 <<$>
 
 (<<$>) :: (Functor f, Functor g) => a -> f (g b) -> f (g a)
 (<<$>) a ffb = (a <$) <$> ffb
+
+infixr 9 <.>
+
+(<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
+f1 <.> f2 = fmap f1 . f2
+
+-- From: https://hackage.haskell.org/package/universe-base-1.1.2/docs/src/Data.Universe.Helpers.html#interleave
+-- | Fair n-way interleaving: given a finite number of (possibly infinite)
+-- lists, produce a single list such that whenever @v@ has finite index in one
+-- of the input lists, @v@ also has finite index in the output list. No list's
+-- elements occur more frequently (on average) than another's.
+interleave :: [[a]] -> [a]
+interleave = concat . transpose
+
+{-# INLINE fromFoldable #-}
+
+-- | Convert from 'Data.Foldable.Foldable' to an 'IsList' type.
+fromFoldable :: (Foldable f, IsList a) => f (Item a) -> a
+fromFoldable = fromList . Foldable.toList

@@ -12,14 +12,16 @@
 
 module Internal.Program where
 
-import           Node           hiding ( Expr, whereClause )
+import           Node                      hiding ( Expr, whereClause )
 import qualified Node
 import           PrettyPrinting
 import           Optics
 import           Prettyprinter
 import           Internal.Meta
-                 ( Meta, ProgramMeta(standardMeta), defaultProgramMeta )
+                 ( Meta(interstitialWhitespace), ProgramMeta(standardMeta)
+                 , defaultProgramMeta )
 import           Data.Has
+import           Internal.Action.Insertion as Insertion
 
 data Program
     = Program { meta        :: ProgramMeta
@@ -34,6 +36,22 @@ makeFieldLabelsWith noPrefixFieldLabels ''Program
 instance Has Meta Program where
     getter p = standardMeta $ getter p
     modifier = over (programMeta % #standardMeta)
+
+instance Decomposable Program where
+    insertByPos Program{..}
+        = insertByPos
+        . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
+        $ fromList [ Right $ ExprNode expr, Right $ WhereNode whereClause ]
+        -- = do
+        --     st <- get
+        --     maybe
+        --         (error
+        --              "Started inserting without cursor position and character")
+        --         (\_ -> sequenceDecomposables
+        --              (interstitialWhitespace $ standardMeta meta)
+        --              [ insertByPos expr, insertByPos whereClause ])
+        --         st
+    insertByPos (ProgramCstrSite _ materials) = insertByPos materials
 
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
