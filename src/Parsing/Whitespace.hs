@@ -51,10 +51,8 @@ infixl 4 <$%>, <$%, <*%>, <*%
     -> m a
     -> m (WithWhitespace b)
 (<*%>) ff fa
-    = (\(whitespaceFragments, f) ws a -> (ws : whitespaceFragments, f a))
-    <$> ff
-    <*> whitespaceToken
-    <*> fa
+    = (\(whitespaceFragments, f) ws a ->
+       (ws : whitespaceFragments, f a)) <$> ff <*> whitespaceToken <*> fa
 
 (<*%) :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m (WithWhitespace a)
@@ -71,10 +69,8 @@ infixl 4 <$%>, <$%, <*%>, <*%
 wSome :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace [a])
-wSome fa
-    = (\a ws (wss, as) -> (ws : wss, a : as)) <$> fa
-    <*> whitespaceToken
-    <*> wMany fa
+wSome fa = (\a ws (wss, as) ->
+            (ws : wss, a : as)) <$> fa <*> whitespaceToken <*> wMany fa
 
 wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a

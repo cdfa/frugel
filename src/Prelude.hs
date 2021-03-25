@@ -51,10 +51,9 @@ concatByPrism p = concatBy (preview p) (review p)
 -- [Left "hi",Right 1]
 concatBy :: Monoid b => (a -> Maybe b) -> (b -> a) -> [a] -> [a]
 concatBy _ _ [] = []
-concatBy toMonoid toElement xs
-    = case spanMaybe toMonoid xs of
-        ([], y : ys) -> y : concatBy' ys
-        (zs, ys) -> toElement (mconcat zs) : concatBy' ys
+concatBy toMonoid toElement xs = case spanMaybe toMonoid xs of
+    ([], y : ys) -> y : concatBy' ys
+    (zs, ys) -> toElement (mconcat zs) : concatBy' ys
   where
     concatBy' = concatBy toMonoid toElement
 
@@ -63,10 +62,9 @@ concatBy toMonoid toElement xs
 -- (["h","i"],[Right 1])
 spanMaybe :: (t -> Maybe a) -> [t] -> ([a], [t])
 spanMaybe _ xs@[] = ([], xs)
-spanMaybe p xs@(x : xs')
-    = case p x of
-        Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
-        Nothing -> ([], xs)
+spanMaybe p xs@(x : xs') = case p x of
+    Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
+    Nothing -> ([], xs)
 
 -- Modified from https://hackage.haskell.org/package/hledger-lib-1.20.4/docs/src/Hledger.Utils.html#splitAtElement
 -- >>> splitOn ' ' " switch   the accumulator to the other mode   "
@@ -75,12 +73,11 @@ splitOn :: Eq a => a -> [a] -> [[a]]
 splitOn x l = prefix : rest'
   where
     (prefix, rest) = break (x ==) l
-    rest'
-        = case rest of
-            [] -> []
-            e : es
-                | e == x -> splitOn x es
-            es -> splitOn x es
+    rest' = case rest of
+        [] -> []
+        e : es
+            | e == x -> splitOn x es
+        es -> splitOn x es
 
 (+~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l +~ n = over l (+ n)

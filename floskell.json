@@ -166,7 +166,7 @@
         },
         "options": {
             "sort-pragmas": true,
-            "flexible-oneline": false,
+            "flexible-oneline": true,
             "decl-no-blank-lines": ["where", "instance", "class"],
             "split-language-pragmas": true,
             "align-sum-type-decl": false,

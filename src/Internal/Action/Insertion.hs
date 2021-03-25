@@ -32,24 +32,19 @@ instance Decomposable CstrMaterials where
         foldMaterials materials item
             = maybe
                 (pure (materials |> item))
-                (\InsertionState{..} -> if cursorOffset == 0
-                     then do
-                         put Nothing
-                         pure (materials |> Left char |> item)
-                     else do
-                         _Just % #cursorOffset -= 1
-                         itemMaterials
-                             <- either (pure . one . Left) processNodeItem item
-                         pure (materials >< itemMaterials))
+                (\InsertionState{..} -> if cursorOffset == 0 then do
+                     put Nothing
+                     pure (materials |> Left char |> item) else do
+                     _Just % #cursorOffset -= 1
+                     itemMaterials
+                         <- either (pure . one . Left) processNodeItem item
+                     pure (materials >< itemMaterials))
             =<< get
-        processNodeItem node
-            = do
-                nodeMaterials <- insertByPos node
-                gets
-                    (bool
-                         (view _CstrMaterials nodeMaterials)
-                         (one $ Right node)
-                     . any ((> 0) . view #cursorOffset))
+        processNodeItem node = do
+            nodeMaterials <- insertByPos node
+            gets
+                (bool (view _CstrMaterials nodeMaterials) (one $ Right node)
+                 . any ((> 0) . view #cursorOffset))
 
 instance Decomposable Node where
     insertByPos (ExprNode (Identifier meta name)) = undefined

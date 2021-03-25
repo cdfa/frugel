@@ -25,14 +25,13 @@ renderSmart
     . layoutSmart defaultLayoutOptions
 
 textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
-textTreeForm
-    = \case
-        STEmpty -> one $ TextLeaf ""
-        STChar c -> one . TextLeaf $ one c
-        STText _ t -> one $ TextLeaf t
-        STLine w -> LineLeaf : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
-        STAnn ann content -> one . Annotated ann $ textTreeForm content
-        STConcat contents -> concatMap textTreeForm contents
+textTreeForm = \case
+    STEmpty -> one $ TextLeaf ""
+    STChar c -> one . TextLeaf $ one c
+    STText _ t -> one $ TextLeaf t
+    STLine w -> LineLeaf : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
+    STAnn ann content -> one . Annotated ann $ textTreeForm content
+    STConcat contents -> concatMap textTreeForm contents
 
 textLeavesConcat :: [DocTextTree ann] -> [DocTextTree ann]
 textLeavesConcat
@@ -42,29 +41,26 @@ textLeavesConcat
 
 splitMultiLineAnnotations
     :: [DocTextTree Annotation] -> [DocTextTree RenderAnnotation]
-splitMultiLineAnnotations
-    = foldMap
-    $ \case
-        TextLeaf t -> [ TextLeaf t ]
-        LineLeaf -> [ LineLeaf ]
-        Annotated ann trees -> filter isEmptyAnnotation
-            . intersperse LineLeaf
-            . reAnnotateCstrSite ann
-            . splitOn LineLeaf
-            $ splitMultiLineAnnotations trees
+splitMultiLineAnnotations = foldMap $ \case
+    TextLeaf t -> [ TextLeaf t ]
+    LineLeaf -> [ LineLeaf ]
+    Annotated ann trees -> filter isEmptyAnnotation
+        . intersperse LineLeaf
+        . reAnnotateCstrSite ann
+        . splitOn LineLeaf
+        $ splitMultiLineAnnotations trees
   where
     reAnnotateCstrSite
         (PrettyPrinting.CompletionAnnotation completionStatus)
-        treeLines
-        = case treeLines of
-            (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
-                <| (reannotatedMiddleLines |> reannotatedLastLine)
-              where
-                reannotatedFirstLine = reannotate firstLineOpenness firstLine
-                reannotatedMiddleLines
-                    = map (reannotate middleLinesOpenness) middleLines
-                reannotatedLastLine = reannotate lastLineOpenness lastLine
-            _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
+        treeLines = case treeLines of
+        (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
+            <| (reannotatedMiddleLines |> reannotatedLastLine)
+          where
+            reannotatedFirstLine = reannotate firstLineOpenness firstLine
+            reannotatedMiddleLines
+                = map (reannotate middleLinesOpenness) middleLines
+            reannotatedLastLine = reannotate lastLineOpenness lastLine
+        _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
       where
         reannotate
             = Annotated . ViewModel.CompletionAnnotation completionStatus
@@ -72,25 +68,22 @@ splitMultiLineAnnotations
 annotationTreeForm :: [DocTextTree RenderAnnotation] -> [Line]
 annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
   where
-    transform
-        = \case
-            TextLeaf t -> Leaf t
-            LineLeaf -> error "unexpected LineLeaf"
-            Annotated ann trees -> Node ann $ map transform trees
+    transform = \case
+        TextLeaf t -> Leaf t
+        LineLeaf -> error "unexpected LineLeaf"
+        Annotated ann trees -> Node ann $ map transform trees
 
 renderTrees :: [Line] -> View Action
 renderTrees = div_ [] . map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
-renderTree
-    = \case
-        Leaf t -> text $ Miso.String.ms t
-        Node annotation subTrees ->
-            encloseInTagFor annotation $ map renderTree subTrees
+renderTree = \case
+    Leaf t -> text $ Miso.String.ms t
+    Node annotation subTrees ->
+        encloseInTagFor annotation $ map renderTree subTrees
 
 encloseInTagFor :: RenderAnnotation -> [View Action] -> View Action
-encloseInTagFor ann views
-    = case ann of
-        ViewModel.CompletionAnnotation InConstruction v ->
-            inConstruction v [] views
-        ViewModel.CompletionAnnotation Complete v -> complete v [] views
+encloseInTagFor ann views = case ann of
+    ViewModel.CompletionAnnotation InConstruction v ->
+        inConstruction v [] views
+    ViewModel.CompletionAnnotation Complete v -> complete v [] views
