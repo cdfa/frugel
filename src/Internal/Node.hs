@@ -31,7 +31,7 @@ import           Data.Has
 
 newtype CstrMaterials = CstrMaterials (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )
-    deriving newtype ( One, Stream, IsList )
+    deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
 data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
@@ -56,6 +56,11 @@ data WhereClause = WhereClause Meta [Decl] | WhereCstrSite Meta CstrMaterials
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
 makePrisms ''CstrMaterials
+
+instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
+    _Cons = _CstrMaterials % _Cons % aside (re _CstrMaterials)
+
+instance AsEmpty CstrMaterials
 
 instance VisualStream CstrMaterials where
     showTokens Proxy

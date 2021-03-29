@@ -1,16 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
-
-{-# OPTIONS_GHC -Wno-unused-imports #-} -- because exporting unused qualified imports
-
 module Prelude ( module Prelude, module Relude, (><), toList ) where
 
 import           Relude
                  hiding ( Sum, abs, group, init, some, toList )
 import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
-import           Optics
-import           Data.List                 ( dropWhileEnd, stripPrefix )
-import           Data.Has
 import           Data.Sequence             ( (><) )
 import           GHC.Exts
 import qualified Data.Foldable             as Foldable
@@ -40,12 +33,6 @@ groupByEither = listCase [] (go . init)
     go acc (ab : abs) = adjust acc : go (init ab) abs
     adjust = bimap reverse reverse
     init = bimap pure pure
-
-concatByPrism :: (Is k An_AffineFold, Is k A_Review, Monoid a)
-    => Optic' k is s a
-    -> [s]
-    -> [s]
-concatByPrism p = concatBy (preview p) (review p)
 
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
@@ -78,31 +65,6 @@ splitOn x l = prefix : rest'
         e : es
             | e == x -> splitOn x es
         es -> splitOn x es
-
-(+~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
-l +~ n = over l (+ n)
-
-(-~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
-l -~ n = over l (subtract n)
-
-(-=) :: (MonadState s m, Num a, Is k A_Setter)
-    => Optic k is s s a a
-    -> a
-    -> m ()
-l -= b = modify (l -~ b)
-
-hasLens :: Has a s => Lens' s a
-hasLens = lens getter (\t b -> modifier (const b) t)
-
-infixl 4 <<$>
-
-(<<$>) :: (Functor f, Functor g) => a -> f (g b) -> f (g a)
-(<<$>) a ffb = (a <$) <$> ffb
-
-infixr 9 <.>
-
-(<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
-f1 <.> f2 = fmap f1 . f2
 
 -- From: https://hackage.haskell.org/package/universe-base-1.1.2/docs/src/Data.Universe.Helpers.html#interleave
 -- | Fair n-way interleaving: given a finite number of (possibly infinite)

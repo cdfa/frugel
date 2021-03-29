@@ -25,7 +25,7 @@ let
   nix-pre-commit-hooks = import sources."pre-commit-hooks.nix";
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
-    hooks = with import ./nix/commit-hooks.nix { inherit floskell; bash = stablePkgs.bash; }; {
+    hooks = with import ./nix/commit-hooks.nix { inherit stablePkgs floskell; }; {
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;

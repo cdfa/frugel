@@ -5,7 +5,6 @@ import           Internal.Program    ( Program(ProgramCstrSite) )
 import           Text.Megaparsec.Pos
 import           Internal.Meta       ( defaultProgramMeta )
 
--- Type synonym for an application model
 data Model = Model { program :: Program, cursorPos :: SourcePos }
     deriving ( Show, Eq )
 

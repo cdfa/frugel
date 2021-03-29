@@ -25,6 +25,14 @@ import           Internal.Node
 
 makePrisms ''Node
 
+intersperseWhitespace :: [Text] -> CstrMaterials -> CstrMaterials
+intersperseWhitespace whitespaceFragments decomposables
+    = fromList . concat
+    $ interleave
+        [ map one $ toList decomposables
+        , map (map Left . toString) whitespaceFragments
+        ]
+
 -- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 type CstrMaterials' = [Either String [Node]]

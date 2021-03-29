@@ -12,7 +12,7 @@
 
 module Internal.Program where
 
-import           Node                      hiding ( Expr, whereClause )
+import           Node           hiding ( Expr, whereClause )
 import qualified Node
 import           PrettyPrinting
 import           Optics
@@ -21,7 +21,7 @@ import           Internal.Meta
                  ( Meta(interstitialWhitespace), ProgramMeta(standardMeta)
                  , defaultProgramMeta )
 import           Data.Has
-import           Internal.Action.Insertion as Insertion
+import           Decomposition
 
 data Program
     = Program { meta        :: ProgramMeta
@@ -38,20 +38,11 @@ instance Has Meta Program where
     modifier = over (programMeta % #standardMeta)
 
 instance Decomposable Program where
-    insertByPos Program{..}
-        = insertByPos
+    decomposed Program{..}
+        = decomposed
         . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
         $ fromList [ Right $ ExprNode expr, Right $ WhereNode whereClause ]
-        -- = do
-        --     st <- get
-        --     maybe
-        --         (error
-        --              "Started inserting without cursor position and character")
-        --         (\_ -> sequenceDecomposables
-        --              (interstitialWhitespace $ standardMeta meta)
-        --              [ insertByPos expr, insertByPos whereClause ])
-        --         st
-    insertByPos (ProgramCstrSite _ materials) = insertByPos materials
+    decomposed (ProgramCstrSite _ materials) = decomposed materials
 
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
