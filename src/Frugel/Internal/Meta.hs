@@ -31,14 +31,3 @@ makeFieldLabelsWith noPrefixFieldLabels ''ExprMeta
 makeFieldLabelsWith noPrefixFieldLabels ''ProgramMeta
 
 makeFieldLabelsWith noPrefixFieldLabels ''Meta
-
-defaultExprMeta :: ExprMeta
-defaultExprMeta
-    = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta }
-
-defaultProgramMeta :: ProgramMeta
-defaultProgramMeta
-    = ProgramMeta { standardMeta = defaultMeta, trailingWhitespace = "" }
-
-defaultMeta :: Meta
-defaultMeta = Meta { interstitialWhitespace = [] }

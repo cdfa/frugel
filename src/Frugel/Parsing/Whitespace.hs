@@ -10,9 +10,9 @@ module Frugel.Parsing.Whitespace where
 
 import           Data.Char
 import           Data.Has
-import qualified Data.Set             as Set
+import qualified Data.Set        as Set
 
-import           Frugel.Internal.Meta ( Meta )
+import           Frugel.Meta
 import           Frugel.Node
 
 import           Optics

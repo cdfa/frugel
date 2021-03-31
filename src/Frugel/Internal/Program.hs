@@ -16,15 +16,10 @@ import           Data.Has
 
 import           Frugel.Decomposition
 import           Frugel.Internal.Meta
-                 ( Meta(interstitialWhitespace), ProgramMeta(standardMeta)
-                 , defaultProgramMeta )
-import           Frugel.Node           hiding ( whereClause )
-import           Frugel.PrettyPrinting
+                 ( Meta(interstitialWhitespace), ProgramMeta(standardMeta) )
+import           Frugel.Node          hiding ( whereClause )
 
--- import qualified Frugel.Node as Node
 import           Optics
-
-import           Prettyprinter
 
 data Program
     = Program { meta :: ProgramMeta, expr :: Expr, whereClause :: WhereClause }
@@ -46,10 +41,3 @@ instance Decomposable Program where
 
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
-
-program :: Expr -> WhereClause -> Program
-program = Program defaultProgramMeta
-
-prettyProgram :: Program -> Doc Annotation
-prettyProgram Program{..} = prettyExpr expr <> prettyWhereClause whereClause
-prettyProgram (ProgramCstrSite _ contents) = prettyCstrMaterials contents

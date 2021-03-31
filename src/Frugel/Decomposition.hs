@@ -8,12 +8,9 @@ module Frugel.Decomposition
     ) where
 
 import           Frugel.Internal.DecompositionState
-                 ( DecompositionState(DecompositionState) )
-import           Frugel.Internal.DecompositionState
-                 hiding ( DecompositionState(..) )
 import           Frugel.Internal.Meta
                  ( ExprMeta(standardMeta), Meta(interstitialWhitespace) )
-import           Frugel.Internal.Node               ( meta, name, value )
+import           Frugel.Internal.Node               ( Decl(meta, name, value) )
 import           Frugel.Node
 
 import           Optics

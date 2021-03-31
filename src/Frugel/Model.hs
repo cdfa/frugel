@@ -1,7 +1,7 @@
 module Frugel.Model where
 
-import           Frugel.Internal.Meta    ( defaultProgramMeta )
-import           Frugel.Internal.Program ( Program(ProgramCstrSite) )
+import           Frugel.Meta
+import           Frugel.Program
 
 data Model
     = Model { program :: Program, cursorOffset :: Integer, errors :: [String] }

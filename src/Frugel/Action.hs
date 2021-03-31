@@ -5,10 +5,10 @@
 module Frugel.Action where
 
 import           Frugel.Decomposition
-import           Frugel.Internal.Meta    ( defaultProgramMeta )
-import           Frugel.Internal.Program ( Program(ProgramCstrSite) )
-import           Frugel.Model            as Model
+import           Frugel.Meta
+import           Frugel.Model         as Model
 import           Frugel.Parsing
+import           Frugel.Program
 
 import           Optics
 

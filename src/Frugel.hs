@@ -12,13 +12,13 @@ module Frugel
     ) where
 
 import           Frugel.Action
-import           Frugel.Internal.Program ( prettyProgram )
 import           Frugel.Model
 import           Frugel.Node
 import           Frugel.Parsing
 import           Frugel.PrettyPrinting
+import           Frugel.Program
 
-import           Miso                    hiding ( node )
+import           Miso                  hiding ( node )
 
 import           Text.Megaparsec
 

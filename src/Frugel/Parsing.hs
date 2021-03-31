@@ -4,13 +4,13 @@ module Frugel.Parsing where
 
 import           Control.Monad.Combinators.Expr
 
-import           Frugel.Internal.Meta           ( defaultExprMeta )
-import           Frugel.Internal.Program        as Program ( Program, program )
 import           Frugel.Lexing
+import           Frugel.Meta
 import           Frugel.Node                    as Node
 import           Frugel.Parsing.Utils           hiding ( Left, Right )
 import qualified Frugel.Parsing.Utils
 import           Frugel.Parsing.Whitespace
+import           Frugel.Program                 as Program
 
 import           Optics
 

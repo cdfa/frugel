@@ -10,7 +10,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Frugel.Internal.DecompositionState where
+module Frugel.Internal.DecompositionState
+    ( DecompositionState(DecompositionState)
+    , initialDecompositionState
+    ) where
 
 import           Optics
 

@@ -18,8 +18,8 @@ module Frugel.Node
     , prettyWhereClause
     ) where
 
-import           Frugel.Internal.Meta ( defaultExprMeta, defaultMeta )
 import           Frugel.Internal.Node
+import           Frugel.Meta
 
 import           Optics
 

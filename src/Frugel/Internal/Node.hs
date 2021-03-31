@@ -22,7 +22,8 @@ import           Data.Composition
 import           Data.Has
 import qualified Data.Text                  as Text
 
-import           Frugel.Internal.Meta       ( ExprMeta(standardMeta), Meta )
+import           Frugel.Internal.Meta       ( ExprMeta(standardMeta) )
+import           Frugel.Meta
 import           Frugel.PrettyPrinting.Text
 
 import           Optics
