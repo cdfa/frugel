@@ -30,7 +30,7 @@ term
           <*%> expr
           <*% (Parsing.Utils.Right <$ char ')')
           -- Non recursive production rules at the bottom
-        , exprCstrSite (CstrMaterials empty) <$% string "???"
+        , exprCstrSite (CstrMaterials empty) <$% string "..."
         , noWhitespace <$> node "an expression node" _ExprNode
         , Node.identifier <$%> Parsing.identifier
         ]
