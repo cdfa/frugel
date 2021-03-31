@@ -12,7 +12,7 @@ import           Decomposition
 import           Optics
 import           Text.Megaparsec
 
-data Action = NoOp | Insert Char | Log String
+data Action = NoOp | Load | Insert Char | Log String
     deriving ( Show, Eq )
 
 insert :: Char -> Model -> Model

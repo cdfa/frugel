@@ -76,7 +76,7 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
 
 renderTrees :: [Line] -> View Action
 renderTrees
-    = button_ [ keyDownHandler, noButtonStyle ] -- Using a button, because only (some) elements generate events
+    = button_ [ keyDownHandler, noButtonStyle, id_ "code-root" ] -- Using a button, because only (some) elements generate events
     . map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
