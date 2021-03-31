@@ -13,6 +13,7 @@ import           PrettyPrinting
 import           View.Elements
 import           View.ViewModel                          as ViewModel
 import           Optics                                  hiding ( views )
+import           Event
 
 renderSmart :: Doc Annotation -> View Action
 renderSmart
@@ -74,7 +75,9 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         Annotated ann trees -> Node ann $ map transform trees
 
 renderTrees :: [Line] -> View Action
-renderTrees = div_ [] . map (div_ [] . map renderTree . view _Line)
+renderTrees
+    = button_ [ keyDownHandler, noButtonStyle ] -- Using a button, because only (some) elements generate events
+    . map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
 renderTree = \case

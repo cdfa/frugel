@@ -63,6 +63,7 @@ executables:
       - miso
       - pretty-simple
       - prettyprinter >= 1.7.0
+      - aeson
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp

@@ -19,6 +19,7 @@
         "vdom"
     ],
     "cSpell.ignoreWords": [
+        "aeson",
         "colinderoos",
         "cstr",
         "exts",
@@ -29,6 +30,7 @@
         "guses",
         "hcat",
         "ifndef",
+        "keydown",
         "lparen",
         "mappend",
         "mconcat",

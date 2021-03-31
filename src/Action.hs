@@ -1,40 +1,49 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# LANGUAGE TupleSections #-}
+
 module Action where
 
-import           Prelude             hiding ( one )
 import           Model
-import           Internal.Meta       ( defaultProgramMeta )
-import           Internal.Program    ( Program(ProgramCstrSite) )
+import           Internal.Meta    ( defaultProgramMeta )
+import           Internal.Program ( Program(ProgramCstrSite) )
 import           Parsing
 import           Decomposition
-
-import           Text.Megaparsec.Pos
 import           Optics
+import           Text.Megaparsec
 
-insert :: Model -> Char -> Model
-insert model c
-    = model { Model.program = fromRight
-                  (ProgramCstrSite defaultProgramMeta inserted)
-                  $ parseCstrSite fileName inserted
-            }
+data Action = NoOp | Insert Char | Log String
+    deriving ( Show, Eq )
+
+insert :: Char -> Model -> Model
+insert c model = case reparsed of
+    Left (inserted, newErrors) ->
+        model { Model.program = maybe
+                    (Model.program model)
+                    (ProgramCstrSite defaultProgramMeta)
+                    inserted
+              , errors        = newErrors
+              }
+    Right newProgram -> model { Model.program = newProgram }
   where
     (materials, decomposeState)
         = runState (decomposed $ Model.program model)
-        $ initialDecompositionState cursorOffset
-    inserted = case decomposeState of
+        $ initialDecompositionState
+        $ cursorOffset model
+    insert' = case decomposeState of
         DecompositionState _ textOffset
-            | textOffset /= -1 -> error
-                ("Failed to decompose AST for cursor textOffset "
-                 <> show cursorOffset)
-        DecompositionState cstrMaterialOffset _ -> fromMaybe
-            (error
-                 ("Failed to insert '"
-                  <> show c
-                  <> "' into construction site at index "
-                  <> show cstrMaterialOffset))
+            | textOffset /= -1 -> Left
+                [ "Failed to decompose AST for cursor textOffset "
+                  <> show (cursorOffset model)
+                ]
+        DecompositionState cstrMaterialOffset _ -> maybeToRight
+            [ "Failed to insert '"
+              <> show c
+              <> "' into construction site at index "
+              <> show cstrMaterialOffset
+            ]
             $ insertAt cstrMaterialOffset (Left c) materials
-    cursorOffset = offSetBySourcePos $ cursorPos model
-
-offSetBySourcePos :: SourcePos -> Integer
-offSetBySourcePos = error "not implemented"
+    reparsed = do
+        inserted <- first (Nothing, ) insert'
+        first ((Just inserted, ) . map parseErrorPretty . toList)
+            $ parseCstrSite fileName inserted

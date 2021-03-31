@@ -6,6 +6,21 @@ import           Miso
 import qualified Miso.String
 import           View.ViewModel
 
+noButtonStyle :: Attribute action
+noButtonStyle
+    = style_
+    $ fromList
+        [ ("background", "none")
+        , ("color", "inherit")
+        , ("border", "none")
+        , ("padding", "0")
+        , ("font", "inherit")
+        , ("cursor", "auto")
+        , ("outline", "inherit")
+        , ("user-select", "text")
+        , ("text-align", "left")
+        ]
+
 codeStyle :: Attribute action
 codeStyle
     = style_

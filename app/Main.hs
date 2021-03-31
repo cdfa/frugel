@@ -50,7 +50,12 @@ viewModel model
                     "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
               ]
           --   , renderSmart test2
-        , renderSmart . prettyProgram $ program model
+        , div_ [ class_ "columns" ]
+          $ map
+              (div_ [ class_ "column" ] . one)
+              [ renderSmart . prettyProgram $ program model
+              , div_ [] . map webPrint $ errors model
+              ]
         , webPrint $ pShowNoColor model
         ]
 

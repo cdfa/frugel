@@ -3,6 +3,7 @@
 module Frugel
     ( module Frugel
     , module Model
+    , Action(..)
     , prettyProgram
     , prettyCstrMaterials
     , parseErrorPretty
@@ -15,17 +16,11 @@ import           Node
 import           Internal.Program ( prettyProgram )
 import           Parsing
 import           Model
-
--- Sum type for application events
--- data Action = AddOne | SubtractOne | NoOp | SayHelloWorld
-data Action = NoOp
-    deriving ( Show, Eq )
+import           Action
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model
-
--- updateModel AddOne m = noEff (m + 1)
--- updateModel SubtractOne m = noEff (m - 1)
-updateModel NoOp = noEff
--- updateModel SayHelloWorld m =
---     m <# do liftIO (putStrLn "Hello World") >> pure NoOp
+updateModel NoOp m = noEff m
+updateModel (Insert c) m = noEff $ insert c m
+updateModel (Log msg) m = m <# do
+    consoleLog (show msg) >> pure NoOp
