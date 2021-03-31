@@ -62,12 +62,12 @@ decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
     cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
-whereClause = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
+whereClause = setWhitespace <$> (cstrSiteWhere <|> literalWhere) -- it's important that cstrSiteWhere is tried first, because literalWhere succeeds on empty input
   where
-    literalDecl
+    literalWhere
         = (Node.whereClause . concat)
         <<$>> wOptional (string "where" *%> wSome Parsing.decl)
-    cstrSiteDecl = noWhitespace <$> node "a declaration node" _WhereNode
+    cstrSiteWhere = noWhitespace <$> node "a declaration node" _WhereNode
 
 program :: Parser Program
 program
