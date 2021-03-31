@@ -26,7 +26,7 @@ insert c model = case reparsed of
                     inserted
               , errors        = newErrors
               }
-    Right newProgram -> model { Model.program = newProgram }
+    Right newProgram -> model { Model.program = newProgram, errors = [] }
   where
     (materials, decomposeState)
         = runState (decomposed $ Model.program model)
