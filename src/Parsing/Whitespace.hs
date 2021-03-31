@@ -14,7 +14,7 @@ import           Optics
 import           Text.Megaparsec
 import           Node
 import           Data.Char
-import           Parsing.Utils
+import qualified Data.Set        as Set
 
 type WithWhitespace a = ([Text], a)
 
@@ -22,8 +22,8 @@ whitespaceToken :: (MonadParsec e s m, Token s ~ Either Char Node) => m Text
 whitespaceToken = fromMaybe "" <$> optional whitespace'
   where
     whitespace'
-        = fmap toText . some
-        $ namedToken "<whitespace>" (leftToMaybe >=> guarded isSpace)
+        = fmap toText . some . hidden
+        $ token (leftToMaybe >=> guarded isSpace) Set.empty
 
 whitespace :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m (WithWhitespace ())

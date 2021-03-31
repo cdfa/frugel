@@ -129,7 +129,6 @@ prettyDecl (DeclCstrSite _ contents) = prettyCstrMaterials contents
     -- <> prettyWhereClause whereClause
 prettyWhereClause :: WhereClause -> Doc Annotation
 prettyWhereClause (WhereCstrSite _ contents) = prettyCstrMaterials contents
-
 prettyWhereClause (WhereClause _ decls)
     = if null decls
         then mempty
