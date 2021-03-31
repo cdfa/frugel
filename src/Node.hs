@@ -6,7 +6,7 @@ module Node
     ( module Node
     , Expr(..)
     , CstrMaterials(..)
-    , Decl(Decl)
+    , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
     , _CstrMaterials

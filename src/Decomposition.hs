@@ -1,11 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# LANGUAGE RecordWildCards #-}
+
 module Decomposition
     ( module Decomposition
     , module Internal.DecompositionState
     ) where
 
 import           Node
+import           Internal.Node               ( meta, name, value )
 import           Internal.DecompositionState
                  ( DecompositionState(DecompositionState) )
 import           Internal.DecompositionState hiding ( DecompositionState(..) )
@@ -45,6 +48,8 @@ instance Decomposable CstrMaterials where
 
 instance Decomposable Node where
     decomposed (ExprNode n) = decomposed n
+    decomposed (DeclNode n) = decomposed n
+    decomposed (WhereNode n) = decomposed n
 
 instance Decomposable Expr where
     decomposed (Identifier _ name)
@@ -64,3 +69,16 @@ instance Decomposable Expr where
         . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
         $ fromList [ Right $ ExprNode left, Left '+', Right $ ExprNode right ]
     decomposed (ExprCstrSite _ materials) = decomposed materials
+
+instance Decomposable Decl where
+    decomposed Decl{..}
+        = decomposed . intersperseWhitespace (interstitialWhitespace meta)
+        $ fromList
+            (map Left (toString name) ++ [ Left '=', Right $ ExprNode value ])
+    decomposed (DeclCstrSite _ materials) = decomposed materials
+
+instance Decomposable WhereClause where
+    decomposed (WhereClause meta decls)
+        = decomposed . intersperseWhitespace (interstitialWhitespace meta)
+        $ fromList (map Left "where" ++ map (Right . DeclNode) decls)
+    decomposed (WhereCstrSite _ materials) = decomposed materials
