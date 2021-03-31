@@ -32,7 +32,7 @@ insert c model = case reparsed of
         $ cursorOffset model
     insert' = case decomposeState of
         DecompositionState _ textOffset
-            | textOffset /= -1 -> Left
+            | textOffset > 0 -> Left
                 [ "Failed to decompose AST for cursor textOffset "
                   <> show (cursorOffset model)
                 ]

@@ -1,6 +1,5 @@
 module Model where
 
-import           Node
 import           Internal.Program ( Program(ProgramCstrSite) )
 import           Internal.Meta    ( defaultProgramMeta )
 
@@ -10,8 +9,7 @@ data Model
 
 initialModel :: Model
 initialModel
-    = Model { program
-                  = ProgramCstrSite defaultProgramMeta Node.whereClauseTest
+    = Model { program      = ProgramCstrSite defaultProgramMeta $ fromList []
             , cursorOffset = 0
             , errors       = []
             }
