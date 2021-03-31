@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module PrettyPrinting.Text
-    ( module PrettyPrinting
-    , module PrettyPrinting.Text
+module Frugel.PrettyPrinting.Text
+    ( module Frugel.PrettyPrinting
+    , module Frugel.PrettyPrinting.Text
     ) where
 
-import           PrettyPrinting
+import           Frugel.PrettyPrinting
+
 import           Prettyprinter
 import           Prettyprinter.Render.Util.StackMachine
 

@@ -172,7 +172,7 @@
             "align-sum-type-decl": false,
             "sort-import-lists": true,
             "preserve-vertical-space": true,
-            "sort-imports": false
+            "sort-imports": true
         }
     },
     "language": "Haskell2010"

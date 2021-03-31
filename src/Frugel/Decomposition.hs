@@ -2,18 +2,20 @@
 
 {-# LANGUAGE RecordWildCards #-}
 
-module Decomposition
-    ( module Decomposition
-    , module Internal.DecompositionState
+module Frugel.Decomposition
+    ( module Frugel.Decomposition
+    , module Frugel.Internal.DecompositionState
     ) where
 
-import           Node
-import           Internal.Node               ( meta, name, value )
-import           Internal.DecompositionState
+import           Frugel.Internal.DecompositionState
                  ( DecompositionState(DecompositionState) )
-import           Internal.DecompositionState hiding ( DecompositionState(..) )
-import           Internal.Meta
+import           Frugel.Internal.DecompositionState
+                 hiding ( DecompositionState(..) )
+import           Frugel.Internal.Meta
                  ( ExprMeta(standardMeta), Meta(interstitialWhitespace) )
+import           Frugel.Internal.Node               ( meta, name, value )
+import           Frugel.Node
+
 import           Optics
 
 class Decomposable n where

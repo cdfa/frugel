@@ -2,7 +2,8 @@
 
 module Frugel
     ( module Frugel
-    , module Model
+    , module Frugel.Model
+    , module Frugel.PrettyPrinting
     , Action(..)
     , prettyProgram
     , prettyCstrMaterials
@@ -10,13 +11,16 @@ module Frugel
     , parseCstrSite
     ) where
 
-import           Miso             hiding ( node )
+import           Frugel.Action
+import           Frugel.Internal.Program ( prettyProgram )
+import           Frugel.Model
+import           Frugel.Node
+import           Frugel.Parsing
+import           Frugel.PrettyPrinting
+
+import           Miso                    hiding ( node )
+
 import           Text.Megaparsec
-import           Node
-import           Internal.Program ( prettyProgram )
-import           Parsing
-import           Model
-import           Action
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model

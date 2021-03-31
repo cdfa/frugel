@@ -10,10 +10,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Internal.Meta where
+module Frugel.Internal.Meta where
+
+import           Data.Has
 
 import           Optics
-import           Data.Has
 
 data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
     deriving ( Eq, Ord, Show, Generic, Has Meta )

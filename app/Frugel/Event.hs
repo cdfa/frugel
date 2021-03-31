@@ -1,11 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Event where
+module Frugel.Event where
+
+import           Data.Aeson.Types
+
+import           Frugel
 
 import           Miso               ( Attribute, on )
-import           Frugel
-import           Miso.Event.Decoder
-import           Data.Aeson.Types
+import           Miso.Event.Decoder hiding ( keyInfoDecoder )
 
 data KeyInfo
     = KeyInfo { key :: !String, shiftKey, metaKey, ctrlKey, altKey :: !Bool }
@@ -21,7 +23,7 @@ keyDownHandler = onKeyDownWithInfo handleKeyDown
 
 -- | https://developer.mozilla.org/en-US/docs/Web/Events/keydown
 onKeyDownWithInfo :: (KeyInfo -> action) -> Attribute action
-onKeyDownWithInfo = Miso.on "keydown" Event.keyInfoDecoder
+onKeyDownWithInfo = Miso.on "keydown" keyInfoDecoder
 
 keyInfoDecoder :: Decoder KeyInfo
 keyInfoDecoder = Decoder { .. }

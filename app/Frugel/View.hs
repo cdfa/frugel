@@ -1,19 +1,21 @@
 {-# LANGUAGE LambdaCase #-}
 
-module View where
+module Frugel.View where
 
-import           Prelude                                 hiding ( lines )
+import           Frugel
+import           Frugel.Event
+import           Frugel.View.Elements
+import           Frugel.View.ViewModel                   as ViewModel
+
 import           Miso                                    hiding ( node, view )
 import qualified Miso.String
+
+import           Optics                                  hiding ( views )
+
+import           Prelude                                 hiding ( lines )
+
 import           Prettyprinter
 import           Prettyprinter.Render.Util.SimpleDocTree
-import           Frugel
-
-import           PrettyPrinting
-import           View.Elements
-import           View.ViewModel                          as ViewModel
-import           Optics                                  hiding ( views )
-import           Event
 
 renderSmart :: Doc Annotation -> View Action
 renderSmart
@@ -51,17 +53,16 @@ splitMultiLineAnnotations = foldMap $ \case
         . splitOn LineLeaf
         $ splitMultiLineAnnotations trees
   where
-    reAnnotateCstrSite
-        (PrettyPrinting.CompletionAnnotation completionStatus)
-        treeLines = case treeLines of
-        (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
-            <| (reannotatedMiddleLines |> reannotatedLastLine)
-          where
-            reannotatedFirstLine = reannotate firstLineOpenness firstLine
-            reannotatedMiddleLines
-                = map (reannotate middleLinesOpenness) middleLines
-            reannotatedLastLine = reannotate lastLineOpenness lastLine
-        _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
+    reAnnotateCstrSite (Frugel.CompletionAnnotation completionStatus) treeLines
+        = case treeLines of
+            (firstLine :< middleLines) :> lastLine -> reannotatedFirstLine
+                <| (reannotatedMiddleLines |> reannotatedLastLine)
+              where
+                reannotatedFirstLine = reannotate firstLineOpenness firstLine
+                reannotatedMiddleLines
+                    = map (reannotate middleLinesOpenness) middleLines
+                reannotatedLastLine = reannotate lastLineOpenness lastLine
+            _ -> map (reannotate singleLineOpenness) treeLines -- length treeLines = 0 or 1
       where
         reannotate
             = Annotated . ViewModel.CompletionAnnotation completionStatus

@@ -5,16 +5,18 @@
 
 module Main where
 
+import           Frugel
+import           Frugel.View
+import           Frugel.View.Elements
+
 #ifndef __GHCJS__
 import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
 import           Miso
 import qualified Miso.String
-import           Frugel
+
 import           Text.Pretty.Simple               ( pShowNoColor )
-import           View
-import           View.Elements
 
 -- import           Test
 #ifndef __GHCJS__

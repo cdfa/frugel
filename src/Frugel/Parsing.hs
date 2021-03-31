@@ -1,17 +1,20 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Parsing where
+module Frugel.Parsing where
 
-import           Node
-import           Internal.Program               as Program ( Program, program )
-import           Lexing
-import           Parsing.Utils                  hiding ( Left, Right )
-import qualified Parsing.Utils
-import           Parsing.Whitespace
-import           Text.Megaparsec
 import           Control.Monad.Combinators.Expr
+
+import           Frugel.Internal.Meta           ( defaultExprMeta )
+import           Frugel.Internal.Program        as Program ( Program, program )
+import           Frugel.Lexing
+import           Frugel.Node                    as Node
+import           Frugel.Parsing.Utils           hiding ( Left, Right )
+import qualified Frugel.Parsing.Utils
+import           Frugel.Parsing.Whitespace
+
 import           Optics
-import           Internal.Meta                  ( defaultExprMeta )
+
+import           Text.Megaparsec
 
 identifier :: Parser Text
 identifier = toText <$> some alphaNumChar <?> "an identifier"
@@ -23,16 +26,16 @@ term :: Parser Expr
 term
     = setWhitespace
     <$> choice
-        [ abstraction <$% char '\\' <*%> Parsing.identifier <*% char '='
+        [ abstraction <$% char '\\' <*%> Frugel.Parsing.identifier <*% char '='
           <*%> expr
         , ((exprMeta % #parenthesisLevels) +~ 1)
-          <$% (Parsing.Utils.Left <$ char '(')
+          <$% (Frugel.Parsing.Utils.Left <$ char '(')
           <*%> expr
-          <*% (Parsing.Utils.Right <$ char ')')
+          <*% (Frugel.Parsing.Utils.Right <$ char ')')
           -- Non recursive production rules at the bottom
         , exprCstrSite (CstrMaterials empty) <$% string "..."
         , noWhitespace <$> node "an expression node" _ExprNode
-        , Node.identifier <$%> Parsing.identifier
+        , Node.identifier <$%> Frugel.Parsing.identifier
         ]
 
 expr :: Parser Expr
@@ -42,11 +45,12 @@ expr
         [ [ InfixL
             $ try
                 (Application . setWhitespace
-                 <$> (defaultExprMeta <<$> Parsing.Whitespace.whitespace
+                 <$> (defaultExprMeta <<$> Frugel.Parsing.Whitespace.whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
                           ((() <$ char '+')
                            <|> (() <$ string "where")
-                           <|> snd <$> (() <$% Parsing.identifier <*% char '='))))
+                           <|> snd
+                           <$> (() <$% Frugel.Parsing.identifier <*% char '='))))
           ]
         , [ InfixL
             $ try
@@ -58,7 +62,8 @@ expr
 decl :: Parser Decl
 decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
   where
-    literalDecl = Node.decl <$%> Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
+    literalDecl
+        = Node.decl <$%> Frugel.Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
     cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
@@ -66,13 +71,13 @@ whereClause = setWhitespace <$> (cstrSiteWhere <|> literalWhere) -- it's importa
   where
     literalWhere
         = (Node.whereClause . concat)
-        <<$>> wOptional (string "where" *%> wSome Parsing.decl)
+        <<$>> wOptional (string "where" *%> wSome Frugel.Parsing.decl)
     cstrSiteWhere = noWhitespace <$> node "a declaration node" _WhereNode
 
 program :: Parser Program
 program
     = setProgramWhitespace
-    <$> (Program.program <$%> expr <*%> Parsing.whereClause <*% pure ())
+    <$> (Program.program <$%> expr <*%> Frugel.Parsing.whereClause <*% pure ())
   where
     setProgramWhitespace :: WithWhitespace Program -> Program
     setProgramWhitespace (whitespaceFragments :> trailingWhitespace, p)
@@ -85,4 +90,4 @@ parseCstrSite :: FilePath
     -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
 parseCstrSite filePath cstrMaterials
     = first bundleErrors
-    $ runParser (Parsing.program <* eof) filePath cstrMaterials
+    $ runParser (Frugel.Parsing.program <* eof) filePath cstrMaterials

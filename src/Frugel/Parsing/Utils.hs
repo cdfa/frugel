@@ -1,9 +1,12 @@
-module Parsing.Utils where
+module Frugel.Parsing.Utils where
+
+import qualified Data.Set        as Set
+
+import           Frugel.Node
+
+import           Prettyprinter
 
 import           Text.Megaparsec
-import qualified Data.Set        as Set
-import           Prettyprinter
-import           Node
 
 type Parser = Parsec Void CstrMaterials
 
@@ -11,8 +14,8 @@ data Parenthesis = Left | Right
     deriving ( Eq, Ord, Show )
 
 instance Pretty Parenthesis where
-    pretty Parsing.Utils.Left = lparen
-    pretty Parsing.Utils.Right = rparen
+    pretty Frugel.Parsing.Utils.Left = lparen
+    pretty Frugel.Parsing.Utils.Right = rparen
 
 literalToken :: MonadParsec e s m => Token s -> m (Token s)
 literalToken c = token (guarded (== c)) (one . Tokens . one $ c)

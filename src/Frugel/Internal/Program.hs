@@ -10,24 +10,24 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Internal.Program where
+module Frugel.Internal.Program where
 
-import           Node           hiding ( Expr, whereClause )
-import qualified Node
-import           PrettyPrinting
-import           Optics
-import           Prettyprinter
-import           Internal.Meta
+import           Data.Has
+
+import           Frugel.Decomposition
+import           Frugel.Internal.Meta
                  ( Meta(interstitialWhitespace), ProgramMeta(standardMeta)
                  , defaultProgramMeta )
-import           Data.Has
-import           Decomposition
+import           Frugel.Node           hiding ( whereClause )
+import           Frugel.PrettyPrinting
+
+-- import qualified Frugel.Node as Node
+import           Optics
+
+import           Prettyprinter
 
 data Program
-    = Program { meta        :: ProgramMeta
-              , expr        :: Node.Expr
-              , whereClause :: WhereClause
-              }
+    = Program { meta :: ProgramMeta, expr :: Expr, whereClause :: WhereClause }
     | ProgramCstrSite ProgramMeta CstrMaterials
     deriving ( Show, Eq, Generic, Has ProgramMeta )
 
@@ -47,7 +47,7 @@ instance Decomposable Program where
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
 
-program :: Node.Expr -> WhereClause -> Program
+program :: Expr -> WhereClause -> Program
 program = Program defaultProgramMeta
 
 prettyProgram :: Program -> Doc Annotation

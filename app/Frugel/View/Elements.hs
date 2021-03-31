@@ -1,10 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module View.Elements where
+module Frugel.View.Elements where
+
+import           Frugel.View.ViewModel
 
 import           Miso
 import qualified Miso.String
-import           View.ViewModel
 
 noButtonStyle :: Attribute action
 noButtonStyle

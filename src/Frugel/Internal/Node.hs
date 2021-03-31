@@ -16,18 +16,21 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Internal.Node where
+module Frugel.Internal.Node where
+
+import           Data.Composition
+import           Data.Has
+import qualified Data.Text                  as Text
+
+import           Frugel.Internal.Meta       ( ExprMeta(standardMeta), Meta )
+import           Frugel.PrettyPrinting.Text
 
 import           Optics
-import           Text.Megaparsec
-import qualified Data.Text           as Text
+
 -- import           GHC.Exts
 import           Prettyprinter
-import           Data.Composition
 
-import           Internal.Meta       ( ExprMeta(standardMeta), Meta )
-import           PrettyPrinting.Text
-import           Data.Has
+import           Text.Megaparsec
 
 newtype CstrMaterials = CstrMaterials (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )

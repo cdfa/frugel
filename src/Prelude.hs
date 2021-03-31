@@ -1,12 +1,15 @@
 module Prelude ( module Prelude, module Relude, (><), toList ) where
 
-import           Relude
-                 hiding ( Sum, abs, group, init, some, toList )
+import qualified Data.Foldable             as Foldable
+import           Data.Sequence             ( (><) )
+
+import           GHC.Exts
+
 import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
-import           Data.Sequence             ( (><) )
-import           GHC.Exts
-import qualified Data.Foldable             as Foldable
+
+import           Relude
+                 hiding ( Sum, abs, group, init, some, toList )
 
 testPrettyW :: Int -> Doc ann -> IO String
 testPrettyW w doc

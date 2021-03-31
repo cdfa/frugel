@@ -1,9 +1,11 @@
-module Lexing where
+module Frugel.Lexing where
 
-import           Node
-import           Parsing.Utils   hiding ( Left, Right )
-import           Text.Megaparsec
 import           Data.Char
+
+import           Frugel.Node
+import           Frugel.Parsing.Utils hiding ( Left, Right )
+
+import           Text.Megaparsec
 
 char :: Char -> Parser Char
 char c = token (leftToMaybe >=> guarded (== c)) (one . Tokens . one . Left $ c)

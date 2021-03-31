@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Node
-    ( module Node
+module Frugel.Node
+    ( module Frugel.Node
     , Expr(..)
     , CstrMaterials(..)
     , Decl(Decl, DeclCstrSite)
@@ -18,10 +18,10 @@ module Node
     , prettyWhereClause
     ) where
 
-import           Optics
+import           Frugel.Internal.Meta ( defaultExprMeta, defaultMeta )
+import           Frugel.Internal.Node
 
-import           Internal.Meta ( defaultExprMeta, defaultMeta )
-import           Internal.Node
+import           Optics
 
 makePrisms ''Node
 

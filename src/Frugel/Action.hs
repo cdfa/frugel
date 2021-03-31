@@ -2,14 +2,16 @@
 
 {-# LANGUAGE TupleSections #-}
 
-module Action where
+module Frugel.Action where
 
-import           Model
-import           Internal.Meta    ( defaultProgramMeta )
-import           Internal.Program ( Program(ProgramCstrSite) )
-import           Parsing
-import           Decomposition
+import           Frugel.Decomposition
+import           Frugel.Internal.Meta    ( defaultProgramMeta )
+import           Frugel.Internal.Program ( Program(ProgramCstrSite) )
+import           Frugel.Model            as Model
+import           Frugel.Parsing
+
 import           Optics
+
 import           Text.Megaparsec
 
 data Action = NoOp | Load | Insert Char | Log String

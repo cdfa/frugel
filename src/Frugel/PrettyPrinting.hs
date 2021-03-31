@@ -1,4 +1,4 @@
-module PrettyPrinting where
+module Frugel.PrettyPrinting where
 
 import           Prettyprinter
 

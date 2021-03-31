@@ -6,15 +6,18 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Parsing.Whitespace where
+module Frugel.Parsing.Whitespace where
 
-import           Data.Has
-import           Internal.Meta   ( Meta )
-import           Optics
-import           Text.Megaparsec
-import           Node
 import           Data.Char
-import qualified Data.Set        as Set
+import           Data.Has
+import qualified Data.Set             as Set
+
+import           Frugel.Internal.Meta ( Meta )
+import           Frugel.Node
+
+import           Optics
+
+import           Text.Megaparsec
 
 type WithWhitespace a = ([Text], a)
 

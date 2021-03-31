@@ -1,10 +1,11 @@
 
 {-# LANGUAGE TemplateHaskell #-}
 
-module View.ViewModel where
+module Frugel.View.ViewModel where
+
+import           Frugel.PrettyPrinting
 
 import           Optics
-import           PrettyPrinting
 
 data HorizontalOpenness
     = HorizontalOpenness { openLeft :: Bool, openRight :: Bool }
