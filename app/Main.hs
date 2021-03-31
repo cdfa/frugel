@@ -18,7 +18,6 @@ import qualified Miso.String
 
 import           Text.Pretty.Simple               ( pShowNoColor )
 
--- import           Test
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
 runApp = JSaddle.debug 3708
@@ -51,7 +50,6 @@ viewModel model
               , href_
                     "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
               ]
-          --   , renderSmart test2
         , div_ [ class_ "columns" ]
           $ map
               (div_ [ class_ "column" ] . one)

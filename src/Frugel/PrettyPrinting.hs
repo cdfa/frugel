@@ -13,7 +13,6 @@ annotateInConstruction = annotate $ CompletionAnnotation InConstruction
 
 annotateComplete = annotate $ CompletionAnnotation Complete
 
--- node = annotate Node
 prettyCompletionStatus :: IsString p => CompletionStatus -> p
 prettyCompletionStatus InConstruction = "«"
 prettyCompletionStatus Complete = "»"

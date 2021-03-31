@@ -28,7 +28,6 @@ import           Frugel.PrettyPrinting.Text
 
 import           Optics
 
--- import           GHC.Exts
 import           Prettyprinter
 
 import           Text.Megaparsec
