@@ -4,6 +4,8 @@ module Frugel.Parsing where
 
 import           Control.Monad.Combinators.Expr
 
+import           Data.Composition
+
 import           Frugel.Lexing
 import           Frugel.Meta
 import           Frugel.Node                    as Node
@@ -14,10 +16,11 @@ import           Frugel.Program                 as Program
 
 import           Optics
 
-import           Text.Megaparsec
+import           Text.Megaparsec                hiding ( many )
 
 identifier :: Parser Text
-identifier = toText <$> some alphaNumChar <?> "an identifier"
+identifier
+    = (toText .: (:)) <$> lowerChar <*> many alphaNumChar <?> "an identifier"
 
 node :: String -> Prism' Node w -> Parser w
 node name nodePrism = namedToken name $ preview (_Right % nodePrism)

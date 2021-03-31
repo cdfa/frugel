@@ -17,7 +17,7 @@ import           Frugel.Node
 
 import           Optics
 
-import           Text.Megaparsec
+import           Text.Megaparsec hiding ( some )
 
 type WithWhitespace a = ([Text], a)
 

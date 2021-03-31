@@ -9,7 +9,7 @@ import           Prettyprinter             hiding ( list )
 import           Prettyprinter.Render.Text
 
 import           Relude
-                 hiding ( Sum, abs, group, init, some, toList )
+                 hiding ( Sum, abs, group, init, toList )
 
 testPrettyW :: Int -> Doc ann -> IO String
 testPrettyW w doc
