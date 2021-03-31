@@ -47,7 +47,7 @@ splitMultiLineAnnotations
 splitMultiLineAnnotations = foldMap $ \case
     TextLeaf t -> [ TextLeaf t ]
     LineLeaf -> [ LineLeaf ]
-    Annotated ann trees -> filter isEmptyAnnotation
+    Annotated ann trees -> filter (not . isEmptyTree)
         . intersperse LineLeaf
         . reAnnotateCstrSite ann
         . splitOn LineLeaf

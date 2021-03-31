@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -37,6 +38,9 @@ middleLinesOpenness = HorizontalOpenness { openLeft = True, openRight = True }
 
 lastLineOpenness = HorizontalOpenness { openLeft = True, openRight = False }
 
-isEmptyAnnotation :: DocTextTree ann -> Bool
-isEmptyAnnotation tree
-    = has (_Annotated % _2 % traversed) tree || isn't _Annotated tree
+isEmptyTree :: DocTextTree ann -> Bool
+isEmptyTree = \case
+    TextLeaf "" -> True
+    Annotated _ [] -> True
+    Annotated _ trees -> all isEmptyTree trees
+    _ -> False
