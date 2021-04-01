@@ -59,10 +59,12 @@ instance Layoutable Decl where
 
 instance Layoutable WhereClause where
     layoutDoc (WhereClause meta decls)
-        = hcat
-        $ intersperseWhitespace'
-            (interstitialWhitespace meta)
-            (pretty @Text "where" : map layoutDoc decls)
+        = if null decls
+            then mempty
+            else hcat
+                $ intersperseWhitespace'
+                    (interstitialWhitespace meta)
+                    (pretty @Text "where" : map layoutDoc decls)
     layoutDoc (WhereCstrSite _ materials) = layoutDoc materials
 
 instance Layoutable Program where

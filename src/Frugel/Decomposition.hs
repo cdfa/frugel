@@ -95,8 +95,11 @@ instance Decomposable Decl where
 
 instance Decomposable WhereClause where
     decomposed (WhereClause meta decls)
-        = decomposed . intersperseWhitespace' (interstitialWhitespace meta)
-        $ fromList (map Left "where" ++ map (Right . DeclNode) decls)
+        = if null decls
+            then pure mempty
+            else decomposed
+                . intersperseWhitespace' (interstitialWhitespace meta)
+                $ fromList (map Left "where" ++ map (Right . DeclNode) decls)
     decomposed (WhereCstrSite _ materials) = decomposed materials
 
 instance Decomposable Program where
