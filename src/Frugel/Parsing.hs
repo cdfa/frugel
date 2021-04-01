@@ -9,9 +9,11 @@ import           Data.Composition
 import           Frugel.Identifier              ( Identifier )
 import           Frugel.Lexing
 import           Frugel.Meta
-import           Frugel.Node                    as Node
+import           Frugel.Node
+                 hiding ( abstraction', application', decl', identifier', sum'
+                        , whereClause' )
+import qualified Frugel.Node                    as Node
 import           Frugel.Parsing.Utils           hiding ( Left, Right )
-import qualified Frugel.Parsing.Utils
 import           Frugel.Parsing.Whitespace
 import           Frugel.Program                 as Program
 
@@ -31,17 +33,15 @@ term :: Parser Expr
 term
     = setWhitespace
     <$> choice
-        [ abstraction' <$% char '\\' <*%> Frugel.Parsing.identifier
-          <*% char '='
+        [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
           <*%> expr
-        , ((exprMeta % #parenthesisLevels) +~ 1)
-          <$% (Frugel.Parsing.Utils.Left <$ char '(')
+        , ((exprMeta % #parenthesisLevels) +~ 1) <$% (Left <$ char '(')
           <*%> expr
-          <*% (Frugel.Parsing.Utils.Right <$ char ')')
+          <*% (Right <$ char ')')
           -- Non recursive production rules at the bottom
         , exprCstrSite (CstrMaterials empty) <$% string "..."
         , noWhitespace <$> node "an expression node" _ExprNode
-        , Node.identifier' <$%> Frugel.Parsing.identifier
+        , Node.identifier' <$%> identifier
         ]
 
 expr :: Parser Expr
@@ -51,12 +51,11 @@ expr
         [ [ InfixL
             $ try
                 (Application . setWhitespace
-                 <$> (defaultExprMeta <<$> Frugel.Parsing.Whitespace.whitespace
+                 <$> (defaultExprMeta <<$> whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
                           ((() <$ char '+')
                            <|> (() <$ string "where")
-                           <|> snd
-                           <$> (() <$% Frugel.Parsing.identifier <*% char '='))))
+                           <|> snd <$> (() <$% identifier <*% char '='))))
           ]
         , [ InfixL
             $ try
@@ -68,8 +67,7 @@ expr
 decl :: Parser Decl
 decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
   where
-    literalDecl
-        = Node.decl' <$%> Frugel.Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
+    literalDecl = Node.decl' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
     cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
@@ -77,13 +75,13 @@ whereClause = setWhitespace <$> (cstrSiteWhere <|> literalWhere) -- it's importa
   where
     literalWhere
         = (Node.whereClause' . concat)
-        <<$>> wOptional (string "where" *%> wSome Frugel.Parsing.decl)
+        <<$>> wOptional (string "where" *%> wSome decl)
     cstrSiteWhere = noWhitespace <$> node "a declaration node" _WhereNode
 
 program :: Parser Program
 program
     = setProgramWhitespace
-    <$> (Program.program <$%> expr <*%> Frugel.Parsing.whereClause <*% pure ())
+    <$> (Program.program' <$%> expr <*%> whereClause <*% pure ())
   where
     setProgramWhitespace :: WithWhitespace Program -> Program
     setProgramWhitespace (whitespaceFragments :> trailingWhitespace, p)
@@ -95,5 +93,4 @@ parseCstrSite :: FilePath
     -> CstrMaterials
     -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
 parseCstrSite filePath cstrMaterials
-    = first bundleErrors
-    $ runParser (Frugel.Parsing.program <* eof) filePath cstrMaterials
+    = first bundleErrors $ runParser (program <* eof) filePath cstrMaterials
