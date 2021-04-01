@@ -5,18 +5,14 @@ module Frugel
     , module Frugel.Model
     , module Frugel.PrettyPrinting
     , Action(..)
-    , prettyProgram
-    , prettyCstrMaterials
     , parseErrorPretty
     , parseCstrSite
     ) where
 
 import           Frugel.Action
 import           Frugel.Model
-import           Frugel.Node
 import           Frugel.Parsing
 import           Frugel.PrettyPrinting
-import           Frugel.Program
 
 import           Miso                  hiding ( node )
 

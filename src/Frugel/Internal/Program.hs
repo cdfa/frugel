@@ -14,10 +14,9 @@ module Frugel.Internal.Program where
 
 import           Data.Has
 
-import           Frugel.Decomposition
-import           Frugel.Internal.Meta
-                 ( Meta(interstitialWhitespace), ProgramMeta(standardMeta) )
-import           Frugel.Node          hiding ( whereClause )
+import           Frugel.Internal.Meta ( ProgramMeta(standardMeta) )
+import           Frugel.Meta
+import           Frugel.Node
 
 import           Optics
 
@@ -31,13 +30,6 @@ makeFieldLabelsWith noPrefixFieldLabels ''Program
 instance Has Meta Program where
     getter p = standardMeta $ getter p
     modifier = over (programMeta % #standardMeta)
-
-instance Decomposable Program where
-    decomposed Program{..}
-        = decomposed
-        . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
-        $ fromList [ Right $ ExprNode expr, Right $ WhereNode whereClause ]
-    decomposed (ProgramCstrSite _ materials) = decomposed materials
 
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens

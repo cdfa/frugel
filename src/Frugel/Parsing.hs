@@ -31,7 +31,8 @@ term :: Parser Expr
 term
     = setWhitespace
     <$> choice
-        [ abstraction <$% char '\\' <*%> Frugel.Parsing.identifier <*% char '='
+        [ abstraction' <$% char '\\' <*%> Frugel.Parsing.identifier
+          <*% char '='
           <*%> expr
         , ((exprMeta % #parenthesisLevels) +~ 1)
           <$% (Frugel.Parsing.Utils.Left <$ char '(')
@@ -40,7 +41,7 @@ term
           -- Non recursive production rules at the bottom
         , exprCstrSite (CstrMaterials empty) <$% string "..."
         , noWhitespace <$> node "an expression node" _ExprNode
-        , Node.identifier <$%> Frugel.Parsing.identifier
+        , Node.identifier' <$%> Frugel.Parsing.identifier
         ]
 
 expr :: Parser Expr
@@ -68,14 +69,14 @@ decl :: Parser Decl
 decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
   where
     literalDecl
-        = Node.decl <$%> Frugel.Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
+        = Node.decl' <$%> Frugel.Parsing.identifier <*% char '=' <*%> expr -- <*%> whereClause
     cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
 whereClause = setWhitespace <$> (cstrSiteWhere <|> literalWhere) -- it's important that cstrSiteWhere is tried first, because literalWhere succeeds on empty input
   where
     literalWhere
-        = (Node.whereClause . concat)
+        = (Node.whereClause' . concat)
         <<$>> wOptional (string "where" *%> wSome Frugel.Parsing.decl)
     cstrSiteWhere = noWhitespace <$> node "a declaration node" _WhereNode
 

@@ -18,18 +18,14 @@
 
 module Frugel.Internal.Node where
 
-import           Data.Composition
 import           Data.Has
-import qualified Data.Text                  as Text
 
-import           Frugel.Identifier          ( Identifier )
-import           Frugel.Internal.Meta       ( ExprMeta(standardMeta) )
+-- import qualified Data.Text                  as Text
+import           Frugel.Identifier    ( Identifier )
+import           Frugel.Internal.Meta ( ExprMeta(standardMeta) )
 import           Frugel.Meta
-import           Frugel.PrettyPrinting.Text
 
 import           Optics
-
-import           Prettyprinter
 
 import           Text.Megaparsec
 
@@ -70,77 +66,24 @@ instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) 
 
 instance AsEmpty CstrMaterials
 
-instance VisualStream CstrMaterials where
-    showTokens Proxy
-        = showTokens (Proxy @String)
-        -- Convert from Text to NonEmpty Char
-        . fromList -- Assumption: prettyCstrMaterials of a non-empty Seq results in a non-empty render
-        . toList
-        -- Remove surrounding «»
-        . Text.tail
-        . Text.init
-        -- Convert from CstrMaterials to Text
-        . renderSmart @Text
-        . prettyCstrMaterials
-        -- Convert from NonEmpty to CstrMaterials
-        . fromFoldable
-    tokensLength = length .: showTokens
-
+-- instance VisualStream CstrMaterials where
+--     showTokens Proxy
+--         = showTokens (Proxy @String)
+--         -- Convert from Text to NonEmpty Char
+--         . fromList -- Assumption: prettyCstrMaterials of a non-empty Seq results in a non-empty render
+--         . toList
+--         -- Remove surrounding «»
+--         . Text.tail
+--         . Text.init
+--         -- Convert from CstrMaterials to Text
+--         . renderSmart @Text
+--         . prettyCstrMaterials
+--         -- Convert from NonEmpty to CstrMaterials
+--         . fromFoldable
+--     tokensLength = length .: showTokens
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
     modifier = over (exprMeta % #standardMeta)
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
-
--- >>> import           Internal.ExprMeta    ( defaultMeta )
--- >>> testPrettyW 3 . prettyExpr . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
--- >>> testPrettyW 8 $ prettyExpr (Application defaultMeta (Application defaultMeta (Identifier defaultMeta "test") $ Identifier defaultMeta "test") $ Identifier defaultMeta "test")
--- \x
---     = x
---     + x
--- test
---     test
---     test
-prettyExpr :: Expr -> Doc Annotation
-prettyExpr expr
-    | (expr ^. exprMeta % #parenthesisLevels) > 0
-        = parens $ prettyExpr (expr & exprMeta % #parenthesisLevels -~ 1)
-prettyExpr (Identifier _ n) = pretty n
-prettyExpr (Abstraction _ arg expr)
-    = (backslash <> pretty arg) `nestingLine` equals <+> prettyExpr expr
-prettyExpr (Application _ function arg)
-    = prettyExpr function `nestingLine` prettyExpr arg
-prettyExpr (Sum _ left right)
-    = prettyExpr left `nestingLine` "+" <+> prettyExpr right
-prettyExpr (ExprCstrSite _ contents) = prettyCstrMaterials contents
-
--- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
-prettyCstrMaterials :: CstrMaterials -> Doc Annotation
-prettyCstrMaterials (CstrMaterials contents)
-    = if null $ toList contents
-        then "..."
-        else annotateInConstruction
-            . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
-            . groupByEither
-            $ toList contents
-
-prettyNode :: Node -> Doc Annotation
-prettyNode (IdentifierNode name) = pretty name
-prettyNode (ExprNode expr) = prettyExpr expr
-prettyNode (DeclNode decl) = prettyDecl decl
-prettyNode (WhereNode w) = prettyWhereClause w
-
-prettyDecl :: Decl -> Doc Annotation
-prettyDecl Decl{..} = pretty name `nestingLine` equals <+> prettyExpr value
-prettyDecl (DeclCstrSite _ contents) = prettyCstrMaterials contents
-
-    -- <> prettyWhereClause whereClause
-prettyWhereClause :: WhereClause -> Doc Annotation
-prettyWhereClause (WhereCstrSite _ contents) = prettyCstrMaterials contents
-prettyWhereClause (WhereClause _ decls)
-    = if null decls
-        then mempty
-        else nest
-            2
-            (line <> "where" <> nest 2 (line <> vcat (map prettyDecl decls)))

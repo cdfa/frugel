@@ -12,8 +12,6 @@ import           Frugel.Program
 
 import           Optics
 
-import           Text.Megaparsec
-
 data Action = NoOp | Load | Insert Char | Log String
     deriving ( Show, Eq )
 
@@ -47,5 +45,5 @@ insert c model = case reparsed of
             $ insertAt cstrMaterialOffset (Left c) materials
     reparsed = do
         inserted <- first (Nothing, ) insert'
-        first ((Just inserted, ) . map parseErrorPretty . toList)
+        first ((Just inserted, ) . map show . toList)
             $ parseCstrSite fileName inserted

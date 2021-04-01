@@ -11,11 +11,6 @@ module Frugel.Node
     , WhereClause(..)
     , _CstrMaterials
     , exprMeta
-    , prettyExpr
-    , prettyCstrMaterials
-    , prettyNode
-    , prettyDecl
-    , prettyWhereClause
     ) where
 
 import           Frugel.Identifier    ( Identifier )
@@ -38,32 +33,32 @@ intersperseWhitespace whitespaceFragments decomposables
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 type CstrMaterials' = [Either String [Node]]
 
-identifier :: Identifier -> Expr
-identifier = Identifier defaultExprMeta
+identifier' :: Identifier -> Expr
+identifier' = Identifier defaultExprMeta
 
-abstraction :: Identifier -> Expr -> Expr
-abstraction = Abstraction defaultExprMeta
+abstraction' :: Identifier -> Expr -> Expr
+abstraction' = Abstraction defaultExprMeta
 
-application :: Expr -> Expr -> Expr
-application = Application defaultExprMeta
+application' :: Expr -> Expr -> Expr
+application' = Application defaultExprMeta
 
-sum :: Expr -> Expr -> Expr
-sum = Sum defaultExprMeta
+sum' :: Expr -> Expr -> Expr
+sum' = Sum defaultExprMeta
 
 exprCstrSite :: CstrMaterials -> Expr
 exprCstrSite = ExprCstrSite defaultExprMeta
 
-decl :: Identifier -> Expr -> Decl
-decl = Decl defaultMeta
+decl' :: Identifier -> Expr -> Decl
+decl' = Decl defaultMeta
 
-whereClause :: [Decl] -> WhereClause
-whereClause = WhereClause defaultMeta
+whereClause' :: [Decl] -> WhereClause
+whereClause' = WhereClause defaultMeta
 
 toCstrMaterials :: CstrMaterials' -> CstrMaterials
 toCstrMaterials = fromList . concatMap (either (map Left) (map Right))
 
 minimalCstrSite :: CstrMaterials
-minimalCstrSite = one . Right . ExprNode $ identifier "x"
+minimalCstrSite = one . Right . ExprNode $ identifier' "x"
 
 nested :: CstrMaterials
 nested = one . Right . ExprNode . exprCstrSite $ minimalCstrSite
@@ -73,24 +68,24 @@ frugelId = toCstrMaterials [ Left "\\x=x" ]
 
 frugelId' :: CstrMaterials
 frugelId'
-    = toCstrMaterials [ Left "\\x=", Right [ ExprNode $ identifier "x" ] ]
+    = toCstrMaterials [ Left "\\x=", Right [ ExprNode $ identifier' "x" ] ]
 
 whitespaceId :: CstrMaterials
 whitespaceId = toCstrMaterials [ Left "  \t\n\\  \tx \n=x  \t\n\n" ]
 
 app :: CstrMaterials
-app = [ Left 'x', Right . ExprNode $ identifier "x", Left 'x' ]
+app = [ Left 'x', Right . ExprNode $ identifier' "x", Left 'x' ]
 
 parensTest :: CstrMaterials
 parensTest
     = toCstrMaterials
-        [ Left "(((\\x=(", Right [ ExprNode $ identifier "x" ], Left "))))" ]
+        [ Left "(((\\x=(", Right [ ExprNode $ identifier' "x" ], Left "))))" ]
 
 whereClauseTest :: CstrMaterials
 whereClauseTest
     = toCstrMaterials
         [ Left "x where\n  y = "
-        , Right [ ExprNode $ identifier "z" ]
+        , Right [ ExprNode $ identifier' "z" ]
         , Left "\n  u = w"
         ]
 
@@ -99,9 +94,10 @@ declNodeTest
     = toCstrMaterials
         [ Left "x where "
         , Right
-              [ DeclNode $ decl "y" $ identifier "z" -- , whereClause = []
+              [ DeclNode $ decl' "y" $ identifier' "z" -- , whereClause' = []
               ]
         ]
 
 sumTest :: CstrMaterials
-sumTest = toCstrMaterials [ Right [ ExprNode $ identifier "x" ], Left "+ y x" ]
+sumTest
+    = toCstrMaterials [ Right [ ExprNode $ identifier' "x" ], Left "+ y x" ]
