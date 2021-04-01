@@ -1,12 +1,9 @@
-module Frugel.Model where
+module Frugel.Model ( module Frugel.Model, Model(Model) ) where
 
+import           Frugel.Internal.Model
 import           Frugel.Meta
 import           Frugel.Node
 import           Frugel.Program
-
-data Model
-    = Model { program :: Program, cursorOffset :: Integer, errors :: [String] }
-    deriving ( Show, Eq )
 
 initialModel :: Model
 initialModel

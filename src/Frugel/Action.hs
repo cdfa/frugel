@@ -6,35 +6,35 @@ module Frugel.Action where
 
 import           Frugel.Decomposition
 import           Frugel.Meta
-import           Frugel.Model         as Model
-import           Frugel.Parsing
+import           Frugel.Model
+import           Frugel.Parsing       hiding ( program )
 import           Frugel.Program
 
 import           Optics
 
-data Action = NoOp | Load | Insert Char | Log String
+data Action = NoOp | Load | Log String | Insert Char | PrettyPrint
     deriving ( Show, Eq )
 
 insert :: Char -> Model -> Model
 insert c model = case reparsed of
-    Left (inserted, newErrors) ->
-        model { Model.program = maybe
-                    (Model.program model)
-                    (ProgramCstrSite defaultProgramMeta)
-                    inserted
-              , errors        = newErrors
-              }
-    Right newProgram -> model { Model.program = newProgram, errors = [] }
+    Left (inserted, newErrors) -> model
+        & #program
+        .~ maybe
+            (view #program model)
+            (ProgramCstrSite defaultProgramMeta)
+            inserted
+        & #errors .~ newErrors
+    Right newProgram -> model & #program .~ newProgram & #errors .~ []
   where
     (materials, decomposeState)
-        = runState (decomposed $ Model.program model)
+        = runState (decomposed $ view #program model)
         $ initialDecompositionState
-        $ cursorOffset model
+        $ view #cursorOffset model
     insert' = case decomposeState of
         DecompositionState _ textOffset
             | textOffset > 0 -> Left
                 [ "Failed to decompose AST for cursor textOffset "
-                  <> show (cursorOffset model)
+                  <> show (view #cursorOffset model)
                 ]
         DecompositionState cstrMaterialOffset _ -> maybeToRight
             [ "Failed to insert '"

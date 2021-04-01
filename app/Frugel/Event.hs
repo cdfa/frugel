@@ -19,6 +19,9 @@ keyDownHandler = onKeyDownWithInfo handleKeyDown
     handleKeyDown KeyInfo{..} = case key of
         [c]
             | not $ metaKey || ctrlKey || altKey -> Insert c
+        "Enter"
+            | not metaKey && ctrlKey && not altKey && not shiftKey ->
+                PrettyPrint
         _ -> Log key
 
 -- | https://developer.mozilla.org/en-US/docs/Web/Events/keydown
