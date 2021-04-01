@@ -36,16 +36,26 @@ flipCompletionStatus Complete = InConstruction
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = group $ flatAlt (x <> nest 4 (line <> y)) (x <+> y)
 
+parenthesizeExpr :: (Expr -> Doc ann) -> Expr -> Doc ann
+parenthesizeExpr prettyExpr x
+    | (x ^. exprMeta % #parenthesisLevels) > 0
+        = parens
+        $ parenthesizeExpr prettyExpr (x & exprMeta % #parenthesisLevels -~ 1)
+parenthesizeExpr prettyExpr x = prettyExpr x
+
+-- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
+prettyCstrMaterials
+    :: (Node -> Doc Annotation) -> CstrMaterials -> Doc Annotation
+prettyCstrMaterials prettyNode (CstrMaterials contents)
+    = if null $ toList contents
+        then "..."
+        else annotateInConstruction
+            . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
+            . groupByEither
+            $ toList contents
+
 instance AnnotatedPretty CstrMaterials where
-    -- Invariant: annPretty of a non-empty Seq results in a non-empty render
-    annPretty (CstrMaterials contents)
-        = if null $ toList contents
-            then "..."
-            else annotateInConstruction
-                . foldMap
-                    (either pretty (foldMap (annotateComplete . annPretty)))
-                . groupByEither
-                $ toList contents
+    annPretty = prettyCstrMaterials annPretty
 
 instance AnnotatedPretty Node where
     annPretty (IdentifierNode name) = pretty name
@@ -63,17 +73,16 @@ instance AnnotatedPretty Node where
 --     test
 --     test
 instance AnnotatedPretty Expr where
-    annPretty expr
-        | (expr ^. exprMeta % #parenthesisLevels) > 0
-            = parens $ annPretty (expr & exprMeta % #parenthesisLevels -~ 1)
-    annPretty (Identifier _ n) = pretty n
-    annPretty (Abstraction _ arg expr)
-        = (backslash <> pretty arg) `nestingLine` equals <+> annPretty expr
-    annPretty (Application _ function arg)
-        = annPretty function `nestingLine` annPretty arg
-    annPretty (Sum _ left right)
-        = annPretty left `nestingLine` "+" <+> annPretty right
-    annPretty (ExprCstrSite _ contents) = annPretty contents
+    annPretty = parenthesizeExpr annPretty'
+      where
+        annPretty' (Identifier _ n) = pretty n
+        annPretty' (Abstraction _ arg expr)
+            = (backslash <> pretty arg) `nestingLine` equals <+> annPretty expr
+        annPretty' (Application _ function arg)
+            = annPretty function `nestingLine` annPretty arg
+        annPretty' (Sum _ left right)
+            = annPretty left `nestingLine` "+" <+> annPretty right
+        annPretty' (ExprCstrSite _ contents) = annPretty contents
 
 instance AnnotatedPretty Decl where
     annPretty Decl{..} = pretty name `nestingLine` equals <+> annPretty value

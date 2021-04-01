@@ -4,12 +4,14 @@ module Frugel
     ( module Frugel
     , module Frugel.Model
     , module Frugel.PrettyPrinting
+    , Layoutable(..)
     , Action(..)
     , parseErrorPretty
     , parseCstrSite
     ) where
 
 import           Frugel.Action
+import           Frugel.Layoutable
 import           Frugel.Model
 import           Frugel.Parsing
 import           Frugel.PrettyPrinting

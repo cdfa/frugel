@@ -29,6 +29,9 @@ step = do
         (textOffset /= -1)
         (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
 
+intersperseWhitespace' :: [Text] -> CstrMaterials -> CstrMaterials
+intersperseWhitespace' = intersperseWhitespace (map Left . toString)
+
 instance Decomposable CstrMaterials where
     decomposed materials
         = traverseOf _CstrMaterials (foldlM foldMaterials empty) materials
@@ -63,7 +66,7 @@ instance Decomposable Expr where
         = decomposed . CstrMaterials $ fromList [ Right $ IdentifierNode name ]
     decomposed (Abstraction meta name body)
         = decomposed
-        . intersperseWhitespace
+        . intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
         $ fromList
             [ Left '\\'
@@ -73,33 +76,33 @@ instance Decomposable Expr where
             ]
     decomposed (Application meta function arg)
         = decomposed
-        . intersperseWhitespace
+        . intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
         $ fromList [ Right $ ExprNode function, Right $ ExprNode arg ]
     decomposed (Sum meta left right)
         = decomposed
-        . intersperseWhitespace
+        . intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
         $ fromList [ Right $ ExprNode left, Left '+', Right $ ExprNode right ]
     decomposed (ExprCstrSite _ materials) = decomposed materials
 
 instance Decomposable Decl where
     decomposed Decl{..}
-        = decomposed . intersperseWhitespace (interstitialWhitespace meta)
+        = decomposed . intersperseWhitespace' (interstitialWhitespace meta)
         $ fromList
             [ Right $ IdentifierNode name, Left '=', Right $ ExprNode value ]
     decomposed (DeclCstrSite _ materials) = decomposed materials
 
 instance Decomposable WhereClause where
     decomposed (WhereClause meta decls)
-        = decomposed . intersperseWhitespace (interstitialWhitespace meta)
+        = decomposed . intersperseWhitespace' (interstitialWhitespace meta)
         $ fromList (map Left "where" ++ map (Right . DeclNode) decls)
     decomposed (WhereCstrSite _ materials) = decomposed materials
 
 instance Decomposable Program where
     decomposed Program{..}
         = decomposed
-        . intersperseWhitespace
+        . intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
         $ fromList [ Right $ ExprNode expr, Right $ WhereNode whereClause ]
     decomposed (ProgramCstrSite _ materials) = decomposed materials

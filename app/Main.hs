@@ -53,7 +53,7 @@ viewModel model
         , div_ [ class_ "columns" ]
           $ map
               (div_ [ class_ "column" ] . one)
-              [ renderSmart . annPretty $ program model
+              [ renderSmart . layoutDoc $ program model
               , div_ [] . map webPrint $ errors model
               ]
         , webPrint $ pShowNoColor model

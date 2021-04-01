@@ -1,21 +1,11 @@
 module Prelude ( module Prelude, module Relude, (><), toList ) where
 
-import qualified Data.Foldable             as Foldable
-import           Data.Sequence             ( (><) )
+import qualified Data.Foldable as Foldable
+import           Data.Sequence ( (><) )
 
 import           GHC.Exts
 
-import           Prettyprinter             hiding ( list )
-import           Prettyprinter.Render.Text
-
-import           Relude
-                 hiding ( Sum, abs, group, init, toList )
-
-testPrettyW :: Int -> Doc ann -> IO String
-testPrettyW w doc
-    = error $ renderStrict (layoutPretty layoutOptions (unAnnotate doc))
-  where
-    layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine w 1 }
+import           Relude        hiding ( Sum, abs, group, init, toList )
 
 -- Copied from the Agda package
 listCase :: b -> (a -> [a] -> b) -> [a] -> b

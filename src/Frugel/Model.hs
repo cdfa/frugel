@@ -1,6 +1,7 @@
 module Frugel.Model where
 
 import           Frugel.Meta
+import           Frugel.Node
 import           Frugel.Program
 
 data Model
@@ -9,7 +10,7 @@ data Model
 
 initialModel :: Model
 initialModel
-    = Model { program      = ProgramCstrSite defaultProgramMeta $ fromList []
+    = Model { program      = ProgramCstrSite defaultProgramMeta parensTest
             , cursorOffset = 0
             , errors       = []
             }

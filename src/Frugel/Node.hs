@@ -17,17 +17,16 @@ import           Frugel.Identifier    ( Identifier )
 import           Frugel.Internal.Node
 import           Frugel.Meta
 
+import           GHC.Exts
+
 import           Optics
 
 makePrisms ''Node
 
-intersperseWhitespace :: [Text] -> CstrMaterials -> CstrMaterials
-intersperseWhitespace whitespaceFragments decomposables
+intersperseWhitespace :: IsList l => (Text -> [Item l]) -> [Text] -> l -> l
+intersperseWhitespace toItem whitespaceFragments xs
     = fromList . concat
-    $ interleave
-        [ map one $ toList decomposables
-        , map (map Left . toString) whitespaceFragments
-        ]
+    $ interleave [ map one $ toList xs, map toItem whitespaceFragments ]
 
 -- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
