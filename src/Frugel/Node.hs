@@ -18,6 +18,7 @@ module Frugel.Node
     , prettyWhereClause
     ) where
 
+import           Frugel.Identifier    ( Identifier )
 import           Frugel.Internal.Node
 import           Frugel.Meta
 
@@ -37,10 +38,10 @@ intersperseWhitespace whitespaceFragments decomposables
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 type CstrMaterials' = [Either String [Node]]
 
-identifier :: Text -> Expr
+identifier :: Identifier -> Expr
 identifier = Identifier defaultExprMeta
 
-abstraction :: Text -> Expr -> Expr
+abstraction :: Identifier -> Expr -> Expr
 abstraction = Abstraction defaultExprMeta
 
 application :: Expr -> Expr -> Expr
@@ -52,7 +53,7 @@ sum = Sum defaultExprMeta
 exprCstrSite :: CstrMaterials -> Expr
 exprCstrSite = ExprCstrSite defaultExprMeta
 
-decl :: Text -> Expr -> Decl
+decl :: Identifier -> Expr -> Decl
 decl = Decl defaultMeta
 
 whereClause :: [Decl] -> WhereClause

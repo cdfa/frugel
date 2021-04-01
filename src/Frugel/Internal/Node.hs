@@ -22,6 +22,7 @@ import           Data.Composition
 import           Data.Has
 import qualified Data.Text                  as Text
 
+import           Frugel.Identifier          ( Identifier )
 import           Frugel.Internal.Meta       ( ExprMeta(standardMeta) )
 import           Frugel.Meta
 import           Frugel.PrettyPrinting.Text
@@ -36,19 +37,23 @@ newtype CstrMaterials = CstrMaterials (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
-data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
+data Node
+    = IdentifierNode Identifier
+    | ExprNode Expr
+    | DeclNode Decl
+    | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
 
 data Expr
-    = Identifier ExprMeta Text
-    | Abstraction ExprMeta Text Expr
+    = Identifier ExprMeta Identifier
+    | Abstraction ExprMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
     | ExprCstrSite ExprMeta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
 
 data Decl
-    = Decl { meta :: Meta, name :: Text, value :: Expr }
+    = Decl { meta :: Meta, name :: Identifier, value :: Expr }
       -- , whereClause :: WhereClause
     | DeclCstrSite Meta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has Meta )
@@ -121,6 +126,7 @@ prettyCstrMaterials (CstrMaterials contents)
             $ toList contents
 
 prettyNode :: Node -> Doc Annotation
+prettyNode (IdentifierNode name) = pretty name
 prettyNode (ExprNode expr) = prettyExpr expr
 prettyNode (DeclNode decl) = prettyDecl decl
 prettyNode (WhereNode w) = prettyWhereClause w

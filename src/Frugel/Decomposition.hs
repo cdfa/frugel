@@ -7,6 +7,7 @@ module Frugel.Decomposition
     , module Frugel.Internal.DecompositionState
     ) where
 
+import           Frugel.Identifier                  ( Identifier )
 import           Frugel.Internal.DecompositionState
 import           Frugel.Internal.Meta
                  ( ExprMeta(standardMeta), Meta(interstitialWhitespace) )
@@ -46,19 +47,26 @@ instance Decomposable CstrMaterials where
                           ))
 
 instance Decomposable Node where
+    decomposed (IdentifierNode n) = decomposed n
     decomposed (ExprNode n) = decomposed n
     decomposed (DeclNode n) = decomposed n
     decomposed (WhereNode n) = decomposed n
 
+instance Decomposable Identifier where
+    decomposed = decomposed . CstrMaterials . fromList . map Left . toString
+
 instance Decomposable Expr where
     decomposed (Identifier _ name)
-        = decomposed . CstrMaterials . fromList . map Left $ toString name
+        = decomposed . CstrMaterials $ fromList [ Right $ IdentifierNode name ]
     decomposed (Abstraction meta name body)
         = decomposed
         . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
         $ fromList
-            (Left '\\'
-             : map Left (toString name) ++ [ Left '=', Right $ ExprNode body ])
+            [ Left '\\'
+            , Right $ IdentifierNode name
+            , Left '='
+            , Right $ ExprNode body
+            ]
     decomposed (Application meta function arg)
         = decomposed
         . intersperseWhitespace (interstitialWhitespace $ standardMeta meta)
@@ -73,7 +81,7 @@ instance Decomposable Decl where
     decomposed Decl{..}
         = decomposed . intersperseWhitespace (interstitialWhitespace meta)
         $ fromList
-            (map Left (toString name) ++ [ Left '=', Right $ ExprNode value ])
+            [ Right $ IdentifierNode name, Left '=', Right $ ExprNode value ]
     decomposed (DeclCstrSite _ materials) = decomposed materials
 
 instance Decomposable WhereClause where

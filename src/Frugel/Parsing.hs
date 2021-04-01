@@ -6,6 +6,7 @@ import           Control.Monad.Combinators.Expr
 
 import           Data.Composition
 
+import           Frugel.Identifier              ( Identifier )
 import           Frugel.Lexing
 import           Frugel.Meta
 import           Frugel.Node                    as Node
@@ -18,9 +19,10 @@ import           Optics
 
 import           Text.Megaparsec                hiding ( many )
 
-identifier :: Parser Text
+identifier :: Parser Identifier
 identifier
-    = (toText .: (:)) <$> lowerChar <*> many alphaNumChar <?> "an identifier"
+    = (fromString .: (:)) <$> lowerChar
+    <*> many alphaNumChar <?> "an identifier"
 
 node :: String -> Prism' Node w -> Parser w
 node name nodePrism = namedToken name $ preview (_Right % nodePrism)
