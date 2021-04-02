@@ -14,7 +14,6 @@ import           Optics                                  hiding ( views )
 
 import           Prelude                                 hiding ( lines )
 
-import           Prettyprinter
 import           Prettyprinter.Render.Util.SimpleDocTree
 
 renderSmart :: Doc Annotation -> View Action

@@ -1,6 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Frugel.PrettyPrinting where
+module Frugel.PrettyPrinting
+    ( module Frugel.PrettyPrinting
+    , module Prettyprinter
+    ) where
 
 import           Frugel.Internal.Node    ( Decl(name, value) )
 import           Frugel.Internal.Program ( Program(expr, whereClause) )

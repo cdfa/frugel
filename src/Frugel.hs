@@ -24,10 +24,7 @@ import           Miso
 
 import           Optics
 
-import           Prettyprinter
 import           Prettyprinter.Render.Util.StackMachine
-
-import           Text.Megaparsec
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model

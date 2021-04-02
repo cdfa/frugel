@@ -54,7 +54,7 @@ viewModel model
           $ map
               (div_ [ class_ "column" ] . one)
               [ renderSmart . layoutDoc $ program model
-              , div_ [] . map webPrint $ errors model
+              , pre_ [] . one . renderSmart . vcat $ errors model
               ]
         , webPrint $ pShowNoColor model
         ]

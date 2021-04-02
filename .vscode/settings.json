@@ -44,7 +44,8 @@
         "rtsopts",
         "unlines",
         "unwords",
-        "vcat"
+        "vcat",
+        "vsep"
     ],
     "cSpell.enableFiletypes": [
         "!yaml",

@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Frugel.Parsing where
+module Frugel.Parsing
+    ( module Frugel.Parsing
+    , module Frugel.Parsing.Error
+    ) where
 
 import           Control.Monad.Combinators.Expr
 
@@ -13,6 +16,7 @@ import           Frugel.Node
                  hiding ( abstraction', application', decl', identifier', sum'
                         , whereClause' )
 import qualified Frugel.Node                    as Node
+import           Frugel.Parsing.Error
 import           Frugel.Parsing.Utils           hiding ( Left, Right )
 import           Frugel.Parsing.Whitespace
 import           Frugel.Program                 as Program

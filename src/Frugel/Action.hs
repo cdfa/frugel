@@ -45,5 +45,5 @@ insert c model = case reparsed of
             $ insertAt cstrMaterialOffset (Left c) materials
     reparsed = do
         inserted <- first (Nothing, ) insert'
-        first ((Just inserted, ) . map show . toList)
+        first ((Just inserted, ) . map parseErrorPretty . toList)
             $ parseCstrSite fileName inserted

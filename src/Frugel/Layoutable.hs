@@ -13,8 +13,6 @@ import           Frugel.Program
 
 import           Optics
 
-import           Prettyprinter
-
 class Layoutable a where
     layoutDoc :: a -> Doc Annotation
 
