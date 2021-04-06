@@ -15,7 +15,9 @@ import           Prettyprinter
 data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq )
 
-newtype Annotation = CompletionAnnotation CompletionStatus
+data Annotation
+    = CompletionAnnotation CompletionStatus
+    | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream after layout. Any contents will be discarded.
     deriving ( Show, Eq )
 
 class AnnotatedPretty a where

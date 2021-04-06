@@ -53,8 +53,17 @@ viewModel model
         , div_ [ class_ "columns" ]
           $ map
               (div_ [ class_ "column" ] . one)
-              [ renderSmart . layoutDoc $ program model
-              , pre_ [] . one . renderSmart . vcat $ errors model
+              [ renderSmart
+                . insertCursor (cursorOffset model)
+                . layoutSmart defaultLayoutOptions
+                . layoutDoc
+                $ program model
+              , pre_ []
+                . one
+                . renderSmart
+                . layoutSmart defaultLayoutOptions
+                . vcat
+                $ errors model
               ]
         , webPrint $ pShowNoColor model
         ]

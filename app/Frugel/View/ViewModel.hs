@@ -4,7 +4,7 @@
 
 module Frugel.View.ViewModel where
 
-import           Frugel.PrettyPrinting
+import           Frugel hiding ( CompletionAnnotation )
 
 import           Optics
 
@@ -14,6 +14,7 @@ data HorizontalOpenness
 
 data RenderAnnotation
     = CompletionAnnotation CompletionStatus HorizontalOpenness
+    | Cursor -- Cursor is inserted by insertCursor. Any contents of the annotation will be discarded.
     deriving ( Show, Eq )
 
 data DocTextTree ann
@@ -44,3 +45,10 @@ isEmptyTree = \case
     Annotated _ [] -> True
     Annotated _ trees -> all isEmptyTree trees
     _ -> False
+
+fromAnnotation :: CompletionStatus
+    -> HorizontalOpenness
+    -> [DocTextTree RenderAnnotation]
+    -> DocTextTree RenderAnnotation
+fromAnnotation
+    completionStatus = Annotated . CompletionAnnotation completionStatus

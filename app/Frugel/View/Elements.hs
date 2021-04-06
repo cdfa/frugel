@@ -67,3 +67,16 @@ complete v = span . (++ completeStyles v)
 
 node :: [Attribute action] -> [View action] -> View action
 node = span . (class_ "node" :)
+
+cursorStyle :: Attribute action
+cursorStyle
+    = style_
+    $ fromList
+        [ ("padding", "0px 1px")
+        , ("margin", "0px -1px")
+        , ("height", "15px")
+        , ("background-color", "black")
+        ]-- todo proper height and vcenter
+
+caret :: [Attribute action] -> [View action] -> View action
+caret = span . (cursorStyle :)
