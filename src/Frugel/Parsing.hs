@@ -23,12 +23,12 @@ import           Optics
 import           Text.Megaparsec                hiding ( many )
 
 identifier :: Parser Identifier
-identifier = literalIdentifier <|> cstrSiteIdentifier
+identifier = literalIdentifier <|> identifierNode
   where
     literalIdentifier
         = (fromString .: (:)) <$> lowerChar
         <*> many alphaNumChar <?> "an identifier"
-    cstrSiteIdentifier = node "a declaration node" _IdentifierNode
+    identifierNode = node "a declaration node" _IdentifierNode
 
 node :: String -> Prism' Node w -> Parser w
 node name nodePrism = namedToken name $ preview (_Right % nodePrism)
@@ -52,34 +52,35 @@ expr
     = makeExprParser
         term
         [ [ InfixL
-            $ try
                 (Application . setWhitespace
-                 <$> (defaultExprMeta <<$> whitespace
+                 <$> try
+                     (defaultExprMeta <<$> whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
                           (() <$ char '+'
                            <|> () <$ string "where"
-                           <|> snd <$> (() <$% identifier <*% char '='))))
+                           <|> () <$ node "" _WhereNode
+                           <|> snd <$> (() <$% identifier <*% char '=')
+                           <|> () <$ node "" _DeclNode)))
           ]
         , [ InfixL
-            $ try
                 (Sum . setWhitespace
-                 <$> (defaultExprMeta <$% pure () <*% char '+' <*% pure ()))
+                 <$> try (defaultExprMeta <$% pure () <*% char '+' <*% pure ()))
           ]
         ]
 
 decl :: Parser Decl
-decl = setWhitespace <$> (literalDecl <|> cstrSiteDecl)
+decl = setWhitespace <$> literalDecl <|> declNode
   where
     literalDecl = Node.decl' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
-    cstrSiteDecl = noWhitespace <$> node "a declaration node" _DeclNode
+    declNode = node "a declaration node" _DeclNode
 
 whereClause :: Parser WhereClause
-whereClause = setWhitespace <$> (cstrSiteWhere <|> literalWhere) -- it's important that cstrSiteWhere is tried first, because literalWhere succeeds on empty input
+whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
   where
     literalWhere
         = (Node.whereClause' . concat)
         <<$>> wOptional (string "where" *%> wSome decl)
-    cstrSiteWhere = noWhitespace <$> node "a declaration node" _WhereNode
+    whereNode = node "a where clause node" _WhereNode
 
 program :: Parser Program
 program
@@ -87,7 +88,10 @@ program
     <$> (Program.program' <$%> expr <*%> whereClause <*% pure ())
   where
     setProgramWhitespace :: WithWhitespace Program -> Program
-    setProgramWhitespace (whitespaceFragments :> trailingWhitespace, p)
+    setProgramWhitespace
+        ( trailingWhitespace : whitespaceFragments -- whitespace fragments are reversed
+        , p
+        )
         = set (#meta % #trailingWhitespace) trailingWhitespace
         $ setWhitespace (whitespaceFragments, p)
     setProgramWhitespace _ = error "not enough whitespace fragments"

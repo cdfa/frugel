@@ -10,6 +10,7 @@ module Frugel.Parsing.Whitespace where
 
 import           Data.Char
 import           Data.Has
+import qualified Data.List       as List
 import qualified Data.Set        as Set
 
 import           Frugel.Meta
@@ -72,8 +73,11 @@ infixl 4 <$%>, <$%, <*%>, <*%
 wSome :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace [a])
-wSome fa = (\a ws (wss, as) ->
-            (ws : wss, a : as)) <$> fa <*> whitespaceToken <*> wMany fa
+wSome fa = first List.init <$> wSome'
+  where
+    wSome' = (\a ws (wss, as) ->
+              (ws : wss, a : as)) <$> fa <*> whitespaceToken <*> wMany'
+    wMany' = wSome' <|> pure (noWhitespace [])
 
 wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a

@@ -43,5 +43,6 @@ layoutDecomposable
     . decomposed
 
 intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
-intersperseWhitespace' = intersperseWhitespace (one . pretty)
+intersperseWhitespace' interstitialWhitespace
+    = intersperseWhitespace (one . pretty) interstitialWhitespace . map one
 

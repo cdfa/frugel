@@ -20,7 +20,6 @@ module Frugel.Internal.Node where
 
 import           Data.Has
 
--- import qualified Data.Text                  as Text
 import           Frugel.Identifier    ( Identifier )
 import           Frugel.Internal.Meta ( ExprMeta(standardMeta) )
 import           Frugel.Meta

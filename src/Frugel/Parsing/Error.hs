@@ -38,6 +38,7 @@ parseErrorTextPretty (TrivialError _ us ps)
                  (error "Internal logic error: missing expected item")
                  one
                  us)
+            <> line
             <> messageItemsPretty
                 "expecting "
                 (showErrorItem <$> fromList (toList ps))
@@ -89,4 +90,4 @@ messageItemsPretty prefix ts
 orList :: NonEmpty (Doc Annotation) -> Doc Annotation
 orList (x :| []) = x
 orList (x :| [y]) = x <> " or " <> y
-orList xs = hcat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs
+orList xs = cat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs

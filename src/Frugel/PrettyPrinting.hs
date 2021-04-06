@@ -37,7 +37,7 @@ flipCompletionStatus InConstruction = Complete
 flipCompletionStatus Complete = InConstruction
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
-nestingLine x y = group $ flatAlt (x <> nest 4 (line <> y)) (x <+> y)
+nestingLine x y = x <> nest 4 softline <> y
 
 -- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
 prettyCstrMaterials
@@ -92,7 +92,9 @@ instance AnnotatedPretty WhereClause where
             then mempty
             else nest
                 2
-                (line <> "where" <> nest 2 (line <> vcat (map annPretty decls)))
+                (line'
+                 <> "where"
+                 <> nest 2 (line <> vsep (map annPretty decls)))
 
 instance AnnotatedPretty Program where
     annPretty Program{..} = annPretty expr <> annPretty whereClause
