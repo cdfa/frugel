@@ -66,21 +66,6 @@ instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) 
 
 instance AsEmpty CstrMaterials
 
--- instance VisualStream CstrMaterials where
---     showTokens Proxy
---         = showTokens (Proxy @String)
---         -- Convert from Text to NonEmpty Char
---         . fromList -- Assumption: prettyCstrMaterials of a non-empty Seq results in a non-empty render
---         . toList
---         -- Remove surrounding «»
---         . Text.tail
---         . Text.init
---         -- Convert from CstrMaterials to Text
---         . renderSmart @Text
---         . prettyCstrMaterials
---         -- Convert from NonEmpty to CstrMaterials
---         . fromFoldable
---     tokensLength = length .: showTokens
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
     modifier = over (exprMeta % #standardMeta)

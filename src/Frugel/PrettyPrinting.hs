@@ -10,8 +10,6 @@ import           Frugel.Internal.Program ( Program(expr, whereClause) )
 import           Frugel.Node
 import           Frugel.Program
 
-import           Optics
-
 import           Prettyprinter
 
 data CompletionStatus = InConstruction | Complete
@@ -38,13 +36,6 @@ flipCompletionStatus Complete = InConstruction
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = group $ flatAlt (x <> nest 4 (line <> y)) (x <+> y)
-
-parenthesizeExpr :: (Expr -> Doc ann) -> Expr -> Doc ann
-parenthesizeExpr prettyExpr x
-    | (x ^. exprMeta % #parenthesisLevels) > 0
-        = parens
-        $ parenthesizeExpr prettyExpr (x & exprMeta % #parenthesisLevels -~ 1)
-parenthesizeExpr prettyExpr x = prettyExpr x
 
 -- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
 prettyCstrMaterials
@@ -76,7 +67,7 @@ instance AnnotatedPretty Node where
 --     test
 --     test
 instance AnnotatedPretty Expr where
-    annPretty = parenthesizeExpr annPretty'
+    annPretty = parenthesizeExpr parens annPretty'
       where
         annPretty' (Identifier _ n) = pretty n
         annPretty' (Abstraction _ arg expr)

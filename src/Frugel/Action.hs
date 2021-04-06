@@ -26,23 +26,19 @@ insert c model = case reparsed of
         & #errors .~ newErrors
     Right newProgram -> model & #program .~ newProgram & #errors .~ []
   where
-    (materials, decomposeState)
-        = runState (decomposed $ view #program model)
-        $ initialDecompositionState
-        $ view #cursorOffset model
-    insert' = case decomposeState of
-        DecompositionState _ textOffset
-            | textOffset > 0 -> Left
+    insert'
+        = case decompose (view #cursorOffset model) $ view #program model of
+            Nothing -> Left
                 [ "Failed to decompose AST for cursor textOffset "
                   <> show (view #cursorOffset model)
                 ]
-        DecompositionState cstrMaterialOffset _ -> maybeToRight
-            [ "Failed to insert '"
-              <> show c
-              <> "' into construction site at index "
-              <> show cstrMaterialOffset
-            ]
-            $ insertAt cstrMaterialOffset (Left c) materials
+            Just (cstrMaterialOffset, materials) -> maybeToRight
+                [ "Failed to insert '"
+                  <> show c
+                  <> "' into construction site at index "
+                  <> show cstrMaterialOffset
+                ]
+                $ insertAt cstrMaterialOffset (Left c) materials
     reparsed = do
         inserted <- first (Nothing, ) insert'
         first ((Just inserted, ) . map parseErrorPretty . toList)

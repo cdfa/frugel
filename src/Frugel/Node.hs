@@ -28,6 +28,16 @@ intersperseWhitespace toItem whitespaceFragments xs
     = fromList . concat
     $ interleave [ map one $ toList xs, map toItem whitespaceFragments ]
 
+parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
+parenthesizeExpr parenthesize prettyExpr x
+    | x ^. exprMeta % #parenthesisLevels > 0
+        = parenthesize
+        $ parenthesizeExpr
+            parenthesize
+            prettyExpr
+            (x & exprMeta % #parenthesisLevels -~ 1)
+parenthesizeExpr _ prettyExpr x = prettyExpr x
+
 -- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 type CstrMaterials' = [Either String [Node]]

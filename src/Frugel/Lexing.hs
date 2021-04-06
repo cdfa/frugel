@@ -8,7 +8,7 @@ import           Frugel.Parsing.Utils hiding ( Left, Right )
 import           Text.Megaparsec
 
 char :: Char -> Parser Char
-char c = token (leftToMaybe >=> guarded (== c)) (one . Tokens . one . Left $ c)
+char c = c <$ single (Left c)
 
 string :: String -> Parser String
 string s = s <$ chunk (fromList $ map Left s)

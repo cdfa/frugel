@@ -1,12 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Frugel.Layoutable where
 
-import           Frugel.Internal.Meta    ( Meta(interstitialWhitespace) )
-import           Frugel.Internal.Node    ( Decl(meta, name, value) )
-import           Frugel.Internal.Program as Program
-                 ( Program(meta, expr, whereClause) )
+import           Frugel.Decomposition
 import           Frugel.Node
 import           Frugel.PrettyPrinting
 import           Frugel.Program
@@ -26,52 +20,27 @@ instance Layoutable Node where
     layoutDoc (WhereNode w) = layoutDoc w
 
 instance Layoutable Expr where
-    layoutDoc = parenthesizeExpr layoutDoc'
-      where
-        layoutDoc' (Identifier _ n) = pretty n
-        layoutDoc' (Abstraction meta arg expr)
-            = hcat
-            $ intersperseWhitespace'
-                (meta ^. #standardMeta % #interstitialWhitespace)
-                [ backslash, pretty arg, equals, layoutDoc expr ]
-        layoutDoc' (Application meta function arg)
-            = hcat
-            $ intersperseWhitespace'
-                (meta ^. #standardMeta % #interstitialWhitespace)
-                [ layoutDoc function, layoutDoc arg ]
-        layoutDoc' (Sum meta left right)
-            = hcat
-            $ intersperseWhitespace'
-                (meta ^. #standardMeta % #interstitialWhitespace)
-                [ layoutDoc left, pretty '+', layoutDoc right ]
-        layoutDoc' (ExprCstrSite _ contents) = layoutDoc contents
+    layoutDoc (ExprCstrSite _ contents) = layoutDoc contents
+    layoutDoc expr = layoutDecomposable expr
 
 instance Layoutable Decl where
-    layoutDoc Decl{..}
-        = hcat
-        $ intersperseWhitespace'
-            (interstitialWhitespace meta)
-
-            [ pretty name, pretty '=', layoutDoc value ]
     layoutDoc (DeclCstrSite _ materials) = layoutDoc materials
+    layoutDoc decl = layoutDecomposable decl
 
 instance Layoutable WhereClause where
-    layoutDoc (WhereClause meta decls)
-        = if null decls
-            then mempty
-            else hcat
-                $ intersperseWhitespace'
-                    (interstitialWhitespace meta)
-                    (pretty @Text "where" : map layoutDoc decls)
     layoutDoc (WhereCstrSite _ materials) = layoutDoc materials
+    layoutDoc whereClause = layoutDecomposable whereClause
 
 instance Layoutable Program where
-    layoutDoc Program{..}
-        = hcat
-        $ intersperseWhitespace'
-            (meta ^. #standardMeta % #interstitialWhitespace)
-            [ layoutDoc expr, layoutDoc whereClause ]
     layoutDoc (ProgramCstrSite _ materials) = layoutDoc materials
+    layoutDoc program = layoutDecomposable program
+
+layoutDecomposable :: Decomposable a => a -> Doc Annotation
+layoutDecomposable
+    = concatWith (<>)
+    . fmap (either pretty layoutDoc)
+    . view _CstrMaterials
+    . decomposed
 
 intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
 intersperseWhitespace' = intersperseWhitespace (one . pretty)
