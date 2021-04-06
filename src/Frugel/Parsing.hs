@@ -13,11 +13,8 @@ import           Frugel.Identifier              ( Identifier )
 import           Frugel.Lexing
 import           Frugel.Meta
 import           Frugel.Node
-                 hiding ( abstraction', application', decl', identifier', sum'
-                        , whereClause' )
 import qualified Frugel.Node                    as Node
 import           Frugel.Parsing.Error
-import           Frugel.Parsing.Utils           hiding ( Left, Right )
 import           Frugel.Parsing.Whitespace
 import           Frugel.Program                 as Program
 
@@ -26,9 +23,12 @@ import           Optics
 import           Text.Megaparsec                hiding ( many )
 
 identifier :: Parser Identifier
-identifier
-    = (fromString .: (:)) <$> lowerChar
-    <*> many alphaNumChar <?> "an identifier"
+identifier = literalIdentifier <|> cstrSiteIdentifier
+  where
+    literalIdentifier
+        = (fromString .: (:)) <$> lowerChar
+        <*> many alphaNumChar <?> "an identifier"
+    cstrSiteIdentifier = node "a declaration node" _IdentifierNode
 
 node :: String -> Prism' Node w -> Parser w
 node name nodePrism = namedToken name $ preview (_Right % nodePrism)
@@ -39,9 +39,8 @@ term
     <$> choice
         [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
           <*%> expr
-        , ((exprMeta % #parenthesisLevels) +~ 1) <$% (Left <$ char '(')
-          <*%> expr
-          <*% (Right <$ char ')')
+        , ((exprMeta % #parenthesisLevels) +~ 1) <$% char '(' <*%> expr
+          <*% char ')'
           -- Non recursive production rules at the bottom
         , exprCstrSite (CstrMaterials empty) <$% string "..."
         , noWhitespace <$> node "an expression node" _ExprNode
@@ -57,8 +56,8 @@ expr
                 (Application . setWhitespace
                  <$> (defaultExprMeta <<$> whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
-                          ((() <$ char '+')
-                           <|> (() <$ string "where")
+                          (() <$ char '+'
+                           <|> () <$ string "where"
                            <|> snd <$> (() <$% identifier <*% char '='))))
           ]
         , [ InfixL

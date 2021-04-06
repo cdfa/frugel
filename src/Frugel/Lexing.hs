@@ -1,11 +1,16 @@
 module Frugel.Lexing where
 
 import           Data.Char
+import qualified Data.Set        as Set
 
 import           Frugel.Node
-import           Frugel.Parsing.Utils hiding ( Left, Right )
 
 import           Text.Megaparsec
+
+type Parser = Parsec Void CstrMaterials
+
+namedToken :: MonadParsec e s m => String -> (Token s -> Maybe a) -> m a
+namedToken name test = token test Set.empty <?> name
 
 char :: Char -> Parser Char
 char c = c <$ single (Left c)
