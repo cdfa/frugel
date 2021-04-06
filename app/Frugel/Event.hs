@@ -20,6 +20,10 @@ keyDownHandler = onKeyDownWithInfo handleKeyDown
         [c]
             | not $ metaKey || ctrlKey || altKey -> Insert c
         "Enter"
+            | not $ metaKey || ctrlKey || altKey -> Insert '\n'
+        "Tab"
+            | not $ metaKey || ctrlKey || altKey -> Insert '\t'
+        "Enter"
             | not metaKey && ctrlKey && not altKey && not shiftKey ->
                 PrettyPrint
         _ -> Log key
