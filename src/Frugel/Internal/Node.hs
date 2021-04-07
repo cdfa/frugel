@@ -53,7 +53,8 @@ data Decl
     | DeclCstrSite Meta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
-data WhereClause = WhereClause Meta [Decl] | WhereCstrSite Meta CstrMaterials
+data WhereClause
+    = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrMaterials
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl

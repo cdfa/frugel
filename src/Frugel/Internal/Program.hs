@@ -21,7 +21,10 @@ import           Frugel.Node
 import           Optics
 
 data Program
-    = Program { meta :: ProgramMeta, expr :: Expr, whereClause :: WhereClause }
+    = Program { meta        :: ProgramMeta
+              , expr        :: Expr
+              , whereClause :: Maybe WhereClause
+              }
     | ProgramCstrSite ProgramMeta CstrMaterials
     deriving ( Show, Eq, Generic, Has ProgramMeta )
 

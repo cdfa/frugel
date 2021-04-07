@@ -42,6 +42,7 @@
         "prettyprinter",
         "rparen",
         "rtsopts",
+        "softline",
         "unlines",
         "unwords",
         "vcat",

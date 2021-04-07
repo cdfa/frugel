@@ -72,8 +72,8 @@ infixl 4 <$%>, <$%, <*%>, <*%
 
 wSome :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
-    -> m (WithWhitespace [a])
-wSome fa = first List.init <$> wSome'
+    -> m (WithWhitespace (NonEmpty a))
+wSome fa = bimap List.init fromList <$> wSome'
   where
     wSome' = (\a ws (wss, as) ->
               (ws : wss, a : as)) <$> fa <*> whitespaceToken <*> wMany'
@@ -82,8 +82,7 @@ wSome fa = first List.init <$> wSome'
 wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace [a])
-wMany fa = wSome fa <|> pure (noWhitespace [])
-
-wOptional
-    :: MonadPlus m => m (WithWhitespace a) -> m (WithWhitespace (Maybe a))
-wOptional fa = Just <<$>> fa <|> pure (noWhitespace Nothing)
+wMany fa = toList <<$>> wSome fa <|> pure (noWhitespace [])
+-- wOptional
+--     :: MonadPlus m => m (WithWhitespace a) -> m (WithWhitespace (Maybe a))
+-- wOptional fa = Just <<$>> fa <|> pure (noWhitespace Nothing)

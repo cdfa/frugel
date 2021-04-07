@@ -50,6 +50,9 @@ prettyCstrMaterials prettyNode (CstrMaterials contents)
             . groupByEither
             $ toList contents
 
+instance AnnotatedPretty a => AnnotatedPretty (Maybe a) where
+    annPretty = maybe mempty annPretty
+
 instance AnnotatedPretty CstrMaterials where
     annPretty = prettyCstrMaterials annPretty
 
@@ -88,13 +91,11 @@ instance AnnotatedPretty Decl where
 instance AnnotatedPretty WhereClause where
     annPretty (WhereCstrSite _ contents) = annPretty contents
     annPretty (WhereClause _ decls)
-        = if null decls
-            then mempty
-            else nest
-                2
-                (line'
-                 <> "where"
-                 <> nest 2 (line <> vsep (map annPretty decls)))
+        = nest
+            2
+            (line'
+             <> "where"
+             <> nest 2 (line <> vsep (map annPretty $ toList decls)))
 
 instance AnnotatedPretty Program where
     annPretty Program{..} = annPretty expr <> annPretty whereClause

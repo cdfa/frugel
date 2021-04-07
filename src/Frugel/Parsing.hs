@@ -77,15 +77,13 @@ decl = setWhitespace <$> literalDecl <|> declNode
 whereClause :: Parser WhereClause
 whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
   where
-    literalWhere
-        = (Node.whereClause' . concat)
-        <<$>> wOptional (string "where" *%> wSome decl)
+    literalWhere = Node.whereClause' <<$>> string "where" *%> wSome decl
     whereNode = node "a where clause node" _WhereNode
 
 program :: Parser Program
 program
     = setProgramWhitespace
-    <$> (Program.program' <$%> expr <*%> whereClause <*% pure ())
+    <$> (Program.program' <$%> expr <*%> optional whereClause <*% pure ())
   where
     setProgramWhitespace :: WithWhitespace Program -> Program
     setProgramWhitespace

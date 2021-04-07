@@ -96,22 +96,20 @@ instance Decomposable Decl where
     decomposed Decl{..}
         = intersperseWhitespace'
             (interstitialWhitespace meta)
-
             [ Right $ IdentifierNode name, Left "=", Right $ ExprNode value ]
     decomposed (DeclCstrSite _ materials) = materials
 
 instance Decomposable WhereClause where
     decomposed (WhereClause meta decls)
-        = if null decls
-            then mempty
-            else intersperseWhitespace'
-                (interstitialWhitespace meta)
-                (Left "where" : map (Right . DeclNode) decls)
+        = intersperseWhitespace'
+            (interstitialWhitespace meta)
+            (Left "where" : map (Right . DeclNode) (toList decls))
     decomposed (WhereCstrSite _ materials) = materials
 
 instance Decomposable Program where
     decomposed Program{..}
         = intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
-        $ fromList [ Right $ ExprNode expr, Right $ WhereNode whereClause ]
+            (Right (ExprNode expr)
+             : maybe [] (one . Right . WhereNode) whereClause)
     decomposed (ProgramCstrSite _ materials) = materials

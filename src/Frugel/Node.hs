@@ -56,7 +56,7 @@ exprCstrSite = ExprCstrSite defaultExprMeta
 decl' :: Identifier -> Expr -> Decl
 decl' = Decl defaultMeta
 
-whereClause' :: [Decl] -> WhereClause
+whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' = WhereClause defaultMeta
 
 type CstrMaterials' = [Either String Node]
