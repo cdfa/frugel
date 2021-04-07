@@ -20,21 +20,10 @@ data Annotation
     | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream after layout. Any contents will be discarded.
     deriving ( Show, Eq )
 
-class AnnotatedPretty a where
-    annPretty :: a -> Doc Annotation
-
 annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation
 annotateInConstruction = annotate $ CompletionAnnotation InConstruction
 
 annotateComplete = annotate $ CompletionAnnotation Complete
-
-prettyCompletionStatus :: IsString p => CompletionStatus -> p
-prettyCompletionStatus InConstruction = "«"
-prettyCompletionStatus Complete = "»"
-
-flipCompletionStatus :: CompletionStatus -> CompletionStatus
-flipCompletionStatus InConstruction = Complete
-flipCompletionStatus Complete = InConstruction
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = x <> nest 4 softline <> y
@@ -49,6 +38,9 @@ prettyCstrMaterials prettyNode (CstrMaterials contents)
             . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
             . groupByEither
             $ toList contents
+
+class AnnotatedPretty a where
+    annPretty :: a -> Doc Annotation
 
 instance AnnotatedPretty a => AnnotatedPretty (Maybe a) where
     annPretty = maybe mempty annPretty

@@ -4,15 +4,25 @@
 
 module Frugel.Action where
 
+import           Data.Composition
+
 import           Frugel.Decomposition
+import           Frugel.Layoutable
 import           Frugel.Meta
 import           Frugel.Model
-import           Frugel.Parsing       hiding ( program )
+import           Frugel.Parsing              hiding ( program )
+import           Frugel.PrettyPrinting
 import           Frugel.Program
 
 import           Optics
 
-data Action = NoOp | Load | Log String | Insert Char | PrettyPrint
+import           Prettyprinter.Render.String
+
+data Direction = Leftward | Rightward | Upward | Downward
+    deriving ( Show, Eq )
+
+data Action
+    = NoOp | Load | Log String | Insert Char | Move Direction | PrettyPrint
     deriving ( Show, Eq )
 
 insert :: Char -> Model -> Model
@@ -45,3 +55,50 @@ insert c model = case reparsed of
         inserted <- first (Nothing, ) insert'
         first ((Just inserted, ) . map parseErrorPretty . toList)
             $ parseCstrSite fileName inserted
+
+moveCursor :: Direction -> Model -> Model
+moveCursor direction model = model & #cursorOffset %~ updateOffset
+  where
+    updateOffset = case direction of
+        Leftward -> max 0 . subtract 1
+        Rightward -> min (genericLength programText) . (+ 1)
+        Upward -> maybe
+            (const currentOffset)
+            ((max 0 . subtract 1) .: subtract)
+            previousLineLength -- extra subtract 1 for the \n
+        Downward -> if length trailingLines <= 1
+            then const currentOffset
+            else min (genericLength programText) . (currentLineLength + 1 +) -- +1 for the \n
+    previousLineLength
+        = genericLength . head
+        <$> (nonEmpty . tail =<< nonEmpty (reverse leadingLines))
+    currentLineLength
+        = genericLength
+            (concat (last <$> nonEmpty leadingLines)
+             ++ concat (head <$> nonEmpty trailingLines))
+    (leadingLines, trailingLines)
+        = genericSplitAt currentOffset programText & both %~ splitOn '\n'
+    currentOffset = view #cursorOffset model
+    programText
+        = renderString . layoutSmart defaultLayoutOptions . layoutDoc
+        $ view #program model
+
+-- For now, pretty printing only works on complete programs, because correct pretty printing of complete nodes in construction sites is difficult
+-- It would require making a parser that skips all the construction materials and then putting the new whitespace back in the old nodes
+prettyPrint :: Model -> Model
+prettyPrint model = case view #program model of
+    p@Program{} -> case prettyPrinted p of
+        Left errors -> model
+            & #errors
+            .~ ("Internal error: failed to reparse a pretty-printed program"
+                : map show (toList errors))
+        Right newProgram -> model & #program .~ newProgram
+      where
+        prettyPrinted
+            = parseCstrSite fileName
+            . fromList
+            . map Left
+            . renderString
+            . layoutSmart defaultLayoutOptions
+            . annPretty
+    _ -> model & #errors %~ ("Can't pretty print a construction site" :)

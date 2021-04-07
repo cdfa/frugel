@@ -14,7 +14,6 @@ import           Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
 import           Miso
-import qualified Miso.String
 
 import           Text.Pretty.Simple               ( pShowNoColor )
 
@@ -67,6 +66,3 @@ viewModel model
               ]
         , webPrint $ pShowNoColor model
         ]
-
-webPrint :: Miso.String.ToMisoString a => a -> View Action
-webPrint x = pre_ [] [ text $ Miso.String.ms x ]

@@ -6,7 +6,8 @@ import           Data.Aeson.Types
 
 import           Frugel
 
-import           Miso               ( Attribute, on )
+import           Miso
+                 ( Attribute, Options(..), defaultOptions, onWithOptions )
 import           Miso.Event.Decoder hiding ( keyInfoDecoder )
 
 data KeyInfo
@@ -16,21 +17,46 @@ data KeyInfo
 keyDownHandler :: Attribute Action
 keyDownHandler = onKeyDownWithInfo handleKeyDown
   where
-    handleKeyDown KeyInfo{..} = case key of
-        [c]
-            | not $ metaKey || ctrlKey || altKey -> Insert c
-        "Enter"
-            | not $ metaKey || ctrlKey || altKey -> Insert '\n'
-        "Tab"
-            | not $ metaKey || ctrlKey || altKey -> Insert '\t'
-        "Enter"
-            | not metaKey && ctrlKey && not altKey && not shiftKey ->
-                PrettyPrint
-        _ -> Log key
+    handleKeyDown keyInfo@KeyInfo{..}
+        = if noModifiers keyInfo
+            then (case key of
+                      [c] -> Insert c
+                      "Enter" -> Insert '\n'
+                      "Tab" -> Insert '\t'
+                      "ArrowLeft" -> Move Leftward
+                      "ArrowRight" -> Move Rightward
+                      "ArrowUp" -> Move Upward
+                      "ArrowDown" -> Move Downward
+                      _ -> Log key)
+            else (case key of
+                      "Enter"
+                          | not metaKey
+                              && ctrlKey
+                              && not altKey
+                              && not shiftKey -> PrettyPrint
+                      -- Up and down also available with Alt to prevent window scrolling until https://github.com/dmjio/miso/issues/652 is fixed
+                      "ArrowUp"
+                          | not metaKey
+                              && not ctrlKey
+                              && altKey
+                              && not shiftKey -> Move Upward
+                      "ArrowDown"
+                          | not metaKey
+                              && not ctrlKey
+                              && altKey
+                              && not shiftKey -> Move Downward
+                      _ -> Log key)
+
+noModifiers :: KeyInfo -> Bool
+noModifiers KeyInfo{..} = not $ metaKey || ctrlKey || altKey
 
 -- | https://developer.mozilla.org/en-US/docs/Web/Events/keydown
 onKeyDownWithInfo :: (KeyInfo -> action) -> Attribute action
-onKeyDownWithInfo = Miso.on "keydown" keyInfoDecoder
+onKeyDownWithInfo
+    = onWithOptions
+        (Miso.defaultOptions { preventDefault = False })
+        "keydown"
+        keyInfoDecoder
 
 keyInfoDecoder :: Decoder KeyInfo
 keyInfoDecoder = Decoder { .. }

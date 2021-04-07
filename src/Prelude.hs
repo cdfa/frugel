@@ -5,7 +5,7 @@ import           Data.Sequence ( (><) )
 
 import           GHC.Exts
 
-import           Relude        hiding ( Sum, abs, group, init, toList )
+import           Relude        hiding ( Sum, abs, group, toList )
 
 -- Copied from the Agda package
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
@@ -15,7 +15,7 @@ listCase _ c (x : xs) = c x xs
 -- Copied from the Agda package
 -- | Groups a list into alternating chunks of 'Left' and 'Right' values
 groupByEither :: [Either a b] -> [Either [a] [b]]
-groupByEither = listCase [] (go . init)
+groupByEither = listCase [] (go . initial)
   where
     go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
     go acc [] = [ adjust acc ]
@@ -23,9 +23,9 @@ groupByEither = listCase [] (go . init)
     go (Left acc) (Left a : abs) = go (Left $ a : acc) abs
     go (Right acc) (Right b : abs) = go (Right $ b : acc) abs
     -- mismatch: switch the accumulator to the other mode
-    go acc (ab : abs) = adjust acc : go (init ab) abs
+    go acc (ab : abs) = adjust acc : go (initial ab) abs
     adjust = bimap reverse reverse
-    init = bimap pure pure
+    initial = bimap pure pure
 
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]

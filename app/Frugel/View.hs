@@ -16,6 +16,9 @@ import           Prelude                                 hiding ( lines )
 
 import           Prettyprinter.Render.Util.SimpleDocTree
 
+webPrint :: Miso.String.ToMisoString a => a -> View Action
+webPrint x = pre_ [] [ text $ Miso.String.ms x ]
+
 renderSmart :: SimpleDocStream Annotation -> View Action
 renderSmart
     = renderTrees
