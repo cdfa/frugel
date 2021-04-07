@@ -30,12 +30,6 @@ step = do
         (textOffset /= -1)
         (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
 
-intersperseWhitespace' :: [Text] -> CstrMaterials' -> CstrMaterials
-intersperseWhitespace' whitespaceFragments
-    = fromList
-    . intersperseWhitespace (map Left . toString) whitespaceFragments
-    . map (either (map Left) (one . Right))
-
 decompose :: Integer -> Program -> Maybe (Integer, CstrMaterials)
 decompose cursorOffset program
     = if textOffset > 0
@@ -56,11 +50,17 @@ decompose cursorOffset program
     processNodeItem node = do
         initialCstrSiteOffset <- use #cstrSiteOffset
         nodeMaterials <- decomposeCstrMaterials $ decomposed node
-        state (\s -> if s ^. #textOffset == -1
+        state (\s -> if s ^. #textOffset <= 0
                    then (view _CstrMaterials nodeMaterials, s)
                    else ( one $ Right node
                         , s & #cstrSiteOffset .~ (initialCstrSiteOffset + 1)
                         ))
+
+intersperseWhitespace' :: [Text] -> CstrMaterials' -> CstrMaterials
+intersperseWhitespace' whitespaceFragments
+    = fromList
+    . intersperseWhitespace (map Left . toString) whitespaceFragments
+    . map (either (map Left) (one . Right))
 
 instance Decomposable Node where
     decomposed (IdentifierNode n) = decomposed n
