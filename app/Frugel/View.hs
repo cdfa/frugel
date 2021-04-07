@@ -32,20 +32,20 @@ insertCursor offset s = case s of
     SFail -> error "Encountered SFail in DocStream"
     SEmpty -> error
         ("offset " <> show offset <> "was out of bound for the DocStream")
-    (SChar _ s') -> insertCursor (offset - 1) s'
-    (SText len _ s')
-        | offset > fromIntegral len ->
-            insertCursor (offset - fromIntegral len) s'
+    (SChar c s') -> SChar c $ insertCursor (offset - 1) s'
+    (SText len txt s')
+        | offset > fromIntegral len -> SText len txt
+            $ insertCursor (offset - fromIntegral len) s'
     (SText _ txt s') -> insertCursor offset . foldr SChar s' $ toString txt
     (SLine nextLineIndent s')
-        | offset > 1 + fromIntegral nextLineIndent ->
-            insertCursor (offset - 1 - fromIntegral nextLineIndent) s'
+        | offset > 1 + fromIntegral nextLineIndent -> SLine nextLineIndent
+            $ insertCursor (offset - 1 - fromIntegral nextLineIndent) s'
     (SLine nextLineIndent s') -> insertCursor offset
         $ SLine
             0
             (SText nextLineIndent (toText $ replicate nextLineIndent ' ') s')
-    (SAnnPush _ s') -> insertCursor offset s'
-    (SAnnPop s') -> insertCursor offset s'
+    (SAnnPush ann s') -> SAnnPush ann $ insertCursor offset s'
+    (SAnnPop s') -> SAnnPop $ insertCursor offset s'
 
 textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
 textTreeForm = \case
