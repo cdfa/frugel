@@ -24,7 +24,9 @@ insert c model = case reparsed of
             (ProgramCstrSite defaultProgramMeta)
             inserted
         & #errors .~ newErrors
-    Right newProgram -> model & #program .~ newProgram & #errors .~ []
+        & if isJust inserted then #cursorOffset +~ 1 else id
+    Right newProgram ->
+        model & #program .~ newProgram & #errors .~ [] & #cursorOffset +~ 1
   where
     insert'
         = case decompose (view #cursorOffset model) $ view #program model of
