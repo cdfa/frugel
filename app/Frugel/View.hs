@@ -40,10 +40,9 @@ insertCursor offset s = case s of
     (SLine nextLineIndent s')
         | offset > 1 + fromIntegral nextLineIndent -> SLine nextLineIndent
             $ insertCursor (offset - 1 - fromIntegral nextLineIndent) s'
-    (SLine nextLineIndent s') -> insertCursor offset
-        $ SLine
-            0
-            (SText nextLineIndent (toText $ replicate nextLineIndent ' ') s')
+    (SLine nextLineIndent s') -> SLine 0
+        $ insertCursor (offset - 1)
+        $ SText nextLineIndent (toText $ replicate nextLineIndent ' ') s'
     (SAnnPush ann s') -> SAnnPush ann $ insertCursor offset s'
     (SAnnPop s') -> SAnnPop $ insertCursor offset s'
 
