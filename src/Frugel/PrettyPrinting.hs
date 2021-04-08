@@ -30,7 +30,7 @@ annotateInConstruction = annotate $ CompletionAnnotation InConstruction
 annotateComplete = annotate $ CompletionAnnotation Complete
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
-nestingLine x y = x <> nest 4 softline <> y
+nestingLine x y = x <> nest 4 (softline <> y)
 
 -- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
 prettyCstrMaterials
