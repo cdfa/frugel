@@ -44,11 +44,10 @@ keyDownHandler = onKeyDownWithInfo handleKeyDown
                       "ArrowDown" -> Move Downward
                       _ -> Log key)
             else (case key of
+                      [c]
+                          | singleModifier #shiftKey keyInfo -> Insert c
                       "Enter"
-                          | not metaKey
-                              && ctrlKey
-                              && not altKey
-                              && not shiftKey -> PrettyPrint
+                          | singleModifier #ctrlKey keyInfo -> PrettyPrint
                       -- Up and down also available with Alt to prevent window scrolling until https://github.com/dmjio/miso/issues/652 is fixed
                       "ArrowUp"
                           | singleModifier #altKey keyInfo -> Move Upward
