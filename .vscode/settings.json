@@ -1,8 +1,10 @@
 {
     "cSpell.words": [
+        "Bitraversable",
         "Decomposables",
         "agda",
         "bimap",
+        "bitraverse",
         "concat",
         "fmap",
         "frugel",
@@ -21,6 +23,7 @@
     ],
     "cSpell.ignoreWords": [
         "aeson",
+        "afailing",
         "colinderoos",
         "cstr",
         "exts",

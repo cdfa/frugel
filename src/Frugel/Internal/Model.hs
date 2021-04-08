@@ -5,15 +5,15 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 {-# LANGUAGE RecordWildCards #-}
+
 {-# LANGUAGE TemplateHaskell #-}
 
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Frugel.Internal.Model where
 
+import           Frugel.Internal.PrettyPrinting ()
 import           Frugel.PrettyPrinting
 import           Frugel.Program
 
@@ -27,11 +27,6 @@ data Model
     deriving ( Show )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Model
-
-instance Eq ann => Eq (Doc ann) where
-    (==)
-        = (==)
-        `on` layoutPretty (LayoutOptions { layoutPageWidth = Unbounded })
 
 instance Eq Model where
     (Model program1 cursorOffset1 errors1)

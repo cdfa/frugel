@@ -62,6 +62,10 @@ both = traversalVL $ \f -> bitraverse f f
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k = not . isn't k
 
+-- anySucceeding :: (Foldable t, Is k An_AffineFold)
+--     => t (Optic' k js a a)
+--     -> AffineFold a a
+-- anySucceeding = foldl' afailing $ castOptic simple
 -- From https://hackage.haskell.org/package/optics-core-0.4/docs/src/Optics.Traversal.html#adjoin
 -- | Combine two disjoint traversals into one.
 --

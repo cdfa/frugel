@@ -1,9 +1,13 @@
+-- Doc's are used in Model which needs to have an Eq instance, so Reactive/conditional layouts and filling function can not be used
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Frugel.PrettyPrinting
     ( module Frugel.PrettyPrinting
     , module Prettyprinter
     ) where
+
+import           Data.Data
 
 import           Frugel.Internal.Node    ( Decl(name, value) )
 import           Frugel.Internal.Program ( Program(expr, whereClause) )
@@ -13,12 +17,12 @@ import           Frugel.Program
 import           Prettyprinter
 
 data CompletionStatus = InConstruction | Complete
-    deriving ( Show, Eq )
+    deriving ( Show, Eq, Data )
 
 data Annotation
     = CompletionAnnotation CompletionStatus
     | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream after layout. Any contents will be discarded.
-    deriving ( Show, Eq )
+    deriving ( Show, Eq, Data )
 
 annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation
 annotateInConstruction = annotate $ CompletionAnnotation InConstruction
