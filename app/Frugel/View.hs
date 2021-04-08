@@ -65,11 +65,11 @@ textLeavesConcat
         (textLeavesConcat . concatByPrism _TextLeaf)
 
 splitMultiLineAnnotations
-    :: [DocTextTree Annotation] -> [DocTextTree RenderAnnotation]
+    :: [DocTextTree Annotation] -> [DocTextTree Annotation]
 splitMultiLineAnnotations = foldMap $ \case
     TextLeaf t -> [ TextLeaf t ]
     LineLeaf -> [ LineLeaf ]
-    Annotated Frugel.Cursor _ -> [ Annotated ViewModel.Cursor [] ]
+    Annotated Cursor _ -> [ Annotated Cursor [] ]
     Annotated (Frugel.CompletionAnnotation completionStatus) trees -> filter
         (not . isEmptyTree)
         . intersperse LineLeaf
@@ -78,18 +78,14 @@ splitMultiLineAnnotations = foldMap $ \case
         $ splitMultiLineAnnotations trees
   where
     reAnnotateTrees completionStatus ((firstLine :< middleLines) :> lastLine)
-        = reannotatedFirstLine
-        <| (reannotatedMiddleLines |> reannotatedLastLine)
+        = reannotate firstLine
+        <| (map reannotate middleLines |> reannotate lastLine)
       where
-        reannotatedFirstLine = reannotate firstLineOpenness firstLine
-        reannotatedMiddleLines
-            = map (reannotate middleLinesOpenness) middleLines
-        reannotatedLastLine = reannotate lastLineOpenness lastLine
-        reannotate = fromAnnotation completionStatus
+        reannotate = Annotated $ CompletionAnnotation completionStatus
     reAnnotateTrees completionStatus treeLines
-        = map (fromAnnotation completionStatus singleLineOpenness) treeLines -- length treeLines = 0 or 1
+        = map (Annotated $ CompletionAnnotation completionStatus) treeLines -- length treeLines <= 1
 
-annotationTreeForm :: [DocTextTree RenderAnnotation] -> [Line]
+annotationTreeForm :: [DocTextTree Annotation] -> [Line]
 annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
   where
     transform = \case
@@ -108,9 +104,8 @@ renderTree = \case
     Node annotation subTrees ->
         encloseInTagFor annotation $ map renderTree subTrees
 
-encloseInTagFor :: RenderAnnotation -> [View Action] -> View Action
+encloseInTagFor :: Annotation -> [View Action] -> View Action
 encloseInTagFor ann views = case ann of
-    ViewModel.CompletionAnnotation InConstruction v ->
-        inConstruction v [] views
-    ViewModel.CompletionAnnotation Complete v -> complete v [] views
-    ViewModel.Cursor -> caret [] []
+    CompletionAnnotation InConstruction -> inConstruction [] views
+    CompletionAnnotation Complete -> complete [] views
+    Cursor -> caret [] []

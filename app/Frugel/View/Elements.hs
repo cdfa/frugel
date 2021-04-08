@@ -1,8 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
 
 module Frugel.View.Elements where
-
-import           Frugel.View.ViewModel
 
 import           Miso
 import qualified Miso.String
@@ -36,34 +33,26 @@ spanStyle = style_ $ fromList [ ("display", "inline-block") ]
 span :: [Attribute action] -> [View action] -> View action
 span = span_ . (spanStyle :)
 
-paddingStyle :: HorizontalOpenness -> Attribute action
-paddingStyle HorizontalOpenness{..}
+paddingStyle :: Attribute action
+paddingStyle
     = style_
     $ fromList
-        [ ( "padding"
-          , Miso.String.ms
-            $ unwords [ "4px", padding openRight, "4px", padding openLeft ]
-          )
-        ]
-  where
-    padding present = if present then "0px" else "4px"
+        [ ("padding", Miso.String.ms $ unwords [ "4px", "0", "4px", "0" ]) ]
 
-inConstructionStyles :: HorizontalOpenness -> [Attribute action]
-inConstructionStyles v
+inConstructionStyles :: [Attribute action]
+inConstructionStyles
     = [ style_ $ fromList [ ("background-color", "hsl(48, 100%, 85%)") ]
-      , paddingStyle v
+      , paddingStyle
       ]
 
-inConstruction
-    :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-inConstruction v = span . (++ inConstructionStyles v)
+inConstruction :: [Attribute action] -> [View action] -> View action
+inConstruction = span . (++ inConstructionStyles)
 
-completeStyles :: HorizontalOpenness -> [Attribute action]
-completeStyles v = [ class_ "has-background-white", paddingStyle v ]
+completeStyles :: [Attribute action]
+completeStyles = [ class_ "has-background-white", paddingStyle ]
 
-complete
-    :: HorizontalOpenness -> [Attribute action] -> [View action] -> View action
-complete v = span . (++ completeStyles v)
+complete :: [Attribute action] -> [View action] -> View action
+complete = span . (++ completeStyles)
 
 node :: [Attribute action] -> [View action] -> View action
 node = span . (class_ "node" :)
