@@ -1,5 +1,9 @@
+{-# LANGUAGE OverloadedLists #-}
 
 module Frugel.View.Elements where
+
+import           Frugel
+import           Frugel.Event
 
 import           Miso
 import qualified Miso.String
@@ -7,7 +11,6 @@ import qualified Miso.String
 noButtonStyle :: Attribute action
 noButtonStyle
     = style_
-    $ fromList
         [ ("background", "none")
         , ("color", "inherit")
         , ("border", "none")
@@ -22,13 +25,12 @@ noButtonStyle
 codeStyle :: Attribute action
 codeStyle
     = style_
-    $ fromList
         [ ("white-space", "pre")
         , ("font-family", "\"Courier New\", monospace")
         ]
 
 spanStyle :: Attribute action
-spanStyle = style_ $ fromList [ ("display", "inline-block") ]
+spanStyle = style_ [ ("display", "inline-block") ]
 
 span :: [Attribute action] -> [View action] -> View action
 span = span_ . (spanStyle :)
@@ -36,14 +38,11 @@ span = span_ . (spanStyle :)
 paddingStyle :: Attribute action
 paddingStyle
     = style_
-    $ fromList
         [ ("padding", Miso.String.ms $ unwords [ "4px", "0", "4px", "0" ]) ]
 
 inConstructionStyles :: [Attribute action]
 inConstructionStyles
-    = [ style_ $ fromList [ ("background-color", "hsl(48, 100%, 85%)") ]
-      , paddingStyle
-      ]
+    = [ style_ [ ("background-color", "hsl(48, 100%, 85%)") ], paddingStyle ]
 
 inConstruction :: [Attribute action] -> [View action] -> View action
 inConstruction = span . (++ inConstructionStyles)
@@ -57,15 +56,23 @@ complete = span . (++ completeStyles)
 node :: [Attribute action] -> [View action] -> View action
 node = span . (class_ "node" :)
 
-cursorStyle :: Attribute action
-cursorStyle
+caretStyle :: Attribute action
+caretStyle
     = style_
-    $ fromList
-        [ ("padding", "0px 1px")
-        , ("margin", "0px -1px")
-        , ("height", "15px")
-        , ("background-color", "black")
-        ]-- todo proper height and vcenter
+        [ ("padding", "0 1px")
+        , ("margin", "0 -1px -0.2em -1px")
+        , ("height", "1.2em")
+        , ("background-color", "green")
+        ]
 
 caret :: [Attribute action] -> [View action] -> View action
-caret = span . (cursorStyle :)
+caret = span . (caretStyle :)
+
+codeRoot :: [Attribute Action] -> [View Action] -> View Action
+codeRoot
+    = button_ -- Using a button, because only (some) elements generate events
+    . (++ [ keyDownHandler
+          , noButtonStyle
+          , id_ "code-root"
+          , style_ [ ("margin-left", "10px"), ("margin-top", "10px") ]
+          ])

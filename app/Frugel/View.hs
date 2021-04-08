@@ -3,7 +3,6 @@
 module Frugel.View where
 
 import           Frugel
-import           Frugel.Event
 import           Frugel.View.Elements
 import           Frugel.View.ViewModel                   as ViewModel
 
@@ -94,9 +93,7 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         Annotated ann trees -> Node ann $ map transform trees
 
 renderTrees :: [Line] -> View Action
-renderTrees
-    = button_ [ keyDownHandler, noButtonStyle, id_ "code-root" ] -- Using a button, because only (some) elements generate events
-    . map (div_ [] . map renderTree . view _Line)
+renderTrees = codeRoot [] . map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
 renderTree = \case
