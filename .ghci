@@ -1,2 +1,3 @@
 :set -interactive-print Text.Pretty.Simple.pPrint
 :set prompt "λ>"
+:set -Wno-type-defaults
