@@ -48,14 +48,12 @@ f1 <.> f2 = fmap f1 . f2
 
 -- >>> insertAt 1 99 []
 -- Nothing
-insertAt :: (Cons s s a a, Num n, Ord n) => n -> a -> s -> Maybe s
-insertAt i x = failover (_drop i) (x <|)
-
-_drop :: (Num t, Cons s s a a, Ord t) => t -> AffineTraversal' s s
-_drop n
-    | n <= 0 = castOptic simple
-_drop n = _tail % _drop (n - 1)
-
+-- insertAt :: (Cons s s a a, Num n, Ord n) => n -> a -> s -> Maybe s
+-- insertAt i x = failover (_drop i) (x <|)
+-- _drop :: (Num t, Cons s s a a, Ord t) => t -> AffineTraversal' s s
+-- _drop n
+--     | n <= 0 = castOptic simple
+-- _drop n = _tail % _drop (n - 1)
 both :: Bitraversable r => Traversal (r a a) (r b b) a b
 both = traversalVL $ \f -> bitraverse f f
 

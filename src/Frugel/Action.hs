@@ -4,15 +4,22 @@
 
 module Frugel.Action where
 
+import           Control.Zipper.Seq          hiding ( delete, insert )
+import qualified Control.Zipper.Seq          as SeqZipper
+
 import           Data.Composition
 
 import           Frugel.Decomposition
 import           Frugel.Layoutable
 import           Frugel.Meta
 import           Frugel.Model
+import           Frugel.Node
 import           Frugel.Parsing              hiding ( program )
 import           Frugel.PrettyPrinting
 import           Frugel.Program
+
+import           Miso                        hiding ( focus, model, node, view )
+import qualified Miso
 
 import           Optics
 
@@ -24,6 +31,17 @@ data Direction = Leftward | Rightward | Upward | Downward
 data Action
     = NoOp | Load | Log String | Insert Char | Move Direction | PrettyPrint
     deriving ( Show, Eq )
+
+-- Updates model, optionally introduces side effects
+updateModel :: Action -> Model -> Effect Action Model
+updateModel NoOp model = noEff model
+updateModel Load model = model <# do
+    Miso.focus "code-root" >> pure NoOp
+updateModel (Log msg) model = model <# do
+    consoleLog (show msg) >> pure NoOp
+updateModel (Insert c) model = noEff $ insert c model
+updateModel (Move direction) model = noEff $ moveCursor direction model
+updateModel PrettyPrint model = noEff $ prettyPrint model
 
 insert :: Char -> Model -> Model
 insert c model = case reparsed of
@@ -39,18 +57,8 @@ insert c model = case reparsed of
         model & #program .~ newProgram & #errors .~ [] & #cursorOffset +~ 1
   where
     insert'
-        = case decompose (view #cursorOffset model) $ view #program model of
-            Nothing -> Left
-                [ "Failed to decompose AST for cursor textOffset "
-                  <> show (view #cursorOffset model)
-                ]
-            Just (cstrMaterialOffset, materials) -> maybeToRight
-                [ "Failed to insert '"
-                  <> show c
-                  <> "' into construction site at index "
-                  <> show cstrMaterialOffset
-                ]
-                $ insertAt cstrMaterialOffset (Left c) materials
+        = zipperAtCursor (SeqZipper.insert $ Left c) (view #cursorOffset model)
+        $ view #program model
     reparsed = do
         inserted <- first (Nothing, ) insert'
         first ((Just inserted, ) . map parseErrorPretty . toList)
@@ -102,3 +110,22 @@ prettyPrint model = case view #program model of
             . layoutSmart defaultLayoutOptions
             . annPretty
     _ -> model & #errors %~ ("Can't pretty print a construction site" :)
+
+zipperAtCursor :: (SeqZipper (Either Char Node) -> SeqZipper (Either Char Node))
+    -> Int
+    -> Program
+    -> Either [Doc Annotation] CstrMaterials
+zipperAtCursor f cursorOffset program = case decompose cursorOffset program of
+    Nothing -> Left
+        [ "Failed to decompose AST for cursor textOffset " <> show cursorOffset
+        ]
+    Just (cstrMaterialOffset, materials) -> maybeToRight
+        [ "Failed to modify the construction site "
+          <> layoutDoc materials
+          <> " at index "
+          <> show cstrMaterialOffset
+        ]
+        $ traverseOf
+            _CstrMaterials
+            (rezip <.> f <.> unzipTo cstrMaterialOffset)
+            materials
