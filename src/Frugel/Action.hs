@@ -61,23 +61,23 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
   where
     updateOffset = case direction of
         Leftward -> max 0 . subtract 1
-        Rightward -> min (genericLength programText) . (+ 1)
+        Rightward -> min (length programText) . (+ 1)
         Upward -> maybe
             (const currentOffset)
             ((max 0 . subtract 1) .: subtract)
             previousLineLength -- extra subtract 1 for the \n
         Downward -> if length trailingLines <= 1
             then const currentOffset
-            else min (genericLength programText) . (currentLineLength + 1 +) -- +1 for the \n
+            else min (length programText) . (currentLineLength + 1 +) -- +1 for the \n
     previousLineLength
-        = genericLength . head
+        = length . head
         <$> (nonEmpty . tail =<< nonEmpty (reverse leadingLines))
     currentLineLength
-        = genericLength
+        = length
             (concat (last <$> nonEmpty leadingLines)
              ++ concat (head <$> nonEmpty trailingLines))
     (leadingLines, trailingLines)
-        = genericSplitAt currentOffset programText & both %~ splitOn '\n'
+        = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
     programText
         = renderString . layoutSmart defaultLayoutOptions . layoutDoc

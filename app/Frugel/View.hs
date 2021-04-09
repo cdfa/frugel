@@ -27,8 +27,7 @@ renderSmart
     . textTreeForm
     . treeForm
 
-insertCursor
-    :: Integer -> SimpleDocStream Annotation -> SimpleDocStream Annotation
+insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation
 insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
 insertCursor offset s = case s of
     SFail -> error "Encountered SFail in DocStream"
@@ -36,12 +35,11 @@ insertCursor offset s = case s of
         ("offset " <> show offset <> "was out of bound for the DocStream")
     (SChar c s') -> SChar c $ insertCursor (offset - 1) s'
     (SText len txt s')
-        | offset > fromIntegral len -> SText len txt
-            $ insertCursor (offset - fromIntegral len) s'
+        | offset > len -> SText len txt $ insertCursor (offset - len) s'
     (SText _ txt s') -> insertCursor offset . foldr SChar s' $ toString txt
     (SLine nextLineIndent s')
-        | offset > 1 + fromIntegral nextLineIndent -> SLine nextLineIndent
-            $ insertCursor (offset - 1 - fromIntegral nextLineIndent) s'
+        | offset > 1 + nextLineIndent -> SLine nextLineIndent
+            $ insertCursor (offset - 1 - nextLineIndent) s'
     (SLine nextLineIndent s') -> SLine 0
         $ insertCursor (offset - 1)
         $ SText nextLineIndent (toText $ replicate nextLineIndent ' ') s'

@@ -21,7 +21,7 @@ import           Optics
 
 data Model
     = Model { program      :: Program
-            , cursorOffset :: Integer
+            , cursorOffset :: Int
             , errors       :: [Doc Annotation]
             }
     deriving ( Show )

@@ -20,11 +20,12 @@ import           Optics
 -- A text offset of -1 is used for representing that we are done with parsing
 -- because 0 could also mean we are at the start of a node that still needs to be decomposed
 data DecompositionState
-    = DecompositionState { cstrSiteOffset :: Integer, textOffset :: Integer }
+    = DecompositionState { cstrSiteOffset :: Int, textOffset :: Int }
     deriving ( Show, Eq )
 
 makeFieldLabelsWith noPrefixFieldLabels ''DecompositionState
 
-initialDecompositionState :: Integer -> DecompositionState
+initialDecompositionState :: Int -> DecompositionState
+
 initialDecompositionState
     textOffset = DecompositionState { cstrSiteOffset = 0, .. }

@@ -30,7 +30,8 @@ step = do
         (textOffset /= -1)
         (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
 
-decompose :: Integer -> Program -> Maybe (Integer, CstrMaterials)
+decompose :: Int -> Program -> Maybe (Int, CstrMaterials)
+
 decompose cursorOffset program
     = if textOffset > 0
         then Nothing
