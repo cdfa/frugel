@@ -35,17 +35,27 @@ node name nodePrism = namedToken name $ preview (_Right % nodePrism)
 
 term :: Parser Expr
 term
-    = setWhitespace
-    <$> choice
-        [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
-          <*%> expr
-        , ((exprMeta % #parenthesisLevels) +~ 1) <$% char '(' <*%> expr
-          <*% char ')'
-          -- Non recursive production rules at the bottom
-        , exprCstrSite (CstrMaterials empty) <$% string "..."
-        , noWhitespace <$> node "an expression node" _ExprNode
-        , Node.identifier' <$%> identifier
+    = choice
+        [ surroundOriginalWhitespace
+          <$> (char '(' *%> fmap noWhitespace expr <*% char ')')
+        , setWhitespace
+          <$> choice
+              [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
+                <*%> expr
+                -- Non recursive production rules at the bottom
+              , exprCstrSite (CstrMaterials empty) <$% string "..."
+              , Node.identifier' <$%> identifier
+              ]
+        , node "an expression node" _ExprNode
         ]
+  where
+    surroundOriginalWhitespace
+        (whitespaceFragments, e) = case whitespaceFragments of
+        [rightFragment, leftFragment] -> e
+            & exprMeta % #parenthesisLevels +~ 1
+            & exprMeta % #standardMeta % #interstitialWhitespace
+            %~ cons leftFragment . flip snoc rightFragment
+        _ -> error "Unexpected number of whitespace fragments"
 
 expr :: Parser Expr
 expr
