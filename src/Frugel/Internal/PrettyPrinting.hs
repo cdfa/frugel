@@ -30,19 +30,17 @@ instance (Data ann, Eq ann, Show ann) => Eq (Doc ann) where
     (==) = (==) `on` (checkForIllegalDocs . diag)
       where
         prettyIllegalDocSamples name argName samples
-            = "The following '"
-            <> name
-            <> "'s were found:"
-            <> line
-            <> angles argName
-            <+> "<result>"
-            <> line
-            <> vsep
-                (map
-                     (vsep
-                      . map (uncurry (surround "\t") . bimap viaShow viaShow))
-                     samples)
-            <> line
+            = vsep
+                [ "The following'" <+> name <> "'s were found:"
+                , angles argName <+> "<result>"
+                , vsep
+                      (map
+                           (vsep
+                            . map
+                                (uncurry (surround "\t")
+                                 . bimap viaShow viaShow))
+                           samples)
+                ]
         checkForIllegalDocs doc
             = if illegalDocs == ([], [], [])
                 then doc

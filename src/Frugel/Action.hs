@@ -4,7 +4,7 @@
 
 module Frugel.Action where
 
-import           Control.Zipper.Seq          hiding ( insert )
+import           Control.Zipper.Seq          hiding ( delete, insert )
 import qualified Control.Zipper.Seq          as SeqZipper
 
 import           Frugel.Decomposition
@@ -23,11 +23,19 @@ import           Optics
 
 import           Prettyprinter.Render.String
 
+data EditResult = Success | Failure
+
 data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
 data Action
-    = NoOp | Load | Log String | Insert Char | Move Direction | PrettyPrint
+    = NoOp
+    | Load
+    | Log String
+    | Insert Char
+    | Delete
+    | Move Direction
+    | PrettyPrint
     deriving ( Show, Eq )
 
 -- Updates model, optionally introduces side effects
@@ -38,29 +46,26 @@ updateModel Load model = model <# do
 updateModel (Log msg) model = model <# do
     consoleLog (show msg) >> pure NoOp
 updateModel (Insert c) model = noEff $ insert c model
+updateModel Delete model = noEff $ delete model
 updateModel (Move direction) model = noEff $ moveCursor direction model
 updateModel PrettyPrint model = noEff $ prettyPrint model
 
 insert :: Char -> Model -> Model
-insert c model = case reparsed of
-    Left (inserted, newErrors) -> model
-        & #program
-        .~ maybe
-            (view #program model)
-            (ProgramCstrSite defaultProgramMeta)
-            inserted
-        & #errors .~ newErrors
-        & if isJust inserted then #cursorOffset +~ 1 else id
-    Right newProgram ->
-        model & #program .~ newProgram & #errors .~ [] & #cursorOffset +~ 1
-  where
-    insert'
-        = zipperAtCursor (SeqZipper.insert $ Left c) (view #cursorOffset model)
-        $ view #program model
-    reparsed = do
-        inserted <- first (Nothing, ) insert'
-        first ((Just inserted, ) . map parseErrorPretty . toList)
-            $ parseCstrSite fileName inserted
+insert c model
+    = case attemptEdit
+        (zipperAtCursor (Just . SeqZipper.insert (Left c))
+         $ view #cursorOffset model)
+        model of
+        (Success, newModel) -> newModel & #cursorOffset +~ 1
+        (Failure, newModel) -> newModel
+
+-- This doesn't completely work, because the nodes after the characters that are deleted are not decomposed. 
+delete :: Model -> Model
+delete model
+    = snd
+    $ attemptEdit
+        (zipperAtCursor SeqZipper.delete $ view #cursorOffset model)
+        model
 
 moveCursor :: Direction -> Model -> Model
 moveCursor direction model = model & #cursorOffset %~ updateOffset
@@ -94,23 +99,45 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
 -- It would require making a parser that skips all the construction materials and then putting the new whitespace back in the old nodes
 prettyPrint :: Model -> Model
 prettyPrint model = case view #program model of
-    p@Program{} -> case prettyPrinted p of
-        Left errors -> model
+    Program{} -> case attemptEdit (Right . prettyPrinted) model of
+        (Success, newModel) -> newModel
+        (Failure, newModel) -> newModel
             & #errors
-            .~ ("Internal error: failed to reparse a pretty-printed program"
-                : map show (toList errors))
-        Right newProgram -> model & #program .~ newProgram
+            %~ cons
+                "Internal error: failed to reparse a pretty-printed program"
       where
         prettyPrinted
-            = parseCstrSite fileName
-            . fromList
+            = fromList
             . map Left
             . renderString
             . layoutSmart defaultLayoutOptions
             . annPretty
     _ -> model & #errors %~ ("Can't pretty print a construction site" :)
 
-zipperAtCursor :: (SeqZipper (Either Char Node) -> SeqZipper (Either Char Node))
+attemptEdit :: (Program -> Either [Doc Annotation] CstrMaterials)
+    -> Model
+    -> (EditResult, Model)
+attemptEdit f model = case reparsed of
+    Left (edited, newErrors) ->
+        ( if isJust edited then Success else Failure
+        , model
+          & #program
+          .~ maybe
+              (view #program model)
+              (ProgramCstrSite defaultProgramMeta)
+              edited
+          & #errors .~ newErrors
+        )
+    Right
+        newProgram -> (Success, model & #program .~ newProgram & #errors .~ [])
+  where
+    reparsed = do
+        edited <- first (Nothing, ) . f $ view #program model
+        first ((Just edited, ) . map parseErrorPretty . toList)
+            $ parseCstrSite fileName edited
+
+zipperAtCursor
+    :: (SeqZipper (Either Char Node) -> Maybe (SeqZipper (Either Char Node)))
     -> Int
     -> Program
     -> Either [Doc Annotation] CstrMaterials
@@ -126,5 +153,5 @@ zipperAtCursor f cursorOffset program = case decompose cursorOffset program of
         ]
         $ traverseOf
             _CstrMaterials
-            (rezip <.> f <.> unzipTo cstrMaterialOffset)
+            (rezip <.> f <=< unzipTo cstrMaterialOffset)
             materials
