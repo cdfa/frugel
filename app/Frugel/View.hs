@@ -18,7 +18,7 @@ import           Prettyprinter.Render.Util.SimpleDocTree
 webPrint :: Miso.String.ToMisoString a => a -> View Action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
 
-renderSmart :: SimpleDocStream Annotation -> View Action
+renderSmart :: SimpleDocStream Annotation -> [View Action]
 renderSmart
     = renderTrees
     . annotationTreeForm
@@ -90,8 +90,8 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         LineLeaf -> error "unexpected LineLeaf"
         Annotated ann trees -> Node ann $ map transform trees
 
-renderTrees :: [Line] -> View Action
-renderTrees = codeRoot [] . map (div_ [] . map renderTree . view _Line)
+renderTrees :: [Line] -> [View Action]
+renderTrees = map (div_ [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
 renderTree = \case
