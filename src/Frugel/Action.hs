@@ -4,10 +4,8 @@
 
 module Frugel.Action where
 
-import           Control.Zipper.Seq          hiding ( delete, insert )
+import           Control.Zipper.Seq          hiding ( insert )
 import qualified Control.Zipper.Seq          as SeqZipper
-
-import           Data.Composition
 
 import           Frugel.Decomposition
 import           Frugel.Layoutable
@@ -70,20 +68,21 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
     updateOffset = case direction of
         Leftward -> max 0 . subtract 1
         Rightward -> min (length programText) . (+ 1)
-        Upward -> maybe
-            (const currentOffset)
-            ((max 0 . subtract 1) .: subtract)
-            previousLineLength -- extra subtract 1 for the \n
-        Downward -> if length trailingLines <= 1
-            then const currentOffset
-            else min (length programText) . (currentLineLength + 1 +) -- +1 for the \n
-    previousLineLength
-        = length . head
-        <$> (nonEmpty . tail =<< nonEmpty (reverse leadingLines))
-    currentLineLength
-        = length
-            (concat (last <$> nonEmpty leadingLines)
-             ++ concat (head <$> nonEmpty trailingLines))
+         -- extra subtract 1 for the \n
+        Upward -> case leadingLines of
+            ((_ :> previousLine) :> leadingChars) -> max 0
+                . subtract
+                    (length leadingChars -- rest of the current line
+                     + 1 -- \n
+                     + max 0 (length previousLine - length leadingChars)) -- end of or same column on the previous line
+            _ -> const currentOffset
+        Downward -> case (leadingLines, trailingLines) of
+            (_ :> leadingChars, trailingChars : (nextLine : _)) -> min
+                (length programText)
+                . (length trailingChars -- rest of the current line
+                   + 1 -- \n
+                   + min (length nextLine) (length leadingChars) +) -- end of or same column on the next line
+            _ -> const currentOffset
     (leadingLines, trailingLines)
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model

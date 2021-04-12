@@ -43,6 +43,7 @@
         "parens",
         "pkgs",
         "prettyprinter",
+        "rezip",
         "rparen",
         "rtsopts",
         "softline",
