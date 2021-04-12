@@ -66,11 +66,14 @@ expr
                  <$> try
                      (defaultExprMeta <<$> whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
-                          (() <$ char '+'
-                           <|> () <$ string "where"
-                           <|> () <$ node "" _WhereNode
-                           <|> snd <$> (() <$% identifier <*% char '=')
-                           <|> () <$ node "" _DeclNode)))
+                          (choice
+                               [ () <$ char '+'
+                               , () <$ string "where"
+                               , () <$ node "" _WhereNode
+                               , () <$ (() <$% identifier <*% char '=')
+                               , () <$ node "" _DeclNode
+                               , () <$ char ')'
+                               ])))
           ]
         , [ InfixL
                 (Sum . setWhitespace
