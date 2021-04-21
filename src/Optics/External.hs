@@ -1,3 +1,5 @@
+-- Writing anything in here is inconvenient at the moment, because floskell removes the package-qualified import (See https://github.com/ennocramer/floskell/issues/60)
+
 {-# LANGUAGE PackageImports #-}
 
 module Optics.External (module External) where

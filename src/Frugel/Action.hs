@@ -1,18 +1,25 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
+{-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Frugel.Action where
 
 import           Control.Zipper.Seq          hiding ( delete, insert )
 import qualified Control.Zipper.Seq          as SeqZipper
 
-import           Frugel.Decomposition
+import qualified Data.Sequence               as Seq
+import qualified Data.Set                    as Set
+
+import           Frugel.Decomposition        hiding ( ModificationStatus(..) )
 import           Frugel.Layoutable
 import           Frugel.Meta
 import           Frugel.Model
 import           Frugel.Node
-import           Frugel.Parsing              hiding ( program )
+import           Frugel.Parsing              hiding ( node, program )
 import           Frugel.PrettyPrinting
 import           Frugel.Program
 
@@ -23,7 +30,10 @@ import           Optics
 
 import           Prettyprinter.Render.String
 
+import           Text.Megaparsec             hiding ( parseErrorPretty )
+
 data EditResult = Success | Failure
+    deriving ( Show, Eq )
 
 data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
@@ -37,6 +47,8 @@ data Action
     | Move Direction
     | PrettyPrint
     deriving ( Show, Eq )
+
+deriving instance (Ord (Token s), Ord e) => Ord (ParseError s e)
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model
@@ -59,7 +71,7 @@ insert c model
         (Success, newModel) -> newModel & #cursorOffset +~ 1
         (Failure, newModel) -> newModel
 
--- This doesn't completely work, because the nodes after the characters that are deleted are not decomposed. 
+-- This only works as long as there is always characters (or nothing) after nodes in construction sites
 delete :: Model -> Model
 delete model
     = snd
@@ -107,51 +119,63 @@ prettyPrint model = case view #program model of
                 "Internal error: failed to reparse a pretty-printed program"
       where
         prettyPrinted
-            = fromList
+            = ProgramCstrSite defaultProgramMeta
+            . fromList
             . map Left
             . renderString
             . layoutSmart defaultLayoutOptions
             . annPretty
     _ -> model & #errors %~ ("Can't pretty print a construction site" :)
 
-attemptEdit :: (Program -> Either [Doc Annotation] CstrMaterials)
+attemptEdit :: (Program -> Either [Doc Annotation] Program)
     -> Model
     -> (EditResult, Model)
 attemptEdit f model = case reparsed of
-    Left (edited, newErrors) ->
-        ( if isJust edited then Success else Failure
-        , model
-          & #program
-          .~ maybe
-              (view #program model)
-              (ProgramCstrSite defaultProgramMeta)
-              edited
-          & #errors .~ newErrors
-        )
-    Right
-        newProgram -> (Success, model & #program .~ newProgram & #errors .~ [])
+    Left editErrors -> (Failure, model & #errors .~ editErrors)
+    Right (newProgram, newErrors) ->
+        (Success, model & #program .~ newProgram & #errors .~ newErrors)
   where
-    reparsed = do
-        edited <- first (Nothing, ) . f $ view #program model
-        first ((Just edited, ) . map parseErrorPretty . toList)
-            $ parseCstrSite fileName edited
+    reparsed
+        = second (\newProgram ->
+                  bimap (fromMaybe newProgram) (map parseErrorPretty . toList)
+                  . foldr findSuccessfulParse (Nothing, mempty)
+                  . textVariations
+                  $ decomposed newProgram) . f $ view #program model
+    findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
+        = firstSuccessfulParse
+    findSuccessfulParse materials (Nothing, errors)
+        = ( rightToMaybe parsed
+          , maybe errors (Set.union errors . fromFoldable) $ leftToMaybe parsed
+          )
+      where
+        parsed = parseCstrSite fileName materials
 
-zipperAtCursor
-    :: (SeqZipper (Either Char Node) -> Maybe (SeqZipper (Either Char Node)))
+-- construction sites with least nested construction sites should be at the end
+textVariations :: CstrMaterials -> Seq CstrMaterials
+textVariations
+    = foldr processItem (Seq.singleton $ fromList []) . view _CstrMaterials
+  where
+    processItem item@(Left _) variations = cons item <$> variations
+    processItem item@(Right node) variations
+        | Just nodeMaterials <- preview _CstrSiteNode node
+            = fmap (cons item) variations
+            <> (mappend <$> textVariations nodeMaterials <*> variations)
+    processItem (Right node) variations
+        = mappend <$> textVariations (decomposed node) <*> variations
+
+zipperAtCursor :: (CstrMaterialsZipper -> Maybe CstrMaterialsZipper)
     -> Int
     -> Program
-    -> Either [Doc Annotation] CstrMaterials
-zipperAtCursor f cursorOffset program = case decompose cursorOffset program of
-    Nothing -> Left
-        [ "Failed to decompose AST for cursor textOffset " <> show cursorOffset
-        ]
-    Just (cstrMaterialOffset, materials) -> maybeToRight
-        [ "Failed to modify the construction site "
-          <> layoutDoc materials
-          <> " at index "
-          <> show cstrMaterialOffset
-        ]
-        $ traverseOf
-            _CstrMaterials
-            (rezip <.> f <=< unzipTo cstrMaterialOffset)
-            materials
+    -> Either [Doc Annotation] Program
+zipperAtCursor f
+    = modifyNodeAt
+        (\cstrSiteOffset materials -> maybeToRight
+             [ "Internal error: Failed to modify the construction site "
+               <> layoutDoc materials
+               <> " at index "
+               <> show cstrSiteOffset
+             ]
+         $ traverseOf
+             _CstrMaterials
+             (rezip <.> f <=< unzipTo cstrSiteOffset)
+             materials)

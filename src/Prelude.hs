@@ -1,11 +1,28 @@
-module Prelude ( module Prelude, module Relude, (><), toList ) where
+module Prelude ( module Prelude, module Relude, (><), toList, dup ) where
 
-import qualified Data.Foldable as Foldable
-import           Data.Sequence ( (><) )
+import qualified Data.Foldable      as Foldable
+import           Data.Sequence      ( (><) )
 
 import           GHC.Exts
 
-import           Relude        hiding ( Sum, abs, group, toList )
+import           Relude             hiding ( Sum, abs, group, toList )
+import           Relude.Extra.Tuple
+
+infixl 4 <<$>
+
+(<<$>) :: (Functor f, Functor g) => a -> f (g b) -> f (g a)
+(<<$>) a ffb = (a <$) <$> ffb
+
+infixr 9 <.>
+
+(<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
+f1 <.> f2 = fmap f1 . f2
+
+infixl 4 <<*>>
+
+(<<*>>)
+    :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
+(<<*>>) = liftA2 (<*>)
 
 -- Copied from the Agda package
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
@@ -72,3 +89,12 @@ interleave = concat . transpose
 -- | Convert from 'Data.Foldable.Foldable' to an 'IsList' type.
 fromFoldable :: (Foldable f, IsList a) => f (Item a) -> a
 fromFoldable = fromList . Foldable.toList
+
+-- Copied from https://hackage.haskell.org/package/monad-loops-0.4.3/docs/src/Control-Monad-Loops.html#concatM
+-- | Compose a list of monadic actions into one action.  Composes using
+-- ('>=>') - that is, the output of each action is fed to the input of
+-- the one after it in the list.
+chain :: (Monad m, Foldable t) => t (a -> m a) -> a -> m a
+chain = foldr (>=>) return
+-- foldAlt :: (Foldable t, Alternative f) => t a -> f a
+-- foldAlt = getAlt . foldMap (Alt . pure)

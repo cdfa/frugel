@@ -20,7 +20,6 @@ module Frugel.Internal.Node where
 
 import           Data.Has
 
-import           Frugel.Identifier    ( Identifier )
 import           Frugel.Internal.Meta ( ExprMeta(standardMeta) )
 import           Frugel.Meta
 
@@ -39,8 +38,11 @@ data Node
     | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
 
+data Identifier = Identifier Text | IdentifierCstrSite CstrMaterials
+    deriving ( Eq, Ord, Show )
+
 data Expr
-    = Identifier ExprMeta Identifier
+    = IdentifierExpr ExprMeta Identifier
     | Abstraction ExprMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
@@ -61,10 +63,15 @@ makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
 makePrisms ''CstrMaterials
 
+makePrisms ''Identifier
+
 instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
     _Cons = _CstrMaterials % _Cons % aside (re _CstrMaterials)
 
 instance AsEmpty CstrMaterials
+
+instance IsString Identifier where
+    fromString = Identifier . toText
 
 instance Has Meta Expr where
     getter e = standardMeta $ getter e

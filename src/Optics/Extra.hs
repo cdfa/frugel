@@ -1,13 +1,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+
+{-# LANGUAGE TypeFamilies #-}
 
 module Optics.Extra where
 
 import           Data.Has
 
 import           Optics.External
+import           Optics.State.Operators
+
+infixr 4 %%~, +~, -~
+
+infix 4 +=, -=
+
+infixl 4 <$^>
 
 concatByPrism :: (Is k An_AffineFold, Is k A_Review, Monoid a)
     => Optic' k is s a
@@ -21,6 +29,13 @@ l +~ n = over l (+ n)
 (-~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l -~ n = over l (subtract n)
 
+(%%~) :: (Is k A_Traversal, Applicative f)
+    => Optic k is s t a b
+    -> (a -> f b)
+    -> s
+    -> f t
+(%%~) = traverseOf
+
 (+=) :: (MonadState s m, Num a, Is k A_Setter)
     => Optic k is s s a a
     -> a
@@ -33,23 +48,59 @@ l += b = modify (l +~ b)
     -> m ()
 l -= b = modify (l -~ b)
 
+(<$^>) :: (Is k l, Is A_Getter l, l ~ Join k A_Getter)
+    => (a -> b)
+    -> Optic k is s t a a
+    -> Optic l is s t b b
+(<$^>) = omap
+
+omap :: (Is k l, Is A_Getter l, l ~ Join k A_Getter)
+    => (a -> b)
+    -> Optic k is s t a a
+    -> Optic l is s t b b
+omap f o = o % to f
+
+-- using :: (Is k A_Lens, Zoom m n s t) => Optic' k is t s -> (s -> (c, s)) -> n c
+-- using l f = zoom l $ state f
+withLocal :: (PermeableOptic k a, MonadState s m, Is k A_Setter)
+    => Optic k is s s a (ViewResult k a)
+    -> ViewResult k a
+    -> m b
+    -> m b
+withLocal o x action = do
+    pre' <- o <<.= x
+    result <- action
+    assign o pre'
+    pure result
+
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
 
-infixl 4 <<$>
-
-(<<$>) :: (Functor f, Functor g) => a -> f (g b) -> f (g a)
-(<<$>) a ffb = (a <$) <$> ffb
-
-infixr 9 <.>
-
-(<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
-f1 <.> f2 = fmap f1 . f2
+-- It is possible to make this into a Lens, but then `failover` would not return Nothing for a non-matching small
+-- >>> over (refracting _1 (_tail % _init)) (first (map (*10))) ([1..5],4)
+-- ([1,20,30,40,5],4)
+-- >>> failover (refracting _1 (_tail % _init)) (first (map (*10))) ([1],4)
+-- Nothing
+refracting :: (Is k An_AffineTraversal, Is l An_AffineTraversal)
+    => Optic' k is s a
+    -> Optic' l js a a
+    -> AffineTraversal' s s
+refracting big small
+    = atraversal
+        (\s -> set _Left s $ traverseOf big' (matching small) s)
+        (\s a ->
+         over big' (\m -> fromRight m (set small' m <$> matching big s)) a)
+  where
+    big' = castOptic @An_AffineTraversal big
+    small' = castOptic @An_AffineTraversal small
 
 -- >>> insertAt 1 99 []
 -- Nothing
+--
 -- insertAt :: (Cons s s a a, Num n, Ord n) => n -> a -> s -> Maybe s
 -- insertAt i x = failover (_drop i) (x <|)
+--
+-- use slicedFrom instead
 -- _drop :: (Num t, Cons s s a a, Ord t) => t -> AffineTraversal' s s
 -- _drop n
 --     | n <= 0 = castOptic simple
@@ -59,11 +110,18 @@ both = traversalVL $ \f -> bitraverse f f
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k = not . isn't k
-
--- anySucceeding :: (Foldable t, Is k An_AffineFold)
---     => t (Optic' k js a a)
---     -> AffineFold a a
--- anySucceeding = foldl' afailing $ castOptic simple
+-- It might be possible to make this work for indexed optics too, but I haven't figured out how
+-- anySucceeding
+--     :: Is k An_AffineFold => NonEmpty (Optic' k NoIx s a) -> AffineFold s a
+-- anySucceeding = foldl1' afailing . fmap castOptic
+-- adjoinAll :: Is k A_Traversal => NonEmpty (Optic' k NoIx s a) -> Traversal' s a
+-- adjoinAll = foldl1' adjoin . fmap castOptic
+-- retraverseOf :: (Is k An_AffineTraversal, Is k A_Review, Functor f)
+--     => Optic' k is s a
+--     -> (s -> f s)
+--     -> a
+--     -> f (Either s a)
+-- retraverseOf p f = matching p <.> f . review p
 -- From https://hackage.haskell.org/package/optics-core-0.4/docs/src/Optics.Traversal.html#adjoin
 -- | Combine two disjoint traversals into one.
 --
@@ -85,23 +143,21 @@ is k = not . isn't k
 --
 -- @since 0.4
 --
-adjoin :: (Is k A_Traversal, Is l A_Traversal)
-    => Optic' k is s a
-    -> Optic' l js s a
-    -> Traversal' s a
-adjoin o1 o2 = combined % traversed
-  where
-    combined = traversalVL $ \f s0 ->
-        (\r1 r2 -> let
-             s1 = evalState (traverseOf o1 update s0) r1
-             s2 = evalState (traverseOf o2 update s1) r2
-             in
-                 s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
-        <*> f (toListOf (castOptic @A_Traversal o2) s0)
-    update a = get >>= \case
-        a' : as' -> put as' >> pure a'
-        [] -> pure a
-
-infixr 6 `adjoin` -- Same as (<>)
-
-{-# INLINE [1] adjoin #-}
+-- adjoin :: (Is k A_Traversal, Is l A_Traversal)
+--     => Optic' k is s a
+--     -> Optic' l js s a
+--     -> Traversal' s a
+-- adjoin o1 o2 = combined % traversed
+--   where
+--     combined = traversalVL $ \f s0 ->
+--         (\r1 r2 -> let
+--              s1 = evalState (traverseOf o1 update s0) r1
+--              s2 = evalState (traverseOf o2 update s1) r2
+--              in
+--                  s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
+--         <*> f (toListOf (castOptic @A_Traversal o2) s0)
+--     update a = get >>= \case
+--         a' : as' -> put as' >> pure a'
+--         [] -> pure a
+-- infixr 6 `adjoin` -- Same as (<>)
+-- {-# INLINE [1] adjoin #-}

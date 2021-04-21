@@ -14,10 +14,14 @@ instance Layoutable CstrMaterials where
     layoutDoc = prettyCstrMaterials layoutDoc
 
 instance Layoutable Node where
-    layoutDoc (IdentifierNode name) = pretty name
+    layoutDoc (IdentifierNode name) = layoutDoc name
     layoutDoc (ExprNode expr) = layoutDoc expr
     layoutDoc (DeclNode decl) = layoutDoc decl
     layoutDoc (WhereNode w) = layoutDoc w
+
+instance Layoutable Identifier where
+    layoutDoc (IdentifierCstrSite contents) = layoutDoc contents
+    layoutDoc identifier = layoutDecomposable identifier
 
 instance Layoutable Expr where
     layoutDoc (ExprCstrSite _ contents) = layoutDoc contents

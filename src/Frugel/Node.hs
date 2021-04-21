@@ -6,6 +6,7 @@ module Frugel.Node
     ( module Frugel.Node
     , Expr(..)
     , CstrMaterials(..)
+    , Identifier(..)
     , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
@@ -13,13 +14,25 @@ module Frugel.Node
     , exprMeta
     ) where
 
-import           Frugel.Identifier    ( Identifier )
 import           Frugel.Internal.Node
 import           Frugel.Meta
 
 import           Optics
 
 makePrisms ''Node
+
+makePrisms ''Expr
+
+makePrisms ''Decl
+
+makePrisms ''WhereClause
+
+_CstrSiteNode :: AffineFold Node CstrMaterials
+_CstrSiteNode
+    = (_IdentifierNode % _IdentifierCstrSite)
+    `afailing` (_ExprNode % _ExprCstrSite % _2)
+    `afailing` (_DeclNode % _DeclCstrSite % _2)
+    `afailing` (_WhereNode % _WhereCstrSite % _2)
 
 intersperseWhitespace :: IsList l => (Text -> l) -> [Text] -> [l] -> l
 intersperseWhitespace toItem whitespaceFragments xs
@@ -39,7 +52,7 @@ parenthesizeExpr _ prettyExpr x = prettyExpr x
 -- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 identifier' :: Identifier -> Expr
-identifier' = Identifier defaultExprMeta
+identifier' = IdentifierExpr defaultExprMeta
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction defaultExprMeta

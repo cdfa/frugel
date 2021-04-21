@@ -53,10 +53,14 @@ instance AnnotatedPretty CstrMaterials where
     annPretty = prettyCstrMaterials annPretty
 
 instance AnnotatedPretty Node where
-    annPretty (IdentifierNode name) = pretty name
+    annPretty (IdentifierNode name) = annPretty name
     annPretty (ExprNode expr) = annPretty expr
     annPretty (DeclNode decl) = annPretty decl
     annPretty (WhereNode w) = annPretty w
+
+instance AnnotatedPretty Identifier where
+    annPretty (Identifier name) = pretty name
+    annPretty (IdentifierCstrSite contents) = annPretty contents
 
 -- >>> import           Internal.ExprMeta    ( defaultMeta )
 -- >>> testPrettyW 3 . annPretty . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
@@ -70,9 +74,10 @@ instance AnnotatedPretty Node where
 instance AnnotatedPretty Expr where
     annPretty = parenthesizeExpr parens annPretty'
       where
-        annPretty' (Identifier _ n) = pretty n
+        annPretty' (IdentifierExpr _ n) = annPretty n
         annPretty' (Abstraction _ arg expr)
-            = (backslash <> pretty arg) `nestingLine` equals <+> annPretty expr
+            = (backslash <> annPretty arg) `nestingLine` equals
+            <+> annPretty expr
         annPretty' (Application _ function arg)
             = annPretty function `nestingLine` annPretty arg
         annPretty' (Sum _ left right)
@@ -80,7 +85,8 @@ instance AnnotatedPretty Expr where
         annPretty' (ExprCstrSite _ contents) = annPretty contents
 
 instance AnnotatedPretty Decl where
-    annPretty Decl{..} = pretty name `nestingLine` equals <+> annPretty value
+    annPretty
+        Decl{..} = annPretty name `nestingLine` equals <+> annPretty value
     annPretty (DeclCstrSite _ contents) = annPretty contents
 
     -- <> annPretty whereClause
