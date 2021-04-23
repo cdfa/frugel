@@ -68,12 +68,12 @@ infixl 4 <$%>, <$%, <*%>, <*%
     => m a
     -> m (WithWhitespace b)
     -> m (WithWhitespace b)
-(*%>) fa fb = (first . (:)) <$ fa <*> whitespaceToken <*> fb
+(*%>) fa fb = (first . flip snoc) <$ fa <*> whitespaceToken <*> fb
 
 wSome :: (MonadParsec e s m, Token s ~ Either Char Node)
     => m a
     -> m (WithWhitespace (NonEmpty a))
-wSome fa = bimap List.init fromList <$> wSome'
+wSome fa = bimap (List.tail . reverse) fromList <$> wSome'
   where
     wSome' = (\a ws (wss, as) ->
               (ws : wss, a : as)) <$> fa <*> whitespaceToken <*> wMany'

@@ -9,7 +9,6 @@ import           Control.Monad.Combinators.Expr
 
 import           Data.Composition
 
-import           Frugel.Identifier              ( Identifier )
 import           Frugel.Lexing
 import           Frugel.Meta
 import           Frugel.Node
