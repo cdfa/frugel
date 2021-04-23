@@ -68,6 +68,14 @@ makePrisms ''Identifier
 instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
     _Cons = _CstrMaterials % _Cons % aside (re _CstrMaterials)
 
+instance Snoc CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
+    _Snoc
+        = _CstrMaterials
+        % _Snoc
+        % swapped
+        % aside (re _CstrMaterials)
+        % swapped
+
 instance AsEmpty CstrMaterials
 
 instance IsString Identifier where

@@ -90,7 +90,7 @@ frugelId' :: CstrMaterials
 frugelId' = toCstrMaterials [ Left "\\x=", Right . ExprNode $ identifier' "x" ]
 
 whitespaceId :: CstrMaterials
-whitespaceId = toCstrMaterials [ Left "  \t\n\\  \tx \n=x  \t\n\n" ]
+whitespaceId = toCstrMaterials [ Left "\\  \tx \n=x  \t\n\n" ]
 
 app :: CstrMaterials
 app = [ Left 'x', Right . ExprNode $ identifier' "x", Left 'x' ]
@@ -105,7 +105,7 @@ whereClauseTest
     = toCstrMaterials
         [ Left "x where\n  y = "
         , Right . ExprNode $ identifier' "z"
-        , Left "\n  u = w"
+        , Left "\n  u"
         ]
 
 declNodeTest :: CstrMaterials

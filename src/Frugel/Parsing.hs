@@ -72,6 +72,7 @@ expr
                                , () <$ (() <$% identifier <*% char '=')
                                , () <$ node "" _DeclNode
                                , () <$ char ')'
+                               , eof
                                ])))
           ]
         , [ InfixL

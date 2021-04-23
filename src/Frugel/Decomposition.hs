@@ -320,13 +320,13 @@ instance Decomposable WhereClause where
     mapMComponents (WhereCstrSite meta materials)
         = WhereCstrSite meta <$> mapMComponents materials
 
--- Todo: trailing whitespace
 instance Decomposable Program where
     decomposed Program{..}
         = intersperseWhitespace'
             (meta ^. #standardMeta % #interstitialWhitespace)
             (Right (ExprNode expr)
-             : (Right . WhereNode <$> maybeToList whereClause))
+             : (Right . WhereNode <$> maybeToList whereClause)
+             ++ [ Left . toString $ view #trailingWhitespace meta ])
     decomposed (ProgramCstrSite _ materials) = materials
     mapMComponents
         program@Program{} = join . asks $ \DecompositionEnv{..} -> chain
@@ -335,7 +335,8 @@ instance Decomposable Program where
              program
              [ traverseOf #expr mapExpr
              , #whereClause % _Just %%~ mapWhereClause
-             ])
+             ]
+         :> (#meta % #trailingWhitespace % unpacked % traversed %%~ mapChar))
         program
     mapMComponents (ProgramCstrSite meta materials)
         = ProgramCstrSite meta <$> mapMComponents materials
