@@ -32,7 +32,7 @@ insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
 insertCursor offset s = case s of
     SFail -> error "Encountered SFail in DocStream"
     SEmpty -> error
-        ("offset " <> show offset <> "was out of bound for the DocStream")
+        ("offset " <> show offset <> " was out of bounds for the DocStream")
     (SChar c s') -> SChar c $ insertCursor (offset - 1) s'
     (SText len txt s')
         | offset > len -> SText len txt $ insertCursor (offset - len) s'

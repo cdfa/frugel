@@ -65,6 +65,8 @@ instance CstrSiteNode Program where
 step :: MonadState DecompositionState m => m ()
 step = do
     textOffset <- use #textOffset
+    -- c <- guse #cstrSiteOffset
+    -- traceM ("step t: " <> show textOffset <> " c: " <> show c)
     when
         (textOffset /= -1)
         (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
@@ -75,12 +77,16 @@ modifyNodeAt :: (Int -> CstrMaterials -> Either [Doc Annotation] CstrMaterials)
     -> Program
     -> Either [Doc Annotation] Program
 modifyNodeAt f cursorOffset program
-    = if view #textOffset decompositionState > 0
-        then Left
-            $ one
-                ("Failed to decompose AST for cursor offset "
-                 <> show cursorOffset)
-        else Right newProgram
+    | view #textOffset decompositionState > 0
+        = Left
+            [ "Internal error: Failed to decompose AST for cursor offset "
+              <> show cursorOffset
+            ]
+    | Todo <- view #modificationStatus decompositionState
+        = Left [ "Internal error: failed to modify construction site" ]
+    | Errors errors <- view #modificationStatus decompositionState
+        = Left errors
+    | otherwise = Right newProgram
   where
     (newProgram, decompositionState)
         = initialDecompositionState cursorOffset
@@ -105,7 +111,7 @@ modifyNodeAt f cursorOffset program
         -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
         ifM (guses #textOffset (< 0)) (pure n) -- node is located after cursor
             $ do
-                #cstrSiteOffset += 1
+                #cstrSiteOffset += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
                 withLocal #cstrSiteOffset 0 $ do
                     newNode <- mapMComponents n
                     -- t <- guse #textOffset
@@ -177,10 +183,12 @@ instance Decomposable Node where
     decomposed (ExprNode n) = decomposed n
     decomposed (DeclNode n) = decomposed n
     decomposed (WhereNode n) = decomposed n
-    mapMComponents (IdentifierNode n) = IdentifierNode <$> mapMComponents n
-    mapMComponents (ExprNode n) = ExprNode <$> mapMComponents n
-    mapMComponents (DeclNode n) = DeclNode <$> mapMComponents n
-    mapMComponents (WhereNode n) = WhereNode <$> mapMComponents n
+    mapMComponents n = join . asks $ \DecompositionEnv{..} -> case n of
+        IdentifierNode
+            identifier -> IdentifierNode <$> mapIdentifier identifier
+        ExprNode expr -> ExprNode <$> mapExpr expr
+        DeclNode decl -> DeclNode <$> mapDecl decl
+        WhereNode whereClause -> WhereNode <$> mapWhereClause whereClause
 
 instance Decomposable Identifier where
     decomposed (Identifier name)
