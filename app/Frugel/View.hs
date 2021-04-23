@@ -3,7 +3,7 @@
 module Frugel.View where
 
 import           Frugel
-import           Frugel.View.Elements
+import           Frugel.View.Elements                    as Elements
 import           Frugel.View.ViewModel                   as ViewModel
 
 import           Miso                                    hiding ( node, view )
@@ -91,7 +91,7 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         Annotated ann trees -> Node ann $ map transform trees
 
 renderTrees :: [Line] -> [View Action]
-renderTrees = map (div_ [] . map renderTree . view _Line)
+renderTrees = map (Elements.line [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View Action
 renderTree = \case

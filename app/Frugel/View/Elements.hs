@@ -76,3 +76,9 @@ codeRoot
           , id_ "code-root"
           , style_ [ ("margin-left", "10px"), ("margin-top", "10px") ]
           ])
+
+lineStyle :: Attribute action
+lineStyle = style_ $ fromList [ ("min-height", "2em") ]
+
+line :: [Attribute action] -> [View action] -> View action
+line = div_ . (lineStyle :)
