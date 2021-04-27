@@ -24,6 +24,7 @@ isEmptyTree :: DocTextTree Annotation -> Bool
 isEmptyTree = \case
     TextLeaf "" -> True
     Annotated Cursor _ -> False
+    Annotated (CompletionAnnotation InConstruction) _ -> False
     Annotated _ [] -> True
     Annotated _ trees -> all isEmptyTree trees
     _ -> False

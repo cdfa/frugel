@@ -36,12 +36,10 @@ nestingLine x y = x <> nest 4 (softline <> y)
 prettyCstrMaterials
     :: (Node -> Doc Annotation) -> CstrMaterials -> Doc Annotation
 prettyCstrMaterials prettyNode (CstrMaterials contents)
-    = if null $ toList contents
-        then "..."
-        else annotateInConstruction
-            . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
-            . groupByEither
-            $ toList contents
+    = annotateInConstruction
+    . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
+    . groupByEither
+    $ toList contents
 
 class AnnotatedPretty a where
     annPretty :: a -> Doc Annotation

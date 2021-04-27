@@ -42,7 +42,12 @@ paddingStyle
 
 inConstructionStyles :: [Attribute action]
 inConstructionStyles
-    = [ style_ [ ("background-color", "hsl(48, 100%, 85%)") ], paddingStyle ]
+    = [ style_
+            [ ("background-color", "hsl(48, 100%, 85%)")
+            , ("min-width", "0.6em")
+            ]
+      , paddingStyle
+      ]
 
 inConstruction :: [Attribute action] -> [View action] -> View action
 inConstruction = span . (++ inConstructionStyles)
