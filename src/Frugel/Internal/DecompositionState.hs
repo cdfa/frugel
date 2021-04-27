@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -38,18 +37,17 @@ data DecompositionState
                          }
     deriving ( Show )
 
-data DecompositionEnv
-    = DecompositionEnv { mapChar        :: Char -> DecompositionMonad Char
-                       , mapIdentifier
-                             :: Identifier -> DecompositionMonad Identifier
-                       , mapExpr        :: Expr -> DecompositionMonad Expr
-                       , mapDecl        :: Decl -> DecompositionMonad Decl
-                       , mapWhereClause
-                             :: WhereClause -> DecompositionMonad WhereClause
+data DecompositionEnv m
+    = DecompositionEnv { mapChar        :: Char -> (DecompositionMonad m) Char
+                       , mapIdentifier  :: Identifier
+                             -> (DecompositionMonad m) Identifier
+                       , mapExpr        :: Expr -> (DecompositionMonad m) Expr
+                       , mapDecl        :: Decl -> (DecompositionMonad m) Decl
+                       , mapWhereClause :: WhereClause
+                             -> (DecompositionMonad m) WhereClause
                        }
 
-type DecompositionMonad
-    = ReaderT DecompositionEnv (StateT DecompositionState Identity)
+type DecompositionMonad m = ReaderT (DecompositionEnv m) m
 
 makePrisms ''ModificationStatus
 

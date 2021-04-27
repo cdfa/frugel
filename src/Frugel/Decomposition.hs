@@ -42,7 +42,7 @@ class Decomposable n where
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
-    mapMComponents :: n -> DecompositionMonad n
+    mapMComponents :: Monad m => n -> (DecompositionMonad m) n
 
 class CstrSiteNode n where
     cstrSiteConstructor :: CstrMaterials -> n
