@@ -49,6 +49,32 @@ parenthesizeExpr parenthesize prettyExpr x
             (x & exprMeta % #parenthesisLevels -~ 1)
 parenthesizeExpr _ prettyExpr x = prettyExpr x
 
+unwrapParentheses :: Expr -> Either Expr (Text, Expr, Text)
+unwrapParentheses e
+    | e ^. exprMeta % #parenthesisLevels > 0
+        = Right
+            ( leadingFragment
+            , e
+              & exprMeta % #parenthesisLevels -~ 1
+              & exprMeta % #standardMeta % #interstitialWhitespace
+              .~ middleWhitespaceFragments
+            , trailingFragment
+            )
+  where
+    (leadingFragment, (middleWhitespaceFragments, trailingFragment))
+        = fromMaybe
+            (error
+                 ("Encountered incorrect number of whitespace fragments in "
+                  <> show e))
+        $ preview
+            (exprMeta
+             % #standardMeta
+             % #interstitialWhitespace
+             % _Cons
+             % ((,) <$^> _1 <*^> _2 % _Snoc))
+            e
+unwrapParentheses e = Left e
+
 -- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
 -- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
 identifier' :: Identifier -> Expr
@@ -105,7 +131,7 @@ whereClauseTest
     = toCstrMaterials
         [ Left "x where\n  y = "
         , Right . ExprNode $ identifier' "z"
-        , Left "\n  u"
+        , Left "\n  u = w"
         ]
 
 declNodeTest :: CstrMaterials

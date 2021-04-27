@@ -204,38 +204,22 @@ instance Decomposable Identifier where
 
 instance Decomposable Expr where
     decomposed e
-        | e ^. exprMeta % #parenthesisLevels > 0
+        = either
+            (intersperseWhitespace'
+                 (e ^. exprMeta % #standardMeta % #interstitialWhitespace)
+             . decomposed')
+            parenthesize
+        $ unwrapParentheses e
+      where
+        parenthesize (leadingFragment, e2, trailingFragment)
             = toCstrMaterials
                 [ Left "("
                 , whitespaceFragment leadingFragment
-                , e
-                  & exprMeta % #parenthesisLevels -~ 1
-                  & exprMeta % #standardMeta % #interstitialWhitespace
-                  .~ middleWhitespaceFragments
-                  & ExprNode
-                  & Right
+                , Right $ ExprNode e2
                 , whitespaceFragment trailingFragment
                 , Left ")"
                 ]
-      where
         whitespaceFragment = Left . toString
-        (leadingFragment, (middleWhitespaceFragments, trailingFragment))
-            = fromMaybe
-                (error
-                     ("Encountered incorrect number of whitespace fragments in "
-                      <> show e))
-            $ preview
-                (exprMeta
-                 % #standardMeta
-                 % #interstitialWhitespace
-                 % _Cons
-                 % ((,) <$^> _1 <*^> _2 % _Snoc))
-                e
-    decomposed e
-        = intersperseWhitespace'
-            (e ^. exprMeta % #standardMeta % #interstitialWhitespace)
-        $ decomposed' e
-      where
         decomposed' (IdentifierExpr _ name) = [ Right $ IdentifierNode name ]
         decomposed' (Abstraction _ name body)
             = [ Left [ '\\' ]

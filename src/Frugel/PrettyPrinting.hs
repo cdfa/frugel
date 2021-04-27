@@ -62,15 +62,6 @@ instance AnnotatedPretty Identifier where
     annPretty (Identifier name) = pretty name
     annPretty (IdentifierCstrSite contents) = annPretty contents
 
--- >>> import           Internal.ExprMeta    ( defaultMeta )
--- >>> testPrettyW 3 . annPretty . Abstraction defaultMeta "x" $ Sum defaultMeta ( Identifier defaultMeta "x" ) ( Identifier defaultMeta "x" )
--- >>> testPrettyW 8 $ annPretty (Application defaultMeta (Application defaultMeta (Identifier defaultMeta "test") $ Identifier defaultMeta "test") $ Identifier defaultMeta "test")
--- \x
---     = x
---     + x
--- test
---     test
---     test
 instance AnnotatedPretty Expr where
     annPretty = parenthesizeExpr parens annPretty'
       where

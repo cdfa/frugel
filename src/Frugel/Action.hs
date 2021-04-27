@@ -157,11 +157,10 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        | Just nodeMaterials <- preview _CstrSiteNode node
-            = fmap (cons item) variations
-            <> (mappend <$> textVariations nodeMaterials <*> variations)
-    processItem (Right node) variations
-        = mappend <$> textVariations (decomposed node) <*> variations
+        = (if is _CstrSiteNode node
+               then fmap (cons item) variations
+               else mempty)
+        <> (mappend <$> textVariations (decomposed node) <*> variations)
 
 zipperAtCursor :: (CstrMaterialsZipper -> Maybe CstrMaterialsZipper)
     -> Int

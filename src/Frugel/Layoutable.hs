@@ -24,8 +24,16 @@ instance Layoutable Identifier where
     layoutDoc identifier = layoutDecomposable identifier
 
 instance Layoutable Expr where
-    layoutDoc (ExprCstrSite _ contents) = layoutDoc contents
-    layoutDoc expr = layoutDecomposable expr
+    -- Parentheses are handled here (instead of relying on decompose), because the information would be removed when the expression is a construction site
+    layoutDoc = either layoutDoc' parenthesize . unwrapParentheses
+      where
+        parenthesize (leadingFragment, e, trailingFragment)
+            = parens
+                (pretty leadingFragment
+                 <> layoutDoc e
+                 <> pretty trailingFragment)
+        layoutDoc' (ExprCstrSite _ contents) = layoutDoc contents
+        layoutDoc' expr = layoutDecomposable expr
 
 instance Layoutable Decl where
     layoutDoc (DeclCstrSite _ materials) = layoutDoc materials
@@ -41,10 +49,7 @@ instance Layoutable Program where
 
 layoutDecomposable :: Decomposable a => a -> Doc Annotation
 layoutDecomposable
-    = concatWith (<>)
-    . fmap (either pretty layoutDoc)
-    . view _CstrMaterials
-    . decomposed
+    = foldMap (either pretty layoutDoc) . view _CstrMaterials . decomposed
 
 intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
 intersperseWhitespace' interstitialWhitespace
