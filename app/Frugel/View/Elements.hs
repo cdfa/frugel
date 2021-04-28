@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 module Frugel.View.Elements where
 
 import           Frugel
@@ -11,41 +9,35 @@ import qualified Miso.String
 noButtonStyle :: Attribute action
 noButtonStyle
     = style_
-        [ ("background", "none")
-        , ("color", "inherit")
-        , ("border", "none")
-        , ("padding", "0")
-        , ("font", "inherit")
-        , ("cursor", "auto")
-        , ("outline", "inherit")
-        , ("user-select", "text")
-        , ("text-align", "left")
-        ]
+    $ "background" =: "none"
+    <> "color" =: "inherit"
+    <> "border" =: "none"
+    <> "padding" =: "0"
+    <> "font" =: "inherit"
+    <> "cursor" =: "auto"
+    <> "outline" =: "inherit"
+    <> "user-select" =: "text"
+    <> "text-align" =: "left"
 
 codeStyle :: Attribute action
 codeStyle
     = style_
-        [ ("white-space", "pre")
-        , ("font-family", "\"Courier New\", monospace")
-        ]
+    $ "white-space" =: "pre" <> "font-family" =: "\"Courier New\", monospace"
 
 spanStyle :: Attribute action
-spanStyle = style_ [ ("display", "inline-block") ]
+spanStyle = style_ $ "display" =: "inline-block"
 
 span :: [Attribute action] -> [View action] -> View action
 span = span_ . (spanStyle :)
 
 paddingStyle :: Attribute action
 paddingStyle
-    = style_
-        [ ("padding", Miso.String.ms $ unwords [ "4px", "0", "4px", "0" ]) ]
+    = style_ $ "padding" =: Miso.String.ms (unwords [ "4px", "0", "4px", "0" ])
 
 inConstructionStyles :: [Attribute action]
 inConstructionStyles
     = [ style_
-            [ ("background-color", "hsl(48, 100%, 85%)")
-            , ("min-width", "0.6em")
-            ]
+        $ "background-color" =: "hsl(48, 100%, 85%)" <> "min-width" =: "0.6em"
       , paddingStyle
       ]
 
@@ -64,11 +56,10 @@ node = span . (class_ "node" :)
 caretStyle :: Attribute action
 caretStyle
     = style_
-        [ ("padding", "0 1px")
-        , ("margin", "0 -1px -0.2em -1px")
-        , ("height", "1.2em")
-        , ("background-color", "green")
-        ]
+    $ "padding" =: "0 1px"
+    <> "margin" =: "0 -1px -0.2em -1px"
+    <> "height" =: "1.2em"
+    <> "background-color" =: "green"
 
 caret :: [Attribute action] -> [View action] -> View action
 caret = span . (caretStyle :)
@@ -79,11 +70,11 @@ codeRoot
     . (++ [ keyDownHandler
           , noButtonStyle
           , id_ "code-root"
-          , style_ [ ("margin-left", "10px"), ("margin-top", "10px") ]
+          , style_ $ "margin-left" =: "10px" <> "margin-top" =: "10px"
           ])
 
 lineStyle :: Attribute action
-lineStyle = style_ $ fromList [ ("min-height", "2em") ]
+lineStyle = style_ $ "min-height" =: "2em"
 
 line :: [Attribute action] -> [View action] -> View action
 line = div_ . (lineStyle :)

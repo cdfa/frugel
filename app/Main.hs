@@ -51,21 +51,20 @@ viewModel model
               ]
         , div_ [ class_ "columns" ]
           $ map
-              (div_ [ class_ "column" ] . one)
-              [ codeRoot []
-                . renderSmart
-                . insertCursor (cursorOffset model)
-                . layoutSmart defaultLayoutOptions
-                . layoutDoc
-                $ program model
-              , if null $ errors model
-                    then div_ [] []
-                    else div_ []
-                        . map
-                            (pre_ [ class_ "box has-background-danger-light" ]
-                             . renderSmart
-                             . layoutSmart defaultLayoutOptions)
-                        $ errors model
+              (div_ [ class_ "column" ])
+              [ [ codeRoot []
+                  . renderSmart
+                  . insertCursor (cursorOffset model)
+                  . layoutSmart defaultLayoutOptions
+                  . layoutDoc
+                  $ program model
+                ]
+              , conditionalViews (not . null $ errors model)
+                $ map
+                    (pre_ [ class_ "box has-background-danger-light" ]
+                     . renderSmart
+                     . layoutSmart defaultLayoutOptions)
+                $ errors model
               ]
         , webPrint $ pShowNoColor model
         ]
