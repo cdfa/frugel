@@ -12,7 +12,6 @@ import           Data.Char
 import           Data.Has
 import qualified Data.Set        as Set
 
-import           Frugel.Meta
 import           Frugel.Node
 
 import           Optics

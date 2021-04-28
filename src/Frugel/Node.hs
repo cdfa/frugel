@@ -4,6 +4,7 @@
 
 module Frugel.Node
     ( module Frugel.Node
+    , module Frugel.Meta
     , Expr(..)
     , CstrMaterials(..)
     , Identifier(..)

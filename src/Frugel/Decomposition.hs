@@ -29,7 +29,6 @@ import           Frugel.Internal.Node
                  ( Decl(meta, name, value), _Identifier )
 import           Frugel.Internal.Program            as Program
                  ( Program(meta, expr, whereClause) )
-import           Frugel.Meta
 import           Frugel.Node
 import           Frugel.PrettyPrinting
 import           Frugel.Program

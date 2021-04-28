@@ -16,7 +16,6 @@ import qualified Data.Set                    as Set
 
 import           Frugel.Decomposition        hiding ( ModificationStatus(..) )
 import           Frugel.Layoutable
-import           Frugel.Meta
 import           Frugel.Model
 import           Frugel.Node
 import           Frugel.Parsing              hiding ( node, program )

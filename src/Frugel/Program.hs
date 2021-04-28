@@ -5,7 +5,6 @@ module Frugel.Program
     ) where
 
 import           Frugel.Internal.Program
-import           Frugel.Meta
 import           Frugel.Node
 
 program' :: Expr -> Maybe WhereClause -> Program

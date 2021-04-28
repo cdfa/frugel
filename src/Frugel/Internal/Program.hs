@@ -15,7 +15,6 @@ module Frugel.Internal.Program where
 import           Data.Has
 
 import           Frugel.Internal.Meta ( ProgramMeta(standardMeta) )
-import           Frugel.Meta
 import           Frugel.Node
 
 import           Optics
