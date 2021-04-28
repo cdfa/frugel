@@ -31,7 +31,8 @@ rezip SeqZipper{..} = Seq.reverse reversedPrefix <> suffix
 insert :: a -> SeqZipper a -> SeqZipper a
 insert x = #suffix %~ cons x
 
-delete :: SeqZipper a -> Maybe (SeqZipper a)
-delete zipper
-    | _ :< newSuffix <- suffix zipper = Just zipper { suffix = newSuffix }
-delete _ = Nothing
+prefixTail :: SeqZipper a -> Maybe (SeqZipper a)
+prefixTail = #reversedPrefix %%~ preview _tail
+
+suffixTail :: SeqZipper a -> Maybe (SeqZipper a)
+suffixTail = #suffix %%~ preview _tail

@@ -8,7 +8,7 @@
 
 module Frugel.Action where
 
-import           Control.Zipper.Seq          hiding ( delete, insert )
+import           Control.Zipper.Seq          hiding ( insert )
 import qualified Control.Zipper.Seq          as SeqZipper
 
 import qualified Data.Sequence               as Seq
@@ -43,6 +43,7 @@ data Action
     | Log String
     | Insert Char
     | Delete
+    | Backspace
     | Move Direction
     | PrettyPrint
     deriving ( Show, Eq )
@@ -58,6 +59,7 @@ updateModel (Log msg) model = model <# do
     consoleLog (show msg) >> pure NoOp
 updateModel (Insert c) model = noEff $ insert c model
 updateModel Delete model = noEff $ delete model
+updateModel Backspace model = noEff $ backspace model
 updateModel (Move direction) model = noEff $ moveCursor direction model
 updateModel PrettyPrint model = noEff $ prettyPrint model
 
@@ -71,12 +73,31 @@ insert c model
         (Failure, newModel) -> newModel
 
 -- This only works as long as there is always characters (or nothing) after nodes in construction sites
+-- and idem for backspace
 delete :: Model -> Model
 delete model
-    = snd
-    $ attemptEdit
-        (zipperAtCursor SeqZipper.delete $ view #cursorOffset model)
-        model
+    = case attemptEdit
+        (zipperAtCursor suffixTail $ view #cursorOffset model)
+        model of
+        (Success, newModel) -> newModel
+        (Failure, newModel) -> newModel & #errors .~ []
+
+backspace :: Model -> Model
+
+-- when the bad default of "exiting" after a node when transformation failed is fixed
+-- backspace model
+--     = case attemptEdit
+--         (zipperAtCursor prefixTail $ view #cursorOffset model)
+--         model of
+--         (Success, newModel) -> newModel & #cursorOffset -~ 1
+--         (Failure, newModel) -> newModel & #errors .~ []
+backspace model
+    | view #cursorOffset model > 0
+        = snd
+        . attemptEdit
+            (zipperAtCursor suffixTail (view #cursorOffset model - 1))
+        $ over #cursorOffset (subtract 1) model
+backspace model = model
 
 moveCursor :: Direction -> Model -> Model
 moveCursor direction model = model & #cursorOffset %~ updateOffset

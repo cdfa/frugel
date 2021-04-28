@@ -69,9 +69,8 @@ step = do
     textOffset <- use #textOffset
     -- c <- guse #cstrSiteOffset
     -- traceM ("step t: " <> show textOffset <> " c: " <> show c)
-    when
-        (textOffset /= -1)
-        (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
+    when (textOffset /= -1) (#textOffset -= 1)
+    when (textOffset > 0) (#cstrSiteOffset += 1)
 
 modifyNodeAt :: forall m.
     MonadError (Doc Annotation) m

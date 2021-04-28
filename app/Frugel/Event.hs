@@ -39,6 +39,7 @@ keyDownHandler = onKeyDownWithInfo handleKeyDown
                       "Enter" -> Insert '\n'
                       "Tab" -> Insert '\t'
                       "Delete" -> Delete
+                      "Backspace" -> Backspace
                       "ArrowLeft" -> Move Leftward
                       "ArrowRight" -> Move Rightward
                       "ArrowUp" -> Move Upward
