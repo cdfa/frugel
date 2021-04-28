@@ -1,9 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# LANGUAGE MultiWayIf #-}
+
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# LANGUAGE TypeApplications #-}
 
@@ -14,6 +16,7 @@ module Frugel.Decomposition
     , modifyNodeAt
     ) where
 
+import           Control.Monad.Except
 import           Control.Zipper.Seq
 
 import           Data.Has
@@ -42,7 +45,7 @@ class Decomposable n where
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
-    mapMComponents :: Monad m => n -> (DecompositionMonad m) n
+    mapMComponents :: Monad m => n -> DecompositionMonad m n
 
 class CstrSiteNode n where
     cstrSiteConstructor :: CstrMaterials -> n
@@ -71,26 +74,24 @@ step = do
         (textOffset /= -1)
         (#textOffset -= 1 >> when (textOffset /= 0) (#cstrSiteOffset += 1))
 
--- TODO: use Except monad
-modifyNodeAt :: (Int -> CstrMaterials -> Either [Doc Annotation] CstrMaterials)
+modifyNodeAt :: forall m.
+    MonadError (Doc Annotation) m
+    => (Int -> CstrMaterials -> m CstrMaterials)
     -> Int
     -> Program
-    -> Either [Doc Annotation] Program
+    -> m Program
 modifyNodeAt f cursorOffset program
-    | view #textOffset decompositionState > 0
-        = Left
-            [ "Internal error: Failed to decompose AST for cursor offset "
-              <> show cursorOffset
-            ]
-    | Todo <- view #modificationStatus decompositionState
-        = Left [ "Internal error: failed to modify construction site" ]
-    | Errors errors <- view #modificationStatus decompositionState
-        = Left errors
-    | otherwise = Right newProgram
+    = runModification >>= \(newProgram, decompositionState) -> if
+        | view #textOffset decompositionState > 0 -> throwError
+            ("Internal error: Failed to decompose AST for cursor offset "
+             <> show cursorOffset)
+        | Todo <- view #modificationStatus decompositionState ->
+            throwError "Internal error: failed to modify construction site"
+        | otherwise -> pure newProgram
   where
-    (newProgram, decompositionState)
+    runModification
         = initialDecompositionState cursorOffset
-        `usingState` runReaderT
+        `usingStateT` runReaderT
             (mapNode program)
             DecompositionEnv { mapChar
                              , mapIdentifier  = mapNode
@@ -99,13 +100,9 @@ modifyNodeAt f cursorOffset program
                              , mapWhereClause = mapNode
                              }
     mapChar c = c <$ step -- trace (show c) step
-    -- mapNode :: ( MonadState DecompositionState m
-    --            , MonadReader (DecompositionEnv m) m
-    --            , Decomposable n
-    --            , CstrSiteNode n
-    --            )
+    -- mapNode :: (Decomposable n, CstrSiteNode n)
     --     => n
-    --     -> m n
+    --     -> DecompositionMonad (StateT DecompositionState m) n
     mapNode n = do
         -- t <- guse #textOffset
         -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
@@ -124,22 +121,19 @@ modifyNodeAt f cursorOffset program
                     --      <> " c: "
                     --      <> show c)
                     ifM
-                        ((&&) <$> guses #textOffset (<= 0)
-                         <*> guses #modificationStatus (isn't _Success))
-                        (guses #cstrSiteOffset f >>= tryTransform n)
+                        (guses #textOffset (<= 0)
+                         &&^ guses #modificationStatus (isn't _Success))
+                        (tryTransform n)
                         (pure newNode)
-    tryTransform
-        :: (MonadState DecompositionState m, Decomposable n, CstrSiteNode n)
+    tryTransform :: (Decomposable n, CstrSiteNode n)
         => n
-        -> (CstrMaterials -> Either [Doc Annotation] CstrMaterials)
-        -> m n
-    tryTransform n f'
-        = uncurry (<$)
-        . second (assign #modificationStatus)
-        . either ((n, ) . Errors) (, Success)
-        . second cstrSiteConstructor
-        . f'
-        $ decomposed n
+        -> DecompositionMonad (StateT DecompositionState m) n
+    tryTransform n
+        = catchError
+            (lift2 . fmap cstrSiteConstructor
+             =<< (f <$> guse #cstrSiteOffset ?? decomposed n)
+             <* assign #modificationStatus Success)
+        $ const (pure n)
 
 intersperseWhitespace' :: [Text] -> CstrMaterials' -> CstrMaterials
 intersperseWhitespace' whitespaceFragments

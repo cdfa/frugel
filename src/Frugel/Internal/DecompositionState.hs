@@ -17,15 +17,13 @@ module Frugel.Internal.DecompositionState
     , initialDecompositionState
     , _Todo
     , _Success
-    , _Errors
     ) where
 
 import           Frugel.Node
-import           Frugel.PrettyPrinting
 
 import           Optics
 
-data ModificationStatus = Todo | Success | Errors [Doc Annotation]
+data ModificationStatus = Todo | Success
     deriving ( Show )
 
 -- A text offset of -1 is used for representing that we are done with parsing

@@ -127,20 +127,19 @@ prettyPrint model = case view #program model of
             . annPretty
     _ -> model & #errors %~ ("Can't pretty print a construction site" :)
 
-attemptEdit :: (Program -> Either [Doc Annotation] Program)
+attemptEdit :: (Program -> Either (Doc Annotation) Program)
     -> Model
     -> (EditResult, Model)
-attemptEdit f model = case reparsed of
-    Left editErrors -> (Failure, model & #errors .~ editErrors)
+attemptEdit f model = case second reparse . f $ view #program model of
+    Left editError -> (Failure, model & #errors .~ [ editError ])
     Right (newProgram, newErrors) ->
         (Success, model & #program .~ newProgram & #errors .~ newErrors)
   where
-    reparsed
-        = second (\newProgram ->
-                  bimap (fromMaybe newProgram) (map parseErrorPretty . toList)
-                  . foldr findSuccessfulParse (Nothing, mempty)
-                  . textVariations
-                  $ decomposed newProgram) . f $ view #program model
+    reparse newProgram
+        = bimap (fromMaybe newProgram) (map parseErrorPretty . toList)
+        . foldr findSuccessfulParse (Nothing, mempty)
+        . textVariations
+        $ decomposed newProgram
     findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
         = firstSuccessfulParse
     findSuccessfulParse materials (Nothing, errors)
@@ -165,15 +164,14 @@ textVariations
 zipperAtCursor :: (CstrMaterialsZipper -> Maybe CstrMaterialsZipper)
     -> Int
     -> Program
-    -> Either [Doc Annotation] Program
+    -> Either (Doc Annotation) Program
 zipperAtCursor f
     = modifyNodeAt
         (\cstrSiteOffset materials -> maybeToRight
-             [ "Internal error: Failed to modify the construction site "
-               <> layoutDoc materials
-               <> " at index "
-               <> show cstrSiteOffset
-             ]
+             ("Internal error: Failed to modify the construction site "
+              <> layoutDoc materials
+              <> " at index "
+              <> show cstrSiteOffset)
          $ traverseOf
              _CstrMaterials
              (rezip <.> f <=< unzipTo cstrSiteOffset)

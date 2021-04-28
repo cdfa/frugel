@@ -1,3 +1,7 @@
+{-# LANGUAGE KindSignatures #-}
+
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Prelude ( module Prelude, module Relude, (><), toList, dup ) where
 
 import qualified Data.Foldable      as Foldable
@@ -23,6 +27,14 @@ infixl 4 <<*>>
 (<<*>>)
     :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
 (<<*>>) = liftA2 (<*>)
+
+lift2 :: forall (s :: (* -> *)
+                 -> *
+                 -> *) t m a.
+    (MonadTrans s, MonadTrans t, Monad (t m), Monad m)
+    => m a
+    -> s (t m) a
+lift2 = lift . lift
 
 -- Copied from the Agda package
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
