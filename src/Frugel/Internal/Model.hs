@@ -20,8 +20,8 @@ import           Frugel.Program
 import           Optics
 
 data Model
-    = Model { program      :: Program
-            , cursorOffset :: Int
+    = Model { cursorOffset :: Int
+            , program      :: Program
             , errors       :: [Doc Annotation]
             }
     deriving ( Show )
