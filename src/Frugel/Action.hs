@@ -15,7 +15,7 @@ import qualified Data.Sequence               as Seq
 import qualified Data.Set                    as Set
 
 import           Frugel.Decomposition        hiding ( ModificationStatus(..) )
-import           Frugel.Layoutable
+import           Frugel.DisplayProjection
 import           Frugel.Model
 import           Frugel.Node
 import           Frugel.Parsing              hiding ( node, program )
@@ -124,7 +124,7 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
     programText
-        = renderString . layoutSmart defaultLayoutOptions . layoutDoc
+        = renderString . layoutSmart defaultLayoutOptions . displayDoc
         $ view #program model
 
 -- For now, pretty printing only works on complete programs, because correct pretty printing of complete nodes in construction sites is difficult
@@ -189,7 +189,7 @@ zipperAtCursor f
     = modifyNodeAt
         (\cstrSiteOffset materials -> maybeToRight
              ("Internal error: Failed to modify the construction site "
-              <> layoutDoc materials
+              <> displayDoc materials
               <> " at index "
               <> show cstrSiteOffset)
          $ traverseOf

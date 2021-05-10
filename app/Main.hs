@@ -56,7 +56,7 @@ viewModel model
                   . renderSmart
                   . insertCursor (cursorOffset model)
                   . layoutSmart defaultLayoutOptions
-                  . layoutDoc
+                  . displayDoc
                   $ program model
                 ]
               , conditionalViews (not . null $ errors model)

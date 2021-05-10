@@ -1,7 +1,7 @@
 module Frugel
     ( module Frugel.Model
     , module Frugel.PrettyPrinting
-    , Layoutable(..)
+    , DisplayProjection(..)
     , Direction(..)
     , Action(..)
     , Model(Model, program, cursorOffset, errors)
@@ -11,8 +11,8 @@ module Frugel
     ) where
 
 import           Frugel.Action
+import           Frugel.DisplayProjection
 import qualified Frugel.Internal.Model
-import           Frugel.Layoutable
 import           Frugel.Model
 import           Frugel.Parsing
 import           Frugel.PrettyPrinting
