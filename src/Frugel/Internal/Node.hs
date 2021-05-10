@@ -91,8 +91,8 @@ instance Has Meta Expr where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
-instance Traverses' Node CstrSite where
-    traversal'
+instance Refracts' A_Traversal NoIx Node CstrSite where
+    optic'
         = (_IdentifierNode % _IdentifierCstrSite)
         `adjoin` (_ExprNode % _ExprCstrSite % _2)
         `adjoin` (_DeclNode % _DeclCstrSite % _2)

@@ -41,6 +41,8 @@ type CstrSiteZipper = SeqZipper (Either Char Node)
 
 class Decomposable n where
     decomposed :: n -> CstrSite
+    conservativelyDecompose :: Int -> n -> Maybe (Int, CstrSite)
+    conservativelyDecompose _ _ = Nothing
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
@@ -120,17 +122,23 @@ modifyNodeAt f cursorOffset program
                     ifM
                         (guses #textOffset (<= 0)
                          &&^ guses #modificationStatus (isn't _Success))
-                        (tryTransform n)
+                        (catchError
+                             (cstrSiteConstructor <$> transform n
+                              <* assign #modificationStatus Success)
+                         $ const (pure n))
                         (pure newNode)
-    tryTransform :: (Decomposable n, CstrSiteNode n)
+    transform :: Decomposable n
         => n
-        -> DecompositionMonad (StateT DecompositionState m) n
-    tryTransform n
-        = catchError
-            (lift2 . fmap cstrSiteConstructor
-             =<< (f <$> guse #cstrSiteOffset ?? decomposed n)
-             <* assign #modificationStatus Success)
-        $ const (pure n)
+        -> DecompositionMonad (StateT DecompositionState m) CstrSite
+    transform n = do
+        cstrSiteOffset <- use #cstrSiteOffset
+        lift2 $ case conservativelyDecompose cstrSiteOffset n of
+            Just (cstrSiteOffset', cstrSite)
+                | cstrSiteOffset == 0
+                    || cstrSiteOffset == length (toList $ decomposed n) ->
+                    catchError (f cstrSiteOffset' cstrSite)
+                    $ const (f cstrSiteOffset $ decomposed n)
+            _ -> f cstrSiteOffset $ decomposed n
 
 intersperseWhitespace' :: [Text] -> CstrSite' -> CstrSite
 intersperseWhitespace' whitespaceFragments
@@ -162,6 +170,24 @@ whitespaceFragmentTraversal selector
     % unpacked
     % traversed
 
+conservativelyDecomposeNode
+    :: (Is k A_Review, Is l An_AffineFold, Decomposable n)
+    => Optic' k is Node n
+    -> Optic' l is n CstrSite
+    -> Int
+    -> n
+    -> Maybe (Int, CstrSite)
+conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
+    = case cstrSiteOffset of
+        0
+            | isn't cstrSiteFold n -> Just (0, singletonCstrSite)
+        l
+            | isn't cstrSiteFold n && l == length (toList $ decomposed n) ->
+                Just (1, singletonCstrSite)
+        _ -> Nothing
+  where
+    singletonCstrSite = fromList [ Right $ review nodeReview n ]
+
 instance Decomposable CstrSite where
     decomposed = id
     mapMComponents
@@ -185,6 +211,8 @@ instance Decomposable Identifier where
     decomposed (Identifier name)
         = CstrSite . fromList . map Left $ toString name
     decomposed (IdentifierCstrSite materials) = materials
+    conservativelyDecompose
+        = conservativelyDecomposeNode _IdentifierNode _IdentifierCstrSite
     mapMComponents identifier@(Identifier _)
         = join
         $ flap
@@ -212,7 +240,6 @@ instance Decomposable Expr where
                 ]
         whitespaceFragment = Left . toString
         decomposed' (Variable _ name) = [ Right $ IdentifierNode name ]
-
         decomposed' (Abstraction _ name body)
             = [ Left [ '\\' ]
               , Right $ IdentifierNode name
@@ -225,6 +252,8 @@ instance Decomposable Expr where
             = [ Right $ ExprNode left, Left "+", Right $ ExprNode right ]
         decomposed' (ExprCstrSite _ (CstrSite materials))
             = map (first one) $ toList materials
+    conservativelyDecompose
+        = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
     mapMComponents = join . flap (asks go)
       where
         go DecompositionEnv{..} e = e & case e of
@@ -273,6 +302,8 @@ instance Decomposable Decl where
             (interstitialWhitespace meta)
             [ Right $ IdentifierNode name, Left "=", Right $ ExprNode value ]
     decomposed (DeclCstrSite _ materials) = materials
+    conservativelyDecompose
+        = conservativelyDecomposeNode _DeclNode (_DeclCstrSite % _2)
     mapMComponents decl@Decl{} = join . asks $ \DecompositionEnv{..} -> chain
         (intersperseWhitespaceTraversals
              mapChar
@@ -291,6 +322,8 @@ instance Decomposable WhereClause where
             (interstitialWhitespace meta)
             (Left "where" : map (Right . DeclNode) (toList decls))
     decomposed (WhereCstrSite _ materials) = materials
+    conservativelyDecompose
+        = conservativelyDecomposeNode _WhereNode (_WhereCstrSite % _2)
     mapMComponents whereClause@(WhereClause _ decls)
         = join . asks $ \DecompositionEnv{..} -> chain
             (intersperseWhitespaceTraversals

@@ -127,18 +127,17 @@ is k = not . isn't k
 --     -> a
 --     -> f (Either s a)
 -- retraverseOf p f = matching p <.> f . review p
+class Refracts k is s t a b where
+    optic :: Optic k is s t a b
+
+class Refracts' k is s a where
+    optic' :: Optic' k is s a
+
+instance Refracts' k is s a => Refracts k is s s a a where
+    optic = optic'
+
 -- From https://hackage.haskell.org/package/optics-core-0.4/docs/src/Optics.Traversal.html#adjoin
 -- | Combine two disjoint traversals into one.
---
-class Traverses s t a b where
-    traversal :: Traversal s t a b
-
-class Traverses' s a where
-    traversal' :: Traversal' s a
-
-instance Traverses' s a => Traverses s s a a where
-    traversal = traversal'
-
 -- For the 'Fold' version see 'Optics.Fold.summing'.
 --
 -- @since 0.4

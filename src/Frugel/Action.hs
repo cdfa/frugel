@@ -177,7 +177,7 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        = (if is (pre $ traversal' @Node @CstrSite) node
+        = (if is (pre $ optic' @A_Traversal @NoIx @Node @CstrSite) node
                then fmap (cons item) variations
                else mempty)
         <> (mappend <$> textVariations (decomposed node) <*> variations)
