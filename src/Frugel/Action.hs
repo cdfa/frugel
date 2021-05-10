@@ -18,6 +18,7 @@ import qualified Data.Set                                as Set
 import           Frugel.Decomposition
                  hiding ( ModificationStatus(..) )
 import           Frugel.DisplayProjection
+import           Frugel.Error
 import           Frugel.Model
 import           Frugel.Node
 import           Frugel.Parsing
@@ -138,8 +139,7 @@ prettyPrint :: Model -> Model
 prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
     (Success, newModel) -> newModel
     (Failure, newModel) -> newModel
-        & #errors
-        %~ cons "Internal error: failed to reparse a pretty-printed program"
+        & #errors %~ cons (InternalError ParseFailedAfterPrettyPrint)
   where
     prettyPrinted
         = ProgramCstrSite defaultProgramMeta
@@ -148,16 +148,16 @@ prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
         . layoutSmart defaultLayoutOptions
         . annPretty
 
-attemptEdit :: (Program -> Either (Doc Annotation) Program)
+attemptEdit :: (Program -> Either InternalError Program)
     -> Model
     -> (EditResult, Model)
 attemptEdit f model = case second reparse . f $ view #program model of
-    Left editError -> (Failure, model & #errors .~ [ editError ])
+    Left editError -> (Failure, model & #errors .~ [ InternalError editError ])
     Right (newProgram, newErrors) ->
         (Success, model & #program .~ newProgram & #errors .~ newErrors)
   where
     reparse newProgram
-        = bimap (fromMaybe newProgram) (map parseErrorPretty . toList)
+        = bimap (fromMaybe newProgram) (map ParseError . toList)
         . foldr findSuccessfulParse (Nothing, mempty)
         . textVariations
         $ decomposed newProgram
@@ -185,15 +185,11 @@ textVariations
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int
     -> Program
-    -> Either (Doc Annotation) Program
+    -> Either InternalError Program
 zipperAtCursor f
-    = modifyNodeAt
-        (\cstrSiteOffset materials -> maybeToRight
-             ("Internal error: Failed to modify the construction site "
-              <> displayDoc materials
-              <> " at index "
-              <> show cstrSiteOffset)
-         $ traverseOf
-             _CstrSite
-             (rezip <.> f <=< unzipTo cstrSiteOffset)
-             materials)
+    = modifyNodeAt (\cstrSiteOffset materials -> maybeToRight
+                        (CstrSiteActionFailed cstrSiteOffset materials)
+                    $ traverseOf
+                        _CstrSite
+                        (rezip <.> f <=< unzipTo cstrSiteOffset)
+                        materials)

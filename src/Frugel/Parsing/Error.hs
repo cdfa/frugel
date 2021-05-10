@@ -19,9 +19,12 @@ import           Text.Megaparsec.Pos
 -- | Pretty-print a 'ParseError'. The rendered 'Doc Annotation ' always ends with a
 -- newline.
 parseErrorPretty :: ParseError CstrSite Void -> Doc Annotation
-
 parseErrorPretty e
-    = "offset=" <> show (errorOffset e) <> ":\n" <> parseErrorTextPretty e
+    = "offset="
+    <> show (errorOffset e)
+    <> ":"
+    <> line
+    <> parseErrorTextPretty e
 
 -- | Pretty-print a textual part of a 'ParseError', that is, everything
 -- except for its position. The rendered 'Doc Annotation ' always ends with a
@@ -29,10 +32,9 @@ parseErrorPretty e
 --
 -- @since 5.1.0
 parseErrorTextPretty :: ParseError CstrSite Void -> Doc Annotation
-
 parseErrorTextPretty (TrivialError _ us ps)
     = if isNothing us && Set.null ps
-        then "unknown parse error\n"
+        then "unknown parse error"
         else messageItemsPretty
             "unexpected "
             (showErrorItem
@@ -46,7 +48,7 @@ parseErrorTextPretty (TrivialError _ us ps)
                 (showErrorItem <$> fromList (toList ps))
 parseErrorTextPretty (FancyError _ xs)
     = if Set.null xs
-        then "unknown fancy parse error\n"
+        then "unknown fancy parse error"
         else vsep (showErrorFancy <$> Set.toAscList xs)
 
 -- | Pretty-print an 'ErrorItem'.
@@ -85,7 +87,7 @@ messageItemsPretty ::
     Doc Annotation -> NonEmpty (Doc Annotation) -> Doc Annotation
 messageItemsPretty prefix ts
     | null ts = ""
-    | otherwise = prefix <> orList ts <> "\n"
+    | otherwise = prefix `nestingLine` orList ts
 
 -- | Print a pretty list where items are separated with commas and the word
 -- “or” according to the rules of English punctuation.

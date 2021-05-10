@@ -13,24 +13,13 @@
 
 module Frugel.Internal.Model where
 
-import           Frugel.Internal.PrettyPrinting ()
-import           Frugel.PrettyPrinting
+import           Frugel.Error
 import           Frugel.Program
 
 import           Optics
 
 data Model
-    = Model { cursorOffset :: Int
-            , program      :: Program
-            , errors       :: [Doc Annotation]
-            }
-    deriving ( Show )
+    = Model { cursorOffset :: Int, program :: Program, errors :: [Error] }
+    deriving ( Show, Eq )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Model
-
-instance Eq Model where
-    (Model program1 cursorOffset1 errors1)
-        == (Model program2 cursorOffset2 errors2)
-        = program1 == program2
-        && cursorOffset1 == cursorOffset2
-        && errors1 == errors2

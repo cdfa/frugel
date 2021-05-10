@@ -63,7 +63,8 @@ viewModel model
                 $ map
                     (pre_ [ class_ "box has-background-danger-light" ]
                      . renderSmart
-                     . layoutSmart defaultLayoutOptions)
+                     . layoutSmart defaultLayoutOptions
+                     . displayDoc)
                 $ errors model
               ]
         , webPrint $ pShowNoColor model

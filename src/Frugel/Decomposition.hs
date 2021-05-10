@@ -22,6 +22,7 @@ import           Control.Zipper.Seq
 import           Data.Has
 import           Data.Text.Optics
 
+import           Frugel.Error
 import           Frugel.Internal.DecompositionState
 import           Frugel.Internal.Meta
                  ( Meta(interstitialWhitespace) )
@@ -30,7 +31,6 @@ import           Frugel.Internal.Node
 import           Frugel.Internal.Program            as Program
                  ( Program(meta, expr, whereClause) )
 import           Frugel.Node
-import           Frugel.PrettyPrinting
 import           Frugel.Program
 
 import           Numeric.Optics
@@ -73,18 +73,17 @@ step = do
     when (textOffset > 0) (#cstrSiteOffset += 1)
 
 modifyNodeAt :: forall m.
-    MonadError (Doc Annotation) m
+    MonadError InternalError m
     => (Int -> CstrSite -> m CstrSite)
     -> Int
     -> Program
     -> m Program
 modifyNodeAt f cursorOffset program
     = runModification >>= \(newProgram, decompositionState) -> if
-        | view #textOffset decompositionState > 0 -> throwError
-            ("Internal error: Failed to decompose AST for cursor offset "
-             <> show cursorOffset)
+        | view #textOffset decompositionState
+            > 0 -> throwError $ DecompositionFailed cursorOffset
         | Todo <- view #modificationStatus decompositionState ->
-            throwError "Internal error: failed to modify construction site"
+            throwError $ ASTModificationNotPerformed cursorOffset
         | otherwise -> pure newProgram
   where
     runModification

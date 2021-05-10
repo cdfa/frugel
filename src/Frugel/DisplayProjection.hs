@@ -1,7 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Frugel.DisplayProjection where
 
 import           Frugel.Decomposition
+import           Frugel.Error
 import           Frugel.Node
+import           Frugel.Parsing.Error
 import           Frugel.PrettyPrinting
 import           Frugel.Program
 
@@ -47,6 +51,26 @@ instance DisplayProjection Program where
     displayDoc (ProgramCstrSite _ materials) = displayDoc materials
     displayDoc program = decomposableDoc program
 
+instance DisplayProjection Error where
+    displayDoc = \case
+        ParseError e -> parseErrorPretty e
+        InternalError e -> "Internal error:" <+> displayDoc e
+
+instance DisplayProjection InternalError where
+    displayDoc = \case
+        ParseFailedAfterPrettyPrint
+         -> "failed to reparse a pretty-printed program"
+        ASTModificationNotPerformed cursorOffset ->
+            "AST was not modified. Cursor offset:" <+> show cursorOffset
+        DecompositionFailed cursorOffset ->
+            "failed to decompose AST for cursor offset" <+> show cursorOffset
+        CstrSiteActionFailed cstrSiteOffset cstrSite ->
+            "failed to modify the construction site"
+            `nestingLine` displayDoc cstrSite
+            <> line
+            <> "at index"
+            <+> show cstrSiteOffset
+
 decomposableDoc :: Decomposable a => a -> Doc Annotation
 decomposableDoc
     = foldMap (either pretty displayDoc) . view _CstrSite . decomposed
@@ -54,4 +78,3 @@ decomposableDoc
 intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
 intersperseWhitespace' interstitialWhitespace
     = intersperseWhitespace (one . pretty) interstitialWhitespace . map one
-
