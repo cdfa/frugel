@@ -33,7 +33,7 @@ nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = x <> nest 4 (softline <> y)
 
 -- Invariant: prettyCstrSite of a non-empty Seq results in a non-empty render
-prettyCstrSite :: (NodeItem -> Doc Annotation) -> CstrSite -> Doc Annotation
+prettyCstrSite :: (Node -> Doc Annotation) -> CstrSite -> Doc Annotation
 prettyCstrSite prettyNode (CstrSite contents)
     = annotateInConstruction
     . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
@@ -49,7 +49,7 @@ instance AnnotatedPretty a => AnnotatedPretty (Maybe a) where
 instance AnnotatedPretty CstrSite where
     annPretty = prettyCstrSite annPretty
 
-instance AnnotatedPretty NodeItem where
+instance AnnotatedPretty Node where
     annPretty (IdentifierNode name) = annPretty name
     annPretty (ExprNode expr) = annPretty expr
     annPretty (DeclNode decl) = annPretty decl

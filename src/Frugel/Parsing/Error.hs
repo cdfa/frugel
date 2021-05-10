@@ -50,8 +50,7 @@ parseErrorTextPretty (FancyError _ xs)
         else vsep (showErrorFancy <$> Set.toAscList xs)
 
 -- | Pretty-print an 'ErrorItem'.
-showErrorItem :: ErrorItem (Either Char NodeItem) -> Doc Annotation
-
+showErrorItem :: ErrorItem (Either Char Node) -> Doc Annotation
 showErrorItem = \case
     Tokens ts -> annPretty @CstrSite $ fromFoldable ts
     Label label -> pretty $ toList label
