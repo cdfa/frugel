@@ -27,11 +27,11 @@ import           Optics
 
 import           Text.Megaparsec
 
-newtype CstrSite = CstrSite (Seq (Either Char Node))
+newtype CstrSite = CstrSite (Seq (Either Char NodeItem))
     deriving ( Eq, Ord, Show )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
-data Node
+data NodeItem
     = IdentifierNode Identifier
     | ExprNode Expr
     | DeclNode Decl
@@ -65,10 +65,10 @@ makePrisms ''CstrSite
 
 makePrisms ''Identifier
 
-instance Cons CstrSite CstrSite (Either Char Node) (Either Char Node) where
+instance Cons CstrSite CstrSite (Either Char NodeItem) (Either Char NodeItem) where
     _Cons = _CstrSite % _Cons % aside (re _CstrSite)
 
-instance Snoc CstrSite CstrSite (Either Char Node) (Either Char Node) where
+instance Snoc CstrSite CstrSite (Either Char NodeItem) (Either Char NodeItem) where
     _Snoc = _CstrSite % _Snoc % swapped % aside (re _CstrSite) % swapped
 
 instance AsEmpty CstrSite

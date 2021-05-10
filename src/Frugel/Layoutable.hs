@@ -13,7 +13,7 @@ class Layoutable a where
 instance Layoutable CstrSite where
     layoutDoc = prettyCstrSite layoutDoc
 
-instance Layoutable Node where
+instance Layoutable NodeItem where
     layoutDoc (IdentifierNode name) = layoutDoc name
     layoutDoc (ExprNode expr) = layoutDoc expr
     layoutDoc (DeclNode decl) = layoutDoc decl

@@ -37,7 +37,7 @@ import           Numeric.Optics
 
 import           Optics
 
-type CstrSiteZipper = SeqZipper (Either Char Node)
+type CstrSiteZipper = SeqZipper (Either Char NodeItem)
 
 class Decomposable n where
     decomposed :: n -> CstrSite
@@ -170,7 +170,7 @@ instance Decomposable CstrSite where
             (_CstrSite % traversed)
             (join . flap (bitraverse <$> gview #mapChar ?? mapMComponents))
 
-instance Decomposable Node where
+instance Decomposable NodeItem where
     decomposed (IdentifierNode n) = decomposed n
     decomposed (ExprNode n) = decomposed n
     decomposed (DeclNode n) = decomposed n

@@ -9,7 +9,7 @@ module Frugel.Node
     , CstrSite(..)
     , Identifier(..)
     , Decl(Decl, DeclCstrSite)
-    , Node(..)
+    , NodeItem(..)
     , WhereClause(..)
     , _CstrSite
     , exprMeta
@@ -20,7 +20,7 @@ import           Frugel.Meta
 
 import           Optics
 
-makePrisms ''Node
+makePrisms ''NodeItem
 
 makePrisms ''Expr
 
@@ -28,7 +28,7 @@ makePrisms ''Decl
 
 makePrisms ''WhereClause
 
-_CstrSiteNode :: AffineFold Node CstrSite
+_CstrSiteNode :: AffineFold NodeItem CstrSite
 
 _CstrSiteNode
     = (_IdentifierNode % _IdentifierCstrSite)
@@ -101,7 +101,7 @@ decl' = Decl defaultMeta
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' = WhereClause defaultMeta
 
-type CstrSite' = [Either String Node]
+type CstrSite' = [Either String NodeItem]
 
 toCstrSite :: CstrSite' -> CstrSite
 toCstrSite = fromList . concatMap (either (map Left) (one . Right))

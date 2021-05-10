@@ -28,7 +28,7 @@ identifier = literalIdentifier <|> identifierNode
         <*> many alphaNumChar <?> "an identifier"
     identifierNode = node "a declaration node" _IdentifierNode
 
-node :: String -> Prism' Node w -> Parser w
+node :: String -> Prism' NodeItem w -> Parser w
 node name nodePrism = namedToken name $ preview (_Right % nodePrism)
 
 term :: Parser Expr

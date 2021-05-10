@@ -28,5 +28,5 @@ lowerChar :: Parser Char
 lowerChar
     = namedToken "a lower-case character" (leftToMaybe >=> guarded isLower)
 
-anyNode :: Parser Node
+anyNode :: Parser NodeItem
 anyNode = namedToken "a node" rightToMaybe
