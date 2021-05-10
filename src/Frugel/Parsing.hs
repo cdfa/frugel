@@ -41,6 +41,7 @@ term
               [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
                 <*%> expr
                 -- Non recursive production rules at the bottom
+              , exprCstrSite (CstrSite empty) <$% string "..."
               , Node.identifier' <$%> identifier
               ]
         , node "an expression node" _ExprNode
