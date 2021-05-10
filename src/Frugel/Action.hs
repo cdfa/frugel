@@ -9,28 +9,33 @@
 
 module Frugel.Action where
 
-import           Control.Zipper.Seq          hiding ( insert )
-import qualified Control.Zipper.Seq          as SeqZipper
+import           Control.Zipper.Seq                      hiding ( insert )
+import qualified Control.Zipper.Seq                      as SeqZipper
 
-import qualified Data.Sequence               as Seq
-import qualified Data.Set                    as Set
+import qualified Data.Sequence                           as Seq
+import qualified Data.Set                                as Set
 
-import           Frugel.Decomposition        hiding ( ModificationStatus(..) )
+import           Frugel.Decomposition
+                 hiding ( ModificationStatus(..) )
 import           Frugel.DisplayProjection
 import           Frugel.Model
 import           Frugel.Node
-import           Frugel.Parsing              hiding ( node, program )
+import           Frugel.Parsing
+                 hiding ( node, program )
 import           Frugel.PrettyPrinting
 import           Frugel.Program
 
-import           Miso                        hiding ( focus, model, node, view )
+import           Miso
+                 hiding ( focus, model, node, view )
 import qualified Miso
 
 import           Optics
 
 import           Prettyprinter.Render.String
+import           Prettyprinter.Render.Util.SimpleDocTree
 
-import           Text.Megaparsec             hiding ( parseErrorPretty )
+import           Text.Megaparsec
+                 hiding ( parseErrorPretty )
 
 data EditResult = Success | Failure
     deriving ( Show, Eq )
@@ -128,25 +133,20 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
         = renderString . layoutSmart defaultLayoutOptions . displayDoc
         $ view #program model
 
--- For now, pretty printing only works on complete programs, because correct pretty printing of complete nodes in construction sites is difficult
--- It would require making a parser that skips all the construction materials and then putting the new whitespace back in the old nodes
+-- Leaves everything as construction site, because parsing nested construction sites is not implemented yet
 prettyPrint :: Model -> Model
-prettyPrint model = case view #program model of
-    Program{} -> case attemptEdit (Right . prettyPrinted) model of
-        (Success, newModel) -> newModel
-        (Failure, newModel) -> newModel
-            & #errors
-            %~ cons
-                "Internal error: failed to reparse a pretty-printed program"
-      where
-        prettyPrinted
-            = ProgramCstrSite defaultProgramMeta
-            . fromList
-            . map Left
-            . renderString
-            . layoutSmart defaultLayoutOptions
-            . annPretty
-    _ -> model & #errors %~ ("Can't pretty print a construction site" :)
+prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
+    (Success, newModel) -> newModel
+    (Failure, newModel) -> newModel
+        & #errors
+        %~ cons "Internal error: failed to reparse a pretty-printed program"
+  where
+    prettyPrinted
+        = ProgramCstrSite defaultProgramMeta
+        . renderSimplyDecorated (fromList . map Left . toString) (const id)
+        . treeForm
+        . layoutSmart defaultLayoutOptions
+        . annPretty
 
 attemptEdit :: (Program -> Either (Doc Annotation) Program)
     -> Model
