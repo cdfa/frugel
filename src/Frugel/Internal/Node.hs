@@ -27,7 +27,7 @@ import           Optics
 
 import           Text.Megaparsec
 
-newtype CstrMaterials = CstrMaterials (Seq (Either Char Node))
+newtype CstrSite = CstrSite (Seq (Either Char Node))
     deriving ( Eq, Ord, Show )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
@@ -38,7 +38,7 @@ data Node
     | WhereNode WhereClause
     deriving ( Eq, Ord, Show )
 
-data Identifier = Identifier Text | IdentifierCstrSite CstrMaterials
+data Identifier = Identifier Text | IdentifierCstrSite CstrSite
     deriving ( Eq, Ord, Show )
 
 data Expr
@@ -46,37 +46,32 @@ data Expr
     | Abstraction ExprMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
-    | ExprCstrSite ExprMeta CstrMaterials
+    | ExprCstrSite ExprMeta CstrSite
     deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
 
 data Decl
     = Decl { meta :: Meta, name :: Identifier, value :: Expr }
       -- , whereClause :: WhereClause
-    | DeclCstrSite Meta CstrMaterials
+    | DeclCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 data WhereClause
-    = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrMaterials
+    = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
-makePrisms ''CstrMaterials
+makePrisms ''CstrSite
 
 makePrisms ''Identifier
 
-instance Cons CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
-    _Cons = _CstrMaterials % _Cons % aside (re _CstrMaterials)
+instance Cons CstrSite CstrSite (Either Char Node) (Either Char Node) where
+    _Cons = _CstrSite % _Cons % aside (re _CstrSite)
 
-instance Snoc CstrMaterials CstrMaterials (Either Char Node) (Either Char Node) where
-    _Snoc
-        = _CstrMaterials
-        % _Snoc
-        % swapped
-        % aside (re _CstrMaterials)
-        % swapped
+instance Snoc CstrSite CstrSite (Either Char Node) (Either Char Node) where
+    _Snoc = _CstrSite % _Snoc % swapped % aside (re _CstrSite) % swapped
 
-instance AsEmpty CstrMaterials
+instance AsEmpty CstrSite
 
 instance IsString Identifier where
     fromString = Identifier . toText

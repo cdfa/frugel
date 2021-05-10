@@ -7,7 +7,7 @@ import           Frugel.Node
 
 import           Text.Megaparsec
 
-type Parser = Parsec Void CstrMaterials
+type Parser = Parsec Void CstrSite
 
 namedToken :: MonadParsec e s m => String -> (Token s -> Maybe a) -> m a
 namedToken name test = token test Set.empty <?> name

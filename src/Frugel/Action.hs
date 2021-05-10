@@ -170,9 +170,9 @@ attemptEdit f model = case second reparse . f $ view #program model of
         parsed = parseCstrSite fileName materials
 
 -- construction sites with least nested construction sites should be at the end
-textVariations :: CstrMaterials -> Seq CstrMaterials
+textVariations :: CstrSite -> Seq CstrSite
 textVariations
-    = foldr processItem (Seq.singleton $ fromList []) . view _CstrMaterials
+    = foldr processItem (Seq.singleton $ fromList []) . view _CstrSite
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
@@ -181,7 +181,7 @@ textVariations
                else mempty)
         <> (mappend <$> textVariations (decomposed node) <*> variations)
 
-zipperAtCursor :: (CstrMaterialsZipper -> Maybe CstrMaterialsZipper)
+zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int
     -> Program
     -> Either (Doc Annotation) Program
@@ -193,6 +193,6 @@ zipperAtCursor f
               <> " at index "
               <> show cstrSiteOffset)
          $ traverseOf
-             _CstrMaterials
+             _CstrSite
              (rezip <.> f <=< unzipTo cstrSiteOffset)
              materials)

@@ -6,12 +6,12 @@ module Frugel.Node
     ( module Frugel.Node
     , module Frugel.Meta
     , Expr(..)
-    , CstrMaterials(..)
+    , CstrSite(..)
     , Identifier(..)
     , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
-    , _CstrMaterials
+    , _CstrSite
     , exprMeta
     ) where
 
@@ -28,7 +28,8 @@ makePrisms ''Decl
 
 makePrisms ''WhereClause
 
-_CstrSiteNode :: AffineFold Node CstrMaterials
+_CstrSiteNode :: AffineFold Node CstrSite
+
 _CstrSiteNode
     = (_IdentifierNode % _IdentifierCstrSite)
     `afailing` (_ExprNode % _ExprCstrSite % _2)
@@ -76,8 +77,8 @@ unwrapParentheses e
             e
 unwrapParentheses e = Left e
 
--- concatCstrMaterials :: [CstrMaterials] -> CstrMaterials
--- concatCstrMaterials = CstrMaterials . join . fromList . map (view _CstrMaterials)
+-- concatCstrSite :: [CstrSite] -> CstrSite
+-- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)
 identifier' :: Identifier -> Expr
 identifier' = IdentifierExpr defaultExprMeta
 
@@ -90,7 +91,8 @@ application' = Application defaultExprMeta
 sum' :: Expr -> Expr -> Expr
 sum' = Sum defaultExprMeta
 
-exprCstrSite :: CstrMaterials -> Expr
+exprCstrSite :: CstrSite -> Expr
+
 exprCstrSite = ExprCstrSite defaultExprMeta
 
 decl' :: Identifier -> Expr -> Decl
@@ -99,48 +101,49 @@ decl' = Decl defaultMeta
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' = WhereClause defaultMeta
 
-type CstrMaterials' = [Either String Node]
+type CstrSite' = [Either String Node]
 
-toCstrMaterials :: CstrMaterials' -> CstrMaterials
-toCstrMaterials = fromList . concatMap (either (map Left) (one . Right))
+toCstrSite :: CstrSite' -> CstrSite
+toCstrSite = fromList . concatMap (either (map Left) (one . Right))
 
-minimalCstrSite :: CstrMaterials
+minimalCstrSite :: CstrSite
 minimalCstrSite = one . Right . ExprNode $ identifier' "x"
 
-nested :: CstrMaterials
+nested :: CstrSite
 nested = one . Right . ExprNode . exprCstrSite $ minimalCstrSite
 
-frugelId :: CstrMaterials
-frugelId = toCstrMaterials [ Left "\\x=x" ]
+frugelId :: CstrSite
+frugelId = toCstrSite [ Left "\\x=x" ]
 
-frugelId' :: CstrMaterials
-frugelId' = toCstrMaterials [ Left "\\x=", Right . ExprNode $ identifier' "x" ]
+frugelId' :: CstrSite
+frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ identifier' "x" ]
 
-whitespaceId :: CstrMaterials
-whitespaceId = toCstrMaterials [ Left "\\  \tx \n=x  \t\n\n" ]
+whitespaceId :: CstrSite
+whitespaceId = toCstrSite [ Left "\\  \tx \n=x  \t\n\n" ]
 
-app :: CstrMaterials
+app :: CstrSite
 app = [ Left 'x', Right . ExprNode $ identifier' "x", Left 'x' ]
 
-parensTest :: CstrMaterials
+parensTest :: CstrSite
 parensTest
-    = toCstrMaterials
+    = toCstrSite
         [ Left "(((\\x=(", Right . ExprNode $ identifier' "x", Left "))))" ]
 
-whereClauseTest :: CstrMaterials
+whereClauseTest :: CstrSite
 whereClauseTest
-    = toCstrMaterials
+    = toCstrSite
         [ Left "x where\n  y = "
         , Right . ExprNode $ identifier' "z"
         , Left "\n  u = w"
         ]
 
-declNodeTest :: CstrMaterials
+declNodeTest :: CstrSite
 declNodeTest
-    = toCstrMaterials
+    = toCstrSite
         [ Left "x where "
         , Right . DeclNode $ decl' "y" $ identifier' "z" -- , whereClause' = []
         ]
 
-sumTest :: CstrMaterials
-sumTest = toCstrMaterials [ Right . ExprNode $ identifier' "x", Left "+ y x" ]
+sumTest :: CstrSite
+sumTest = toCstrSite [ Right . ExprNode $ identifier' "x", Left "+ y x" ]
+

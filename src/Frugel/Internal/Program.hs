@@ -24,7 +24,7 @@ data Program
               , expr        :: Expr
               , whereClause :: Maybe WhereClause
               }
-    | ProgramCstrSite ProgramMeta CstrMaterials
+    | ProgramCstrSite ProgramMeta CstrSite
     deriving ( Show, Eq, Generic, Has ProgramMeta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program

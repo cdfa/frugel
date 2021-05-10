@@ -18,7 +18,8 @@ import           Text.Megaparsec.Pos
 
 -- | Pretty-print a 'ParseError'. The rendered 'Doc Annotation ' always ends with a
 -- newline.
-parseErrorPretty :: ParseError CstrMaterials Void -> Doc Annotation
+parseErrorPretty :: ParseError CstrSite Void -> Doc Annotation
+
 parseErrorPretty e
     = "offset=" <> show (errorOffset e) <> ":\n" <> parseErrorTextPretty e
 
@@ -27,7 +28,8 @@ parseErrorPretty e
 -- newline.
 --
 -- @since 5.1.0
-parseErrorTextPretty :: ParseError CstrMaterials Void -> Doc Annotation
+parseErrorTextPretty :: ParseError CstrSite Void -> Doc Annotation
+
 parseErrorTextPretty (TrivialError _ us ps)
     = if isNothing us && Set.null ps
         then "unknown parse error\n"
@@ -50,7 +52,7 @@ parseErrorTextPretty (FancyError _ xs)
 -- | Pretty-print an 'ErrorItem'.
 showErrorItem :: ErrorItem (Either Char Node) -> Doc Annotation
 showErrorItem = \case
-    Tokens ts -> annPretty @CstrMaterials $ fromFoldable ts
+    Tokens ts -> annPretty @CstrSite $ fromFoldable ts
     Label label -> pretty $ toList label
     EndOfInput -> "end of input"
 

@@ -106,7 +106,7 @@ program
     setProgramWhitespace _ = error "not enough whitespace fragments"
 
 parseCstrSite :: FilePath
-    -> CstrMaterials
-    -> Either (NonEmpty (ParseError CstrMaterials Void)) Program
-parseCstrSite filePath cstrMaterials
-    = first bundleErrors $ runParser (program <* eof) filePath cstrMaterials
+    -> CstrSite
+    -> Either (NonEmpty (ParseError CstrSite Void)) Program
+parseCstrSite filePath cstrSite
+    = first bundleErrors $ runParser (program <* eof) filePath cstrSite

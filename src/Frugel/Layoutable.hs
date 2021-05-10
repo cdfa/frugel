@@ -10,8 +10,8 @@ import           Optics
 class Layoutable a where
     layoutDoc :: a -> Doc Annotation
 
-instance Layoutable CstrMaterials where
-    layoutDoc = prettyCstrMaterials layoutDoc
+instance Layoutable CstrSite where
+    layoutDoc = prettyCstrSite layoutDoc
 
 instance Layoutable Node where
     layoutDoc (IdentifierNode name) = layoutDoc name
@@ -49,7 +49,7 @@ instance Layoutable Program where
 
 layoutDecomposable :: Decomposable a => a -> Doc Annotation
 layoutDecomposable
-    = foldMap (either pretty layoutDoc) . view _CstrMaterials . decomposed
+    = foldMap (either pretty layoutDoc) . view _CstrSite . decomposed
 
 intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
 intersperseWhitespace' interstitialWhitespace

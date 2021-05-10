@@ -11,7 +11,7 @@
 
 module Frugel.Decomposition
     ( module Frugel.Internal.DecompositionState
-    , CstrMaterialsZipper
+    , CstrSiteZipper
     , Decomposable(..)
     , modifyNodeAt
     ) where
@@ -37,17 +37,17 @@ import           Numeric.Optics
 
 import           Optics
 
-type CstrMaterialsZipper = SeqZipper (Either Char Node)
+type CstrSiteZipper = SeqZipper (Either Char Node)
 
 class Decomposable n where
-    decomposed :: n -> CstrMaterials
+    decomposed :: n -> CstrSite
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
     mapMComponents :: Monad m => n -> DecompositionMonad m n
 
 class CstrSiteNode n where
-    cstrSiteConstructor :: CstrMaterials -> n
+    cstrSiteConstructor :: CstrSite -> n
 
 instance CstrSiteNode Identifier where
     cstrSiteConstructor = IdentifierCstrSite
@@ -74,7 +74,7 @@ step = do
 
 modifyNodeAt :: forall m.
     MonadError (Doc Annotation) m
-    => (Int -> CstrMaterials -> m CstrMaterials)
+    => (Int -> CstrSite -> m CstrSite)
     -> Int
     -> Program
     -> m Program
@@ -133,7 +133,7 @@ modifyNodeAt f cursorOffset program
              <* assign #modificationStatus Success)
         $ const (pure n)
 
-intersperseWhitespace' :: [Text] -> CstrMaterials' -> CstrMaterials
+intersperseWhitespace' :: [Text] -> CstrSite' -> CstrSite
 intersperseWhitespace' whitespaceFragments
     = fromList
     . intersperseWhitespace (map Left . toString) whitespaceFragments
@@ -163,11 +163,11 @@ whitespaceFragmentTraversal selector
     % unpacked
     % traversed
 
-instance Decomposable CstrMaterials where
+instance Decomposable CstrSite where
     decomposed = id
     mapMComponents
         = traverseOf
-            (_CstrMaterials % traversed)
+            (_CstrSite % traversed)
             (join . flap (bitraverse <$> gview #mapChar ?? mapMComponents))
 
 instance Decomposable Node where
@@ -184,7 +184,7 @@ instance Decomposable Node where
 
 instance Decomposable Identifier where
     decomposed (Identifier name)
-        = CstrMaterials . fromList . map Left $ toString name
+        = CstrSite . fromList . map Left $ toString name
     decomposed (IdentifierCstrSite materials) = materials
     mapMComponents identifier@(Identifier _)
         = join
@@ -204,7 +204,7 @@ instance Decomposable Expr where
         $ unwrapParentheses e
       where
         parenthesize (leadingFragment, e2, trailingFragment)
-            = toCstrMaterials
+            = toCstrSite
                 [ Left "("
                 , whitespaceFragment leadingFragment
                 , Right $ ExprNode e2
@@ -223,7 +223,7 @@ instance Decomposable Expr where
             = [ Right $ ExprNode function, Right $ ExprNode arg ]
         decomposed' (Sum _ left right)
             = [ Right $ ExprNode left, Left "+", Right $ ExprNode right ]
-        decomposed' (ExprCstrSite _ (CstrMaterials materials))
+        decomposed' (ExprCstrSite _ (CstrSite materials))
             = map (first one) $ toList materials
     mapMComponents = join . flap (asks go)
       where

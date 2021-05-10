@@ -32,10 +32,9 @@ annotateComplete = annotate $ CompletionAnnotation Complete
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = x <> nest 4 (softline <> y)
 
--- Invariant: prettyCstrMaterials of a non-empty Seq results in a non-empty render
-prettyCstrMaterials
-    :: (Node -> Doc Annotation) -> CstrMaterials -> Doc Annotation
-prettyCstrMaterials prettyNode (CstrMaterials contents)
+-- Invariant: prettyCstrSite of a non-empty Seq results in a non-empty render
+prettyCstrSite :: (Node -> Doc Annotation) -> CstrSite -> Doc Annotation
+prettyCstrSite prettyNode (CstrSite contents)
     = annotateInConstruction
     . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
     . groupByEither
@@ -47,8 +46,8 @@ class AnnotatedPretty a where
 instance AnnotatedPretty a => AnnotatedPretty (Maybe a) where
     annPretty = maybe mempty annPretty
 
-instance AnnotatedPretty CstrMaterials where
-    annPretty = prettyCstrMaterials annPretty
+instance AnnotatedPretty CstrSite where
+    annPretty = prettyCstrSite annPretty
 
 instance AnnotatedPretty Node where
     annPretty (IdentifierNode name) = annPretty name
