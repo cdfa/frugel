@@ -2,6 +2,7 @@
 
 {-# LANGUAGE StandaloneDeriving #-}
 
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -176,7 +177,7 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        = (if is _CstrSiteNode node
+        = (if is (pre $ traversal' @Node @CstrSite) node
                then fmap (cons item) variations
                else mempty)
         <> (mappend <$> textVariations (decomposed node) <*> variations)

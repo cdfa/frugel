@@ -1,5 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Node
@@ -11,7 +11,22 @@ module Frugel.Node
     , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
+    , _Abstraction
+    , _Application
     , _CstrSite
+    , _Decl
+    , _DeclCstrSite
+    , _DeclNode
+    , _ExprCstrSite
+    , _ExprNode
+    , _Identifier
+    , _IdentifierCstrSite
+    , _IdentifierNode
+    , _Sum
+    , _Variable
+    , _WhereClause
+    , _WhereCstrSite
+    , _WhereNode
     , exprMeta
     ) where
 
@@ -19,22 +34,6 @@ import           Frugel.Internal.Node
 import           Frugel.Meta
 
 import           Optics
-
-makePrisms ''Node
-
-makePrisms ''Expr
-
-makePrisms ''Decl
-
-makePrisms ''WhereClause
-
-_CstrSiteNode :: AffineFold Node CstrSite
-
-_CstrSiteNode
-    = (_IdentifierNode % _IdentifierCstrSite)
-    `afailing` (_ExprNode % _ExprCstrSite % _2)
-    `afailing` (_DeclNode % _DeclCstrSite % _2)
-    `afailing` (_WhereNode % _WhereCstrSite % _2)
 
 intersperseWhitespace :: IsList l => (Text -> l) -> [Text] -> [l] -> l
 intersperseWhitespace toItem whitespaceFragments xs

@@ -1,5 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# LANGUAGE TypeFamilies #-}
@@ -110,6 +114,7 @@ both = traversalVL $ \f -> bitraverse f f
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k = not . isn't k
+
 -- It might be possible to make this work for indexed optics too, but I haven't figured out how
 -- anySucceeding
 --     :: Is k An_AffineFold => NonEmpty (Optic' k NoIx s a) -> AffineFold s a
@@ -125,39 +130,35 @@ is k = not . isn't k
 -- From https://hackage.haskell.org/package/optics-core-0.4/docs/src/Optics.Traversal.html#adjoin
 -- | Combine two disjoint traversals into one.
 --
--- >>> over (_1 % _Just `adjoin` _2 % _Right) not (Just True, Right False)
--- (Just False,Right True)
---
--- /Note:/ if the argument traversals are not disjoint, the result will not
--- respect the 'Traversal' laws, because it will visit the same element multiple
--- times.  See section 7 of
--- <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/uitbaf.pdf Understanding Idiomatic Traversals Backwards and Forwards>
--- by Bird et al. for why this is illegal.
---
--- >>> view (partsOf (each `adjoin` _1)) ('x','y')
--- "xyx"
--- >>> set (partsOf (each `adjoin` _1)) "abc" ('x','y')
--- ('c','b')
---
+class Traverses s t a b where
+    traversal :: Traversal s t a b
+
+class Traverses' s a where
+    traversal' :: Traversal' s a
+
+instance Traverses' s a => Traverses s s a a where
+    traversal = traversal'
+
 -- For the 'Fold' version see 'Optics.Fold.summing'.
 --
 -- @since 0.4
---
--- adjoin :: (Is k A_Traversal, Is l A_Traversal)
---     => Optic' k is s a
---     -> Optic' l js s a
---     -> Traversal' s a
--- adjoin o1 o2 = combined % traversed
---   where
---     combined = traversalVL $ \f s0 ->
---         (\r1 r2 -> let
---              s1 = evalState (traverseOf o1 update s0) r1
---              s2 = evalState (traverseOf o2 update s1) r2
---              in
---                  s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
---         <*> f (toListOf (castOptic @A_Traversal o2) s0)
---     update a = get >>= \case
---         a' : as' -> put as' >> pure a'
---         [] -> pure a
--- infixr 6 `adjoin` -- Same as (<>)
--- {-# INLINE [1] adjoin #-}
+adjoin :: (Is k A_Traversal, Is l A_Traversal)
+    => Optic' k is s a
+    -> Optic' l js s a
+    -> Traversal' s a
+adjoin o1 o2 = combined % traversed
+  where
+    combined = traversalVL $ \f s0 ->
+        (\r1 r2 -> let
+             s1 = evalState (traverseOf o1 update s0) r1
+             s2 = evalState (traverseOf o2 update s1) r2
+             in
+                 s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
+        <*> f (toListOf (castOptic @A_Traversal o2) s0)
+    update a = get >>= \case
+        a' : as' -> put as' >> pure a'
+        [] -> pure a
+
+infixr 6 `adjoin` -- Same as (<>)
+
+{-# INLINE [1] adjoin #-}

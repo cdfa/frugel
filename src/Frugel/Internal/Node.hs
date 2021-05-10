@@ -65,6 +65,14 @@ makePrisms ''CstrSite
 
 makePrisms ''Identifier
 
+makePrisms ''Node
+
+makePrisms ''Expr
+
+makePrisms ''Decl
+
+makePrisms ''WhereClause
+
 instance Cons CstrSite CstrSite (Either Char Node) (Either Char Node) where
     _Cons = _CstrSite % _Cons % aside (re _CstrSite)
 
@@ -82,3 +90,10 @@ instance Has Meta Expr where
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
+
+instance Traverses' Node CstrSite where
+    traversal'
+        = (_IdentifierNode % _IdentifierCstrSite)
+        `adjoin` (_ExprNode % _ExprCstrSite % _2)
+        `adjoin` (_DeclNode % _DeclCstrSite % _2)
+        `adjoin` (_WhereNode % _WhereCstrSite % _2)
