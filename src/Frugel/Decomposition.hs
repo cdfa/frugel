@@ -212,7 +212,8 @@ instance Decomposable Expr where
                 , Left ")"
                 ]
         whitespaceFragment = Left . toString
-        decomposed' (IdentifierExpr _ name) = [ Right $ IdentifierNode name ]
+        decomposed' (Variable _ name) = [ Right $ IdentifierNode name ]
+
         decomposed' (Abstraction _ name body)
             = [ Left [ '\\' ]
               , Right $ IdentifierNode name
@@ -243,7 +244,7 @@ instance Decomposable Expr where
                     , (<$ mapChar ')')
                     ]
             -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
-            IdentifierExpr _ _ -> _IdentifierExpr % _2 %%~ mapIdentifier
+            Variable _ _ -> _Variable % _2 %%~ mapIdentifier
             Abstraction{} -> chain
                 $ intersperseWhitespaceTraversals'
                     [ (<$ mapChar '\\')

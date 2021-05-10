@@ -62,7 +62,8 @@ instance AnnotatedPretty Identifier where
 instance AnnotatedPretty Expr where
     annPretty = parenthesizeExpr parens annPretty'
       where
-        annPretty' (IdentifierExpr _ n) = annPretty n
+        annPretty' (Variable _ n) = annPretty n
+
         annPretty' (Abstraction _ arg expr)
             = (backslash <> annPretty arg) `nestingLine` equals
             <+> annPretty expr

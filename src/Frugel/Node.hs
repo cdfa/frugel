@@ -80,7 +80,7 @@ unwrapParentheses e = Left e
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)
 identifier' :: Identifier -> Expr
-identifier' = IdentifierExpr defaultExprMeta
+identifier' = Variable defaultExprMeta
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction defaultExprMeta

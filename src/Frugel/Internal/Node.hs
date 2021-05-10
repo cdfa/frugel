@@ -42,7 +42,7 @@ data Identifier = Identifier Text | IdentifierCstrSite CstrSite
     deriving ( Eq, Ord, Show )
 
 data Expr
-    = IdentifierExpr ExprMeta Identifier
+    = Variable ExprMeta Identifier
     | Abstraction ExprMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
