@@ -49,22 +49,22 @@ class Decomposable n where
     mapMComponents :: Monad m => n -> DecompositionMonad m n
 
 class CstrSiteNode n where
-    cstrSiteConstructor :: CstrSite -> n
+    fromCstrSite :: CstrSite -> n
 
 instance CstrSiteNode Identifier where
-    cstrSiteConstructor = IdentifierCstrSite
+    fromCstrSite = IdentifierCstrSite
 
 instance CstrSiteNode Expr where
-    cstrSiteConstructor = ExprCstrSite defaultExprMeta
+    fromCstrSite = ExprCstrSite defaultExprMeta
 
 instance CstrSiteNode Decl where
-    cstrSiteConstructor = DeclCstrSite defaultMeta
+    fromCstrSite = DeclCstrSite defaultMeta
 
 instance CstrSiteNode WhereClause where
-    cstrSiteConstructor = WhereCstrSite defaultMeta
+    fromCstrSite = WhereCstrSite defaultMeta
 
 instance CstrSiteNode Program where
-    cstrSiteConstructor = ProgramCstrSite defaultProgramMeta
+    fromCstrSite = ProgramCstrSite defaultProgramMeta
 
 step :: MonadState DecompositionState m => m ()
 step = do
@@ -123,7 +123,7 @@ modifyNodeAt f cursorOffset program
                         (guses #textOffset (<= 0)
                          &&^ guses #modificationStatus (isn't _Success))
                         (catchError
-                             (cstrSiteConstructor <$> transform n
+                             (fromCstrSite <$> transform n
                               <* assign #modificationStatus Success)
                          $ const (pure n))
                         (pure newNode)
