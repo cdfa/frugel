@@ -12,14 +12,11 @@
 module Frugel.Internal.DecompositionState
     ( ModificationStatus(..)
     , DecompositionState(DecompositionState)
-    , DecompositionEnv(..)
     , DecompositionMonad
     , initialDecompositionState
     , _Todo
     , _Success
     ) where
-
-import           Frugel.Node
 
 import           Optics
 
@@ -35,23 +32,11 @@ data DecompositionState
                          }
     deriving ( Show )
 
-data DecompositionEnv m
-    = DecompositionEnv { mapChar        :: Char -> (DecompositionMonad m) Char
-                       , mapIdentifier  :: Identifier
-                             -> (DecompositionMonad m) Identifier
-                       , mapExpr        :: Expr -> (DecompositionMonad m) Expr
-                       , mapDecl        :: Decl -> (DecompositionMonad m) Decl
-                       , mapWhereClause :: WhereClause
-                             -> (DecompositionMonad m) WhereClause
-                       }
-
-type DecompositionMonad m = ReaderT (DecompositionEnv m) m
+type DecompositionMonad m = StateT DecompositionState m
 
 makePrisms ''ModificationStatus
 
 makeFieldLabelsWith noPrefixFieldLabels ''DecompositionState
-
-makeFieldLabelsWith noPrefixFieldLabels ''DecompositionEnv
 
 initialDecompositionState :: Int -> DecompositionState
 
