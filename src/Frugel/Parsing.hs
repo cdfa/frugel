@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# LANGUAGE TypeApplications #-}
+
 module Frugel.Parsing
     ( module Frugel.Parsing
     , module Frugel.Parsing.Error
@@ -26,10 +28,10 @@ identifier = literalIdentifier <|> identifierNode
     literalIdentifier
         = (fromString .: (:)) <$> lowerChar
         <*> many alphaNumChar <?> "an identifier"
-    identifierNode = node "a declaration node" _IdentifierNode
+    identifierNode = node "a declaration node"
 
-node :: String -> Prism' Node w -> Parser w
-node name nodePrism = namedToken name $ preview (_Right % nodePrism)
+node :: IsNode w => String -> Parser w
+node name = namedToken name $ preview (_Right % nodePrism)
 
 term :: Parser Expr
 term
@@ -44,7 +46,7 @@ term
               , exprCstrSite (CstrSite empty) <$% string "..."
               , Node.identifier' <$%> identifier
               ]
-        , node "an expression node" _ExprNode
+        , node "an expression node"
         ]
   where
     surroundOriginalWhitespace
@@ -67,9 +69,9 @@ expr
                           (choice
                                [ () <$ char '+'
                                , () <$ string "where"
-                               , () <$ node "" _WhereNode
+                               , () <$ node @WhereClause ""
                                , () <$ (() <$% identifier <*% char '=')
-                               , () <$ node "" _DeclNode
+                               , () <$ node @Decl ""
                                , () <$ char ')'
                                , eof
                                ])))
@@ -84,13 +86,13 @@ decl :: Parser Decl
 decl = setWhitespace <$> literalDecl <|> declNode
   where
     literalDecl = Node.decl' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
-    declNode = node "a declaration node" _DeclNode
+    declNode = node "a declaration node"
 
 whereClause :: Parser WhereClause
 whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
   where
     literalWhere = Node.whereClause' <<$>> string "where" *%> wSome decl
-    whereNode = node "a where clause node" _WhereNode
+    whereNode = node "a where clause node"
 
 program :: Parser Program
 program

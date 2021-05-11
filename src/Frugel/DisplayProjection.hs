@@ -73,8 +73,4 @@ instance DisplayProjection InternalError where
 
 decomposableDoc :: Decomposable a => a -> Doc Annotation
 decomposableDoc
-    = foldMap (either pretty displayDoc) . view _CstrSite . decomposed
-
-intersperseWhitespace' :: [Text] -> [Doc Annotation] -> [Doc Annotation]
-intersperseWhitespace' interstitialWhitespace
-    = intersperseWhitespace (one . pretty) interstitialWhitespace . map one
+    = foldMap (either pretty displayDoc) . view _CstrSite . decompose

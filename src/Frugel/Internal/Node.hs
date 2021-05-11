@@ -4,6 +4,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 {-# LANGUAGE DerivingStrategies #-}
+
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -97,3 +99,42 @@ instance Refracts' A_Traversal NoIx Node CstrSite where
         `adjoin` (_ExprNode % _ExprCstrSite % _2)
         `adjoin` (_DeclNode % _DeclCstrSite % _2)
         `adjoin` (_WhereNode % _WhereCstrSite % _2)
+
+instance Refracts' A_Getter NoIx CstrSite Identifier where
+    optic' = to IdentifierCstrSite
+
+instance Refracts' A_Prism NoIx Node Identifier where
+    optic' = _IdentifierNode
+
+instance Refracts' A_Getter NoIx CstrSite Expr where
+    optic' = to $ ExprCstrSite defaultExprMeta
+
+instance Refracts' A_Prism NoIx Node Decl where
+    optic' = _DeclNode
+
+instance Refracts' A_Getter NoIx CstrSite Decl where
+    optic' = to $ DeclCstrSite defaultMeta
+
+instance Refracts' A_Prism NoIx Node WhereClause where
+    optic' = _WhereNode
+
+instance Refracts' A_Getter NoIx CstrSite WhereClause where
+    optic' = to $ WhereCstrSite defaultMeta
+
+instance Refracts' A_Prism NoIx Node Expr where
+    optic' = _ExprNode
+
+class (Refracts' A_Prism NoIx Node a, Refracts' A_Getter NoIx CstrSite a)
+    => IsNode a where
+    nodePrism :: Prism' Node a
+    nodePrism = optic'
+    fromCstrSite :: Getter CstrSite a
+    fromCstrSite = optic'
+
+instance IsNode Identifier
+
+instance IsNode Expr
+
+instance IsNode Decl
+
+instance IsNode WhereClause

@@ -160,7 +160,7 @@ attemptEdit f model = case second reparse . f $ view #program model of
         = bimap (fromMaybe newProgram) (map ParseError . toList)
         . foldr findSuccessfulParse (Nothing, mempty)
         . textVariations
-        $ decomposed newProgram
+        $ decompose newProgram
     findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
         = firstSuccessfulParse
     findSuccessfulParse materials (Nothing, errors)
@@ -180,7 +180,7 @@ textVariations
         = (if is (pre $ optic' @A_Traversal @NoIx @Node @CstrSite) node
                then fmap (cons item) variations
                else mempty)
-        <> (mappend <$> textVariations (decomposed node) <*> variations)
+        <> (mappend <$> textVariations (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int

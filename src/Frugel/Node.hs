@@ -5,6 +5,7 @@
 module Frugel.Node
     ( module Frugel.Node
     , module Frugel.Meta
+    , IsNode(..)
     , Expr(..)
     , CstrSite(..)
     , Identifier(..)
@@ -34,11 +35,6 @@ import           Frugel.Internal.Node
 import           Frugel.Meta
 
 import           Optics
-
-intersperseWhitespace :: IsList l => (Text -> l) -> [Text] -> [l] -> l
-intersperseWhitespace toItem whitespaceFragments xs
-    = fromList . concat
-    $ interleave [ map toList xs, map (toList . toItem) whitespaceFragments ]
 
 parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
 parenthesizeExpr parenthesize prettyExpr x
@@ -91,7 +87,6 @@ sum' :: Expr -> Expr -> Expr
 sum' = Sum defaultExprMeta
 
 exprCstrSite :: CstrSite -> Expr
-
 exprCstrSite = ExprCstrSite defaultExprMeta
 
 decl' :: Identifier -> Expr -> Decl

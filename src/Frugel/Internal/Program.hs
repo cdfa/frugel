@@ -35,3 +35,6 @@ instance Has Meta Program where
 
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
+
+instance Refracts' A_Getter NoIx CstrSite Program where
+    optic' = to $ ProgramCstrSite defaultProgramMeta
