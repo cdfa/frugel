@@ -1,2 +1,8 @@
 cradle:
   stack:
+    - path: "./src"
+      component: "frugel:lib"
+    - path: "./app"
+      component: "frugel:exe:frugel-exe"
+    - path: "./test"
+      component: "frugel:test:frugel-test"

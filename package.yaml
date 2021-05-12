@@ -52,6 +52,7 @@ library:
     - lens
     - mtl
     - data-default-class
+    - genvalidity
 
 executables:
   frugel-exe:
@@ -81,3 +82,5 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - frugel
+      - sydtest
+      - genvalidity-sydtest
