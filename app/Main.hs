@@ -15,7 +15,7 @@ import           Language.Javascript.JSaddle.Warp as JSaddle
 
 import           Miso
 
-import           Text.Pretty.Simple               ( pShowNoColor )
+import           Text.Show.Pretty
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -67,5 +67,5 @@ viewModel model
                      . displayDoc)
                 $ errors model
               ]
-        , webPrint $ pShowNoColor model
+        , webPrint $ ppShow model
         ]

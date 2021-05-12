@@ -43,7 +43,6 @@ library:
     - megaparsec >= 9.0.1
     - parser-combinators
     - containers
-    - pretty-simple
     - text
     - prettyprinter >= 1.7.0
     - composition
@@ -65,7 +64,7 @@ executables:
     dependencies:
       - frugel
       - miso
-      - pretty-simple
+      - pretty-show
       - prettyprinter >= 1.7.0
       - aeson
     when:
