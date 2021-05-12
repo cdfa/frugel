@@ -75,7 +75,7 @@ modifyNodeAt f cursorOffset program
     runModification
         = mapNode program `runStateT` initialDecompositionState cursorOffset
     mapChar c = c <$ step -- trace (show c) step
-    mapNode :: (Decomposable n, Refracts' A_Getter NoIx CstrSite n)
+    mapNode :: (Decomposable n, Default (Getter CstrSite n))
         => n
         -> DecompositionMonad m' n
     mapNode n = do
@@ -99,7 +99,7 @@ modifyNodeAt f cursorOffset program
                         (guses #textOffset (<= 0)
                          &&^ guses #modificationStatus (isn't _Success))
                         (catchError
-                             (view @A_Getter @NoIx optic' <$> transform n
+                             (view @A_Getter @NoIx def <$> transform n
                               <* assign #modificationStatus Success)
                          $ const (pure n))
                         (pure newNode)

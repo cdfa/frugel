@@ -52,6 +52,7 @@ library:
     - optics-vl >= 0.2.1
     - lens
     - mtl
+    - data-default-class
 
 executables:
   frugel-exe:

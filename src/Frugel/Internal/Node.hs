@@ -93,43 +93,42 @@ instance Has Meta Expr where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
-instance Refracts' A_Traversal NoIx Node CstrSite where
-    optic'
+instance Default (Traversal' Node CstrSite) where
+    def
         = (_IdentifierNode % _IdentifierCstrSite)
         `adjoin` (_ExprNode % _ExprCstrSite % _2)
         `adjoin` (_DeclNode % _DeclCstrSite % _2)
         `adjoin` (_WhereNode % _WhereCstrSite % _2)
 
-instance Refracts' A_Getter NoIx CstrSite Identifier where
-    optic' = to IdentifierCstrSite
+instance Default (Getter CstrSite Identifier) where
+    def = to IdentifierCstrSite
 
-instance Refracts' A_Prism NoIx Node Identifier where
-    optic' = _IdentifierNode
+instance Default (Prism' Node Identifier) where
+    def = _IdentifierNode
 
-instance Refracts' A_Getter NoIx CstrSite Expr where
-    optic' = to $ ExprCstrSite defaultExprMeta
+instance Default (Getter CstrSite Expr) where
+    def = to $ ExprCstrSite defaultExprMeta
 
-instance Refracts' A_Prism NoIx Node Decl where
-    optic' = _DeclNode
+instance Default (Prism' Node Expr) where
+    def = _ExprNode
 
-instance Refracts' A_Getter NoIx CstrSite Decl where
-    optic' = to $ DeclCstrSite defaultMeta
+instance Default (Getter CstrSite Decl) where
+    def = to $ DeclCstrSite defaultMeta
 
-instance Refracts' A_Prism NoIx Node WhereClause where
-    optic' = _WhereNode
+instance Default (Prism' Node Decl) where
+    def = _DeclNode
 
-instance Refracts' A_Getter NoIx CstrSite WhereClause where
-    optic' = to $ WhereCstrSite defaultMeta
+instance Default (Getter CstrSite WhereClause) where
+    def = to $ WhereCstrSite defaultMeta
 
-instance Refracts' A_Prism NoIx Node Expr where
-    optic' = _ExprNode
+instance Default (Prism' Node WhereClause) where
+    def = _WhereNode
 
-class (Refracts' A_Prism NoIx Node a, Refracts' A_Getter NoIx CstrSite a)
-    => IsNode a where
+class (Default (Prism' Node a), Default (Getter CstrSite a)) => IsNode a where
     nodePrism :: Prism' Node a
-    nodePrism = optic'
+    nodePrism = def
     fromCstrSite :: Getter CstrSite a
-    fromCstrSite = optic'
+    fromCstrSite = def
 
 instance IsNode Identifier
 
