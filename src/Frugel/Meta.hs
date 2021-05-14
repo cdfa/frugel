@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Frugel.Meta
     ( module Frugel.Meta
     , Meta(Meta)
@@ -5,15 +7,32 @@ module Frugel.Meta
     , ProgramMeta(ProgramMeta)
     ) where
 
+import           Data.GenValidity
+import           Data.Has
+import           Data.Validity.Text   ()
+
 import           Frugel.Internal.Meta
 
-defaultExprMeta :: ExprMeta
+import           Relude               ( abs )
+
+defaultExprMeta :: Int -> ExprMeta
 defaultExprMeta
-    = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta }
+    n = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta n }
 
-defaultProgramMeta :: ProgramMeta
+defaultProgramMeta :: Int -> ProgramMeta
 defaultProgramMeta
-    = ProgramMeta { standardMeta = defaultMeta, trailingWhitespace = "" }
+    n = ProgramMeta { standardMeta = defaultMeta n, trailingWhitespace = "" }
 
-defaultMeta :: Meta
-defaultMeta = Meta { interstitialWhitespace = [] }
+defaultMeta :: Int -> Meta
+defaultMeta n = Meta { interstitialWhitespace = replicate n "" }
+
+validateInterstitialWhitespace :: Has Meta b => (b -> Int) -> b -> Validation
+validateInterstitialWhitespace expectedWhitespaceFragmentCount n
+    = mconcat
+        [ genericValidate
+        , declare "has the correct number of whitespace fragments"
+          . (== expectedWhitespaceFragmentCount n)
+          . length
+          . interstitialWhitespace
+        ]
+    $ getter n

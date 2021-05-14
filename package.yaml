@@ -35,6 +35,7 @@ default-extensions:
   - OverloadedStrings
   - OverloadedLabels
   - DisambiguateRecordFields
+  - DeriveGeneric
 
 library:
   source-dirs: src
@@ -53,6 +54,8 @@ library:
     - mtl
     - data-default-class
     - genvalidity
+    - validity-text
+    - validity-containers
 
 executables:
   frugel-exe:

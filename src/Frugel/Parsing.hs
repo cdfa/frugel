@@ -43,7 +43,7 @@ term
               [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
                 <*%> expr
                 -- Non recursive production rules at the bottom
-              , exprCstrSite (CstrSite empty) <$% string "..."
+              , exprCstrSite' (CstrSite empty) <$% string "..."
               , Node.identifier' <$%> identifier
               ]
         , node "an expression node"
@@ -64,7 +64,7 @@ expr
         [ [ InfixL
                 (Application . setWhitespace
                  <$> try
-                     (defaultExprMeta <<$> whitespace
+                     (defaultExprMeta 1 <<$> whitespace
                       <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
                           (choice
                                [ () <$ char '+'
@@ -78,7 +78,8 @@ expr
           ]
         , [ InfixL
                 (Sum . setWhitespace
-                 <$> try (defaultExprMeta <$% pure () <*% char '+' <*% pure ()))
+                 <$> try
+                     (defaultExprMeta 2 <$% pure () <*% char '+' <*% pure ()))
           ]
         ]
 

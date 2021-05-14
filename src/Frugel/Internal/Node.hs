@@ -1,36 +1,31 @@
 {-# LANGUAGE DataKinds #-}
-
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-
 {-# LANGUAGE DerivingStrategies #-}
-
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Internal.Node where
 
+import           Data.Char
+import           Data.GenValidity
 import           Data.Has
+import           Data.Validity.Sequence ()
 
-import           Frugel.Internal.Meta ( ExprMeta(standardMeta) )
+import           Frugel.Internal.Meta   ( ExprMeta(standardMeta) )
 import           Frugel.Meta
 
 import           Optics
 
-import           Text.Megaparsec
+import           Text.Megaparsec.Stream
 
 newtype CstrSite = CstrSite (Seq (Either Char Node))
-    deriving ( Eq, Ord, Show )
+    deriving ( Eq, Ord, Show, Generic )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
 data Node
@@ -38,10 +33,10 @@ data Node
     | ExprNode Expr
     | DeclNode Decl
     | WhereNode WhereClause
-    deriving ( Eq, Ord, Show )
+    deriving ( Eq, Ord, Show, Generic )
 
 data Identifier = Identifier Text | IdentifierCstrSite CstrSite
-    deriving ( Eq, Ord, Show )
+    deriving ( Eq, Ord, Show, Generic )
 
 data Expr
     = Variable ExprMeta Identifier
@@ -93,6 +88,15 @@ instance Has Meta Expr where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
+exprCstrSite' :: CstrSite -> Expr
+exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
+
+declCstrSite' :: CstrSite -> Decl
+declCstrSite' = DeclCstrSite $ defaultMeta 0
+
+whereCstrSite' :: CstrSite -> WhereClause
+whereCstrSite' = WhereCstrSite $ defaultMeta 0
+
 instance Default (Traversal' Node CstrSite) where
     def
         = (_IdentifierNode % _IdentifierCstrSite)
@@ -107,19 +111,19 @@ instance Default (Prism' Node Identifier) where
     def = _IdentifierNode
 
 instance Default (Getter CstrSite Expr) where
-    def = to $ ExprCstrSite defaultExprMeta
+    def = to exprCstrSite'
 
 instance Default (Prism' Node Expr) where
     def = _ExprNode
 
 instance Default (Getter CstrSite Decl) where
-    def = to $ DeclCstrSite defaultMeta
+    def = to declCstrSite'
 
 instance Default (Prism' Node Decl) where
     def = _DeclNode
 
 instance Default (Getter CstrSite WhereClause) where
-    def = to $ WhereCstrSite defaultMeta
+    def = to whereCstrSite'
 
 instance Default (Prism' Node WhereClause) where
     def = _WhereNode
@@ -137,3 +141,41 @@ instance IsNode Expr
 instance IsNode Decl
 
 instance IsNode WhereClause
+
+instance Validity CstrSite
+
+instance Validity Node
+
+instance Validity Identifier where
+    validate
+        = mconcat
+            [ genericValidate
+            , fromMaybe valid
+              . preview
+                  (_Identifier
+                   % unpacked
+                   % to
+                       (mconcat
+                            [ declare "consists of alpha-numeric characters"
+                              . all isAlphaNum
+                            , declare "is not empty" . not . null
+                            ]))
+            ]
+
+instance Validity Expr where
+    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
+        Variable{} -> 0
+        Abstraction{} -> 3
+        Application{} -> 1
+        Sum{} -> 2
+        ExprCstrSite{} -> 0 ]
+
+instance Validity Decl where
+    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
+        Decl{} -> 2
+        DeclCstrSite{} -> 0 ]
+
+instance Validity WhereClause where
+    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
+        WhereClause _ decls -> length decls
+        WhereCstrSite{} -> 0 ]

@@ -1,12 +1,12 @@
 { sources, pkgs, ghc }:
 let
-  stablePkgs = import sources.nixpkgs {};
+  stablePkgs = import sources.nixpkgs { };
 
   gitIgnore = stablePkgs.nix-gitignore.gitignoreSourcePure;
 
   packageSourceOverrides = pkgs.lib.mapAttrs (
     name: version:
-      pkgs.haskell.packages.${ghc}.callHackage name version {}
+      pkgs.haskell.packages.${ghc}.callHackage name version { }
   );
   overrides = packageSourceOverrides {
     megaparsec = "9.0.1";
@@ -15,6 +15,8 @@ let
     optics = "0.3";
     it-has = "0.2.0.0";
     genvalidity-sydtest = "0.0.0.0";
+    validity-text = "0.3.1.1";
+    validity-containers = "0.5.0.4";
   };
 in
 pkgs.haskell.packages.${ghc}.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.)

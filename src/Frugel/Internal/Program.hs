@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 {-# LANGUAGE RecordWildCards #-}
@@ -12,6 +14,7 @@
 
 module Frugel.Internal.Program where
 
+import           Data.GenValidity
 import           Data.Has
 
 import           Frugel.Internal.Meta ( ProgramMeta(standardMeta) )
@@ -36,5 +39,13 @@ instance Has Meta Program where
 programMeta :: Lens' Program ProgramMeta
 programMeta = hasLens
 
+programCstrSite' :: CstrSite -> Program
+programCstrSite' = ProgramCstrSite $ defaultProgramMeta 0
+
 instance Default (Getter CstrSite Program) where
-    def = to $ ProgramCstrSite defaultProgramMeta
+    def = to programCstrSite'
+
+instance Validity Program where
+    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
+        Program{} -> 1
+        ProgramCstrSite{} -> 0 ]

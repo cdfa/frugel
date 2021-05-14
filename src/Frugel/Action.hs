@@ -142,7 +142,7 @@ prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
         & #errors %~ cons (InternalError ParseFailedAfterPrettyPrint)
   where
     prettyPrinted
-        = ProgramCstrSite defaultProgramMeta
+        = programCstrSite'
         . renderSimplyDecorated (fromList . map Left . toString) (const id)
         . treeForm
         . layoutSmart defaultLayoutOptions

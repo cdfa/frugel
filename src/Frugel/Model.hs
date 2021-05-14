@@ -6,7 +6,7 @@ import           Frugel.Program
 
 initialModel :: Model
 initialModel
-    = Model { program      = ProgramCstrSite defaultProgramMeta whereClauseTest
+    = Model { program      = programCstrSite' whereClauseTest
             , cursorOffset = 0
             , errors       = []
             }

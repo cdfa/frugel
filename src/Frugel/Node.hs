@@ -29,6 +29,7 @@ module Frugel.Node
     , _WhereCstrSite
     , _WhereNode
     , exprMeta
+    , exprCstrSite'
     ) where
 
 import           Frugel.Internal.Node
@@ -75,25 +76,22 @@ unwrapParentheses e = Left e
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)
 identifier' :: Identifier -> Expr
-identifier' = Variable defaultExprMeta
+identifier' = Variable $ defaultExprMeta 0
 
 abstraction' :: Identifier -> Expr -> Expr
-abstraction' = Abstraction defaultExprMeta
+abstraction' = Abstraction $ defaultExprMeta 3
 
 application' :: Expr -> Expr -> Expr
-application' = Application defaultExprMeta
+application' = Application $ defaultExprMeta 1
 
 sum' :: Expr -> Expr -> Expr
-sum' = Sum defaultExprMeta
-
-exprCstrSite :: CstrSite -> Expr
-exprCstrSite = ExprCstrSite defaultExprMeta
+sum' = Sum $ defaultExprMeta 2
 
 decl' :: Identifier -> Expr -> Decl
-decl' = Decl defaultMeta
+decl' = Decl $ defaultMeta 2
 
 whereClause' :: NonEmpty Decl -> WhereClause
-whereClause' = WhereClause defaultMeta
+whereClause' decls = WhereClause (defaultMeta $ length decls) decls
 
 type CstrSite' = [Either String Node]
 
@@ -104,7 +102,7 @@ minimalCstrSite :: CstrSite
 minimalCstrSite = one . Right . ExprNode $ identifier' "x"
 
 nested :: CstrSite
-nested = one . Right . ExprNode . exprCstrSite $ minimalCstrSite
+nested = one . Right . ExprNode . exprCstrSite' $ minimalCstrSite
 
 frugelId :: CstrSite
 frugelId = toCstrSite [ Left "\\x=x" ]
