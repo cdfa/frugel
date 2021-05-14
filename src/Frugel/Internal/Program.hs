@@ -14,13 +14,17 @@
 
 module Frugel.Internal.Program where
 
+import           Control.ValidEnumerable
+
 import           Data.GenValidity
 import           Data.Has
 
-import           Frugel.Internal.Meta ( ProgramMeta(standardMeta) )
+import           Frugel.Internal.Meta    ( ProgramMeta(standardMeta) )
 import           Frugel.Node
 
 import           Optics
+
+import           Test.QuickCheck.Gen
 
 data Program
     = Program { meta        :: ProgramMeta
@@ -46,6 +50,24 @@ instance Default (Getter CstrSite Program) where
     def = to programCstrSite'
 
 instance Validity Program where
-    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
+    validate
+        = mconcat
+            [ genericValidate
+            , validateInterstitialWhitespace validInterstitialWhitespace
+            ]
+
+instance ValidInterstitialWhitespace Program where
+    validInterstitialWhitespace = \case
         Program{} -> 1
-        ProgramCstrSite{} -> 0 ]
+        ProgramCstrSite{} -> 0
+
+instance GenValid Program where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance ValidEnumerable Program where
+    enumerateValid
+        = datatype
+            [ addMetaWith enumerateValidProgramMeta (uncurry . Program)
+            , addMetaWith enumerateValidProgramMeta ProgramCstrSite
+            ]

@@ -7,20 +7,31 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Internal.Node where
 
+import           Control.Enumerable.Combinators       ()
+import           Control.ValidEnumerable
+import           Control.ValidEnumerable.Alphanumeric
+import           Control.ValidEnumerable.Whitespace
+
 import           Data.Char
 import           Data.GenValidity
+import           Data.GenValidity.Sequence            ()
 import           Data.Has
-import           Data.Validity.Sequence ()
+import qualified Data.Text                            as Text
+import           Data.Text.Optics
+import           Data.Validity.Sequence               ()
 
-import           Frugel.Internal.Meta   ( ExprMeta(standardMeta) )
+import           Frugel.Internal.Meta                 ( ExprMeta(standardMeta) )
 import           Frugel.Meta
 
 import           Optics
+
+import           Test.QuickCheck.Gen                  as Gen
 
 import           Text.Megaparsec.Stream
 
@@ -35,6 +46,7 @@ data Node
     | WhereNode WhereClause
     deriving ( Eq, Ord, Show, Generic )
 
+-- Invariant: identifiers should consist only of alphanumeric characters and should not be the empty string
 data Identifier = Identifier Text | IdentifierCstrSite CstrSite
     deriving ( Eq, Ord, Show, Generic )
 
@@ -87,6 +99,12 @@ instance Has Meta Expr where
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
+
+declMeta :: Lens' Decl Meta
+declMeta = hasLens
+
+whereClauseMeta :: Lens' WhereClause Meta
+whereClauseMeta = hasLens
 
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
@@ -142,6 +160,27 @@ instance IsNode Decl
 
 instance IsNode WhereClause
 
+class ValidInterstitialWhitespace a where
+    validInterstitialWhitespace :: a -> Int
+
+instance ValidInterstitialWhitespace Expr where
+    validInterstitialWhitespace = \case
+        Variable{} -> 0
+        Abstraction{} -> 3
+        Application{} -> 1
+        Sum{} -> 2
+        ExprCstrSite{} -> 0
+
+instance ValidInterstitialWhitespace Decl where
+    validInterstitialWhitespace = \case
+        Decl{} -> 2
+        DeclCstrSite{} -> 0
+
+instance ValidInterstitialWhitespace WhereClause where
+    validInterstitialWhitespace = \case
+        WhereClause _ decls -> length decls
+        WhereCstrSite{} -> 0
+
 instance Validity CstrSite
 
 instance Validity Node
@@ -163,19 +202,113 @@ instance Validity Identifier where
             ]
 
 instance Validity Expr where
-    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
-        Variable{} -> 0
-        Abstraction{} -> 3
-        Application{} -> 1
-        Sum{} -> 2
-        ExprCstrSite{} -> 0 ]
+    validate
+        = mconcat
+            [ genericValidate
+            , validateInterstitialWhitespace validInterstitialWhitespace
+            ]
 
 instance Validity Decl where
-    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
-        Decl{} -> 2
-        DeclCstrSite{} -> 0 ]
+    validate
+        = mconcat
+            [ genericValidate
+            , validateInterstitialWhitespace validInterstitialWhitespace
+            ]
 
 instance Validity WhereClause where
-    validate = mconcat [ genericValidate, validateInterstitialWhitespace $ \case
-        WhereClause _ decls -> length decls
-        WhereCstrSite{} -> 0 ]
+    validate
+        = mconcat
+            [ genericValidate
+            , validateInterstitialWhitespace validInterstitialWhitespace
+            ]
+
+instance GenValid CstrSite where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
+
+instance GenValid Node where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
+
+instance GenValid Identifier where
+    genValid = sized uniformValid
+    shrinkValid
+        = filter (allOf _Identifier (not . Text.null))
+        . shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking maintains the alphanumeric invariant
+
+instance GenValid Expr where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance GenValid Decl where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance GenValid WhereClause where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance ValidEnumerable CstrSite where
+    enumerateValid = datatype [ c1 CstrSite ]
+
+instance ValidEnumerable Node where
+    enumerateValid
+        = datatype
+            [ c1 IdentifierNode, c1 ExprNode, c1 DeclNode, c1 WhereNode ]
+
+instance ValidEnumerable Identifier where
+    enumerateValid
+        = datatype
+            [ c1
+                  (Identifier
+                   . toText
+                   . map unAlphanumeric
+                   . toList @(NonEmpty Alphanumeric))
+            , c1 IdentifierCstrSite
+            ]
+
+instance ValidEnumerable Expr where
+    enumerateValid
+        = datatype
+            [ addMetaWith enumerateValidExprMeta Variable
+            , addMetaWith enumerateValidExprMeta (uncurry . Abstraction)
+            , addMetaWith enumerateValidExprMeta (uncurry . Application)
+            , addMetaWith enumerateValidExprMeta (uncurry . Sum)
+            , addMetaWith enumerateValidExprMeta ExprCstrSite
+            ]
+
+instance ValidEnumerable Decl where
+    enumerateValid
+        = datatype [ addMeta (uncurry . Decl), addMeta DeclCstrSite ]
+
+instance ValidEnumerable WhereClause where
+    enumerateValid
+        = datatype
+            [ (\meta' decls -> WhereClause
+                   (meta'
+                    & #interstitialWhitespace
+                    .~ map (toText . map unWhitespace . fst) (toList decls))
+               $ fmap snd decls) <$> enumerateValidMeta 0 <*> accessValid
+            , addMeta WhereCstrSite
+            ]
+
+addMeta
+    :: (ValidInterstitialWhitespace n, Sized f, Typeable f, ValidEnumerable a)
+    => (Meta -> a -> n)
+    -> Shareable f n
+addMeta = addMetaWith enumerateValidMeta
+
+addMetaWith
+    :: (ValidInterstitialWhitespace n, Sized f, Typeable f, ValidEnumerable a)
+    => (Int -> Shareable f m)
+    -> (m -> a -> n)
+    -> Shareable f n
+addMetaWith enumerateValidNodeMeta c
+    = flip c <$> accessValid
+    <*> (enumerateValidNodeMeta
+         . validInterstitialWhitespace
+         . c (error "Default meta was evaluated during enumeration")
+         $ error "Dummy node children evaluated during enumeration")
+
+
+

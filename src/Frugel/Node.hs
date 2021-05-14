@@ -6,6 +6,7 @@ module Frugel.Node
     ( module Frugel.Node
     , module Frugel.Meta
     , IsNode(..)
+    , ValidInterstitialWhitespace(..)
     , Expr(..)
     , CstrSite(..)
     , Identifier(..)
@@ -29,7 +30,12 @@ module Frugel.Node
     , _WhereCstrSite
     , _WhereNode
     , exprMeta
+    , declMeta
     , exprCstrSite'
+    , declCstrSite'
+    , whereCstrSite'
+    , addMeta
+    , addMetaWith
     ) where
 
 import           Frugel.Internal.Node

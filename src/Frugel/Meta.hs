@@ -5,6 +5,9 @@ module Frugel.Meta
     , Meta(Meta)
     , ExprMeta(ExprMeta)
     , ProgramMeta(ProgramMeta)
+    , enumerateValidExprMeta
+    , enumerateValidProgramMeta
+    , enumerateValidMeta
     ) where
 
 import           Data.GenValidity
@@ -12,8 +15,6 @@ import           Data.Has
 import           Data.Validity.Text   ()
 
 import           Frugel.Internal.Meta
-
-import           Relude               ( abs )
 
 defaultExprMeta :: Int -> ExprMeta
 defaultExprMeta

@@ -56,6 +56,12 @@ library:
     - genvalidity
     - validity-text
     - validity-containers
+    - genvalidity-text
+    - genvalidity-containers
+    - QuickCheck
+    - testing-feat
+    - size-based
+    - dictionary-sharing
 
 executables:
   frugel-exe:

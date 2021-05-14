@@ -5,18 +5,30 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Internal.Meta where
 
-import           Data.Char
+import           Control.Enumerable.Combinators
+import           Control.ValidEnumerable
+import           Control.ValidEnumerable.Whitespace
+
 import           Data.GenValidity
+import           Data.GenValidity.Text              ()
 import           Data.Has
-import           Data.Validity.Text ()
+import qualified Data.Text                          as Text
+import           Data.Validity.Extra
+import           Data.Validity.Text                 ()
 
 import           Optics
+
+import           Relude.Unsafe                      ( (!!) )
+
+import qualified Test.QuickCheck.Gen                as QuickCheck
 
 data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
     deriving ( Eq, Ord, Show, Generic, Has Meta )
@@ -50,7 +62,8 @@ instance Validity ProgramMeta where
         = mconcat
             [ genericValidate
             , decorate "trailingWhitespace"
-              . checkWhitespace
+              . validateWhitespace
+              --   . traceShowId
               . trailingWhitespace
             ]
 
@@ -59,12 +72,52 @@ instance Validity Meta where
         = mconcat
             [ genericValidate
             , decorate "interstitialWhitespace"
-              . flip decorateList checkWhitespace
+              . flip decorateList validateWhitespace
               . interstitialWhitespace
             ]
 
-checkWhitespace :: ToString a => a -> Validation
-checkWhitespace
-    = declare "The whitespace fragments contain only whitespace"
-    . all isSpace
-    . toString
+instance GenValid ExprMeta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidExprMeta 0
+        -- <&> #parenthesisLevels
+        -- %%~ const
+        --     (QuickCheck.frequency
+        --          [ (35, pure 0)
+        --          , (35, pure 1)
+        --          , (30, QuickCheck.growingElements [ 1 .. 5 ])
+        --          ])
+        -- & join
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required since shrinking Ints does not shrink to negative numbers
+
+instance GenValid ProgramMeta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidProgramMeta 0
+    shrinkValid programMeta@ProgramMeta{trailingWhitespace}
+        = shrinkValidStructurallyWithoutExtraFiltering programMeta
+        & mapped % #trailingWhitespace %~ \whitespaceFragment ->
+        Text.take (Text.length whitespaceFragment) trailingWhitespace
+
+instance GenValid Meta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidMeta 0
+    shrinkValid meta@Meta{interstitialWhitespace}
+        = shrinkValidStructurallyWithoutExtraFiltering meta
+        & filter
+            ((length interstitialWhitespace ==)
+             . lengthOf #interstitialWhitespace)
+        & mapped % #interstitialWhitespace % imapped
+        %@~ \i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
+        $ interstitialWhitespace !! i
+
+enumerateValidExprMeta :: (Typeable f, Sized f) => Int -> Shareable f ExprMeta
+enumerateValidExprMeta n
+    = pay
+    $ aconcat
+        [ ExprMeta <$> enumerateValidMeta n <*> inflation (2 ^) 0 (pure succ) ]
+
+enumerateValidProgramMeta
+    :: (Typeable f, Sized f) => Int -> Shareable f ProgramMeta
+enumerateValidProgramMeta n
+    = pay
+    $ aconcat [ ProgramMeta <$> enumerateValidMeta n <*> enumerateWhitespace ]
+
+enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
+enumerateValidMeta
+    n = pay $ aconcat [ Meta <$> vectorOf n enumerateWhitespace ]

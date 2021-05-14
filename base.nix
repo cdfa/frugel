@@ -11,12 +11,11 @@ let
   overrides = packageSourceOverrides {
     megaparsec = "9.0.1";
     relude = "0.7.0.0";
-    prettyprinter = "1.7.0";
     optics = "0.3";
     it-has = "0.2.0.0";
     genvalidity-sydtest = "0.0.0.0";
-    validity-text = "0.3.1.1";
-    validity-containers = "0.5.0.4";
+    genvalidity-text = "0.7.0.2";
+    genvalidity-containers = "0.9.0.0";
   };
 in
 pkgs.haskell.packages.${ghc}.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.)

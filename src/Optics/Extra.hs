@@ -8,6 +8,8 @@
 
 {-# LANGUAGE TypeFamilies #-}
 
+{-# LANGUAGE TypeOperators #-}
+
 module Optics.Extra where
 
 import           Data.Has
@@ -15,7 +17,7 @@ import           Data.Has
 import           Optics.External
 import           Optics.State.Operators
 
-infixr 4 %%~, +~, -~
+infixr 4 %%~, +~, -~, %@~
 
 infix 4 +=, -=
 
@@ -51,6 +53,13 @@ l += b = modify (l +~ b)
     -> a
     -> m ()
 l -= b = modify (l -~ b)
+
+(%@~) :: (Is k A_Setter, is `HasSingleIndex` i)
+    => Optic k is s t a b
+    -> (i -> a -> b)
+    -> s
+    -> t
+(%@~) = iover
 
 (<$^>) :: (Is k l, Is A_Getter l, l ~ Join k A_Getter)
     => (a -> b)
