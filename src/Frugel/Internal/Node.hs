@@ -27,9 +27,12 @@ import           Data.Text.Optics
 import           Data.Validity.Sequence               ()
 
 import           Frugel.Internal.Meta                 ( ExprMeta(standardMeta) )
+import qualified Frugel.Internal.Meta
 import           Frugel.Meta
 
 import           Optics
+
+import           Relude.Unsafe                        ( (!!) )
 
 import           Test.QuickCheck.Gen                  as Gen
 
@@ -164,7 +167,8 @@ class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int
 
 instance ValidInterstitialWhitespace Expr where
-    validInterstitialWhitespace = \case
+    validInterstitialWhitespace
+        e = view (hasLens @ExprMeta % #parenthesisLevels) e * 2 + case e of
         Variable{} -> 0
         Abstraction{} -> 3
         Application{} -> 1
@@ -206,6 +210,18 @@ instance Validity Expr where
         = mconcat
             [ genericValidate
             , validateInterstitialWhitespace validInterstitialWhitespace
+            , declare "has non-empty middle whitespace"
+              . fromMaybe True
+              . preview
+                  (_Application
+                   % _1
+                   % #standardMeta
+                   % #interstitialWhitespace
+                   % to
+                       (not
+                        . Text.null
+                        . (\whitespaceFragments -> whitespaceFragments
+                           !! ((length whitespaceFragments `div` 2) + 1))))
             ]
 
 instance Validity Decl where
@@ -270,12 +286,42 @@ instance ValidEnumerable Identifier where
 instance ValidEnumerable Expr where
     enumerateValid
         = datatype
-            [ addMetaWith enumerateValidExprMeta Variable
-            , addMetaWith enumerateValidExprMeta (uncurry . Abstraction)
-            , addMetaWith enumerateValidExprMeta (uncurry . Application)
-            , addMetaWith enumerateValidExprMeta (uncurry . Sum)
-            , addMetaWith enumerateValidExprMeta ExprCstrSite
+            [ addExprMeta 0 Variable
+            , addExprMeta 3 (uncurry . Abstraction)
+            , addExprMeta
+                  1
+                  (uncurry
+                   . Application
+                   -- Use " " as the middle whitespace fragment if the generated one is empty
+                   . (#standardMeta % #interstitialWhitespace
+                      %~ \whitespaceFragments -> whitespaceFragments
+                      & ix ((length whitespaceFragments `div` 2) + 1)
+                      %~ \whitespaceFragment -> if Text.null whitespaceFragment
+                          then " "
+                          else whitespaceFragment))
+            , addExprMeta 2 (uncurry . Sum)
+            , addExprMeta 0 ExprCstrSite
             ]
+      where
+        addExprMeta minimumWhitespaceFragments c
+            = (\meta' parenthesisWhitespace args -> c
+                   ExprMeta { parenthesisLevels = length parenthesisWhitespace
+                            , standardMeta      = meta'
+                                  & #interstitialWhitespace
+                                  %~ (\whitespaceFragments ->
+                                      toWhitespaceFragment
+                                          fst
+                                          parenthesisWhitespace
+                                      ++ whitespaceFragments
+                                      ++ toWhitespaceFragment
+                                          snd
+                                          parenthesisWhitespace)
+                            }
+                   args) <$> enumerateValidMeta minimumWhitespaceFragments
+            <*> accessValid
+            <*> accessValid
+        toWhitespaceFragment project
+            = map (toText . map unWhitespace . project)
 
 instance ValidEnumerable Decl where
     enumerateValid
@@ -284,20 +330,21 @@ instance ValidEnumerable Decl where
 instance ValidEnumerable WhereClause where
     enumerateValid
         = datatype
-            [ (\meta' decls -> WhereClause
-                   (meta'
-                    & #interstitialWhitespace
-                    .~ map (toText . map unWhitespace . fst) (toList decls))
-               $ fmap snd decls) <$> enumerateValidMeta 0 <*> accessValid
-            , addMeta WhereCstrSite
-            ]
+            [ (\decls -> WhereClause
+                   Meta { interstitialWhitespace = map
+                              (toText . map unWhitespace . fst)
+                              (toList decls)
+                        }
+               $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
 
+-- Not generally safe, see note `addMetaWith`
 addMeta
     :: (ValidInterstitialWhitespace n, Sized f, Typeable f, ValidEnumerable a)
     => (Meta -> a -> n)
     -> Shareable f n
 addMeta = addMetaWith enumerateValidMeta
 
+-- Only safe when `validInterstitialWhitespace` does not evaluate anything else but the constructor
 addMetaWith
     :: (ValidInterstitialWhitespace n, Sized f, Typeable f, ValidEnumerable a)
     => (Int -> Shareable f m)
@@ -309,6 +356,3 @@ addMetaWith enumerateValidNodeMeta c
          . validInterstitialWhitespace
          . c (error "Default meta was evaluated during enumeration")
          $ error "Dummy node children evaluated during enumeration")
-
-
-
