@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -20,7 +19,6 @@ import           Control.ValidEnumerable.Alphanumeric
 import           Control.ValidEnumerable.Whitespace
 
 import           Data.Char
-import           Data.Data
 import           Data.GenValidity
 import           Data.GenValidity.Sequence            ()
 import           Data.Has
@@ -41,7 +39,7 @@ import           Test.QuickCheck.Gen                  as Gen
 import           Text.Megaparsec.Stream
 
 newtype CstrSite = CstrSite (Seq (Either Char Node))
-    deriving ( Eq, Ord, Show, Generic, Data )
+    deriving ( Eq, Ord, Show, Generic )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
 data Node
@@ -49,11 +47,11 @@ data Node
     | ExprNode Expr
     | DeclNode Decl
     | WhereNode WhereClause
-    deriving ( Eq, Ord, Show, Generic, Data )
+    deriving ( Eq, Ord, Show, Generic )
 
 -- Invariant: identifiers should consist only of alphanumeric characters and should not be the empty string
 data Identifier = Identifier Text | IdentifierCstrSite CstrSite
-    deriving ( Eq, Ord, Show, Generic, Data )
+    deriving ( Eq, Ord, Show, Generic )
 
 data Expr
     = Variable ExprMeta Identifier
@@ -61,17 +59,17 @@ data Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
     | ExprCstrSite ExprMeta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has ExprMeta, Data )
+    deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
 
 data Decl
     = Decl { meta :: Meta, name :: Identifier, value :: Expr }
       -- , whereClause :: WhereClause
     | DeclCstrSite Meta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has Meta, Data )
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has Meta, Data )
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
@@ -119,6 +117,13 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
+
+instance Default (Traversal' Node CstrSite) where
+    def
+        = (_IdentifierNode % _IdentifierCstrSite)
+        `adjoin` (_ExprNode % _ExprCstrSite % _2)
+        `adjoin` (_DeclNode % _DeclCstrSite % _2)
+        `adjoin` (_WhereNode % _WhereCstrSite % _2)
 
 instance Default (Getter CstrSite Identifier) where
     def = to IdentifierCstrSite

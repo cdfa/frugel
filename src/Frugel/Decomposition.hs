@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -163,11 +162,13 @@ instance Decomposable CstrSite where
         $ mapMComponents mapChar mapNode
 
 instance Decomposable Node where
-    mapMComponents _ mapNode = \case
-        IdentifierNode identifier -> IdentifierNode <$> mapNode identifier
-        ExprNode expr -> ExprNode <$> mapNode expr
-        DeclNode decl -> DeclNode <$> mapNode decl
-        WhereNode whereClause -> WhereNode <$> mapNode whereClause
+    mapMComponents mapChar mapNode n = case n of
+        IdentifierNode identifier ->
+            IdentifierNode <$> mapMComponents mapChar mapNode identifier
+        ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
+        DeclNode decl -> DeclNode <$> mapMComponents mapChar mapNode decl
+        WhereNode whereClause ->
+            WhereNode <$> mapMComponents mapChar mapNode whereClause
 
 instance Decomposable Identifier where
     conservativelyDecompose
@@ -194,7 +195,7 @@ instance Decomposable Expr where
                 , (<$ mapChar ')')
                 ]
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
-        Variable{} -> _Variable % _2 %%~ mapNode
+        Variable _ _ -> _Variable % _2 %%~ mapNode
         Abstraction{} -> chain
             $ intersperseWhitespaceTraversals'
                 [ (<$ mapChar '\\')

@@ -12,7 +12,6 @@ module Frugel.Action where
 import           Control.Zipper.Seq                      hiding ( insert )
 import qualified Control.Zipper.Seq                      as SeqZipper
 
-import           Data.Data.Lens
 import qualified Data.Sequence                           as Seq
 import qualified Data.Set                                as Set
 
@@ -111,25 +110,26 @@ backspace model
 backspace model = model
 
 moveCursor :: Direction -> Model -> Model
-moveCursor direction model = model & #cursorOffset %~ case direction of
-    Leftward -> max 0 . subtract 1
-    Rightward -> min (length programText) . (+ 1)
-     -- extra subtract 1 for the \n
-    Upward -> case leadingLines of
-        ((_ :> previousLine) :> leadingChars) -> max 0
-            . subtract
-                (length leadingChars -- rest of the current line
-                 + 1 -- \n
-                 + max 0 (length previousLine - length leadingChars)) -- end of or same column on the previous line
-        _ -> const currentOffset
-    Downward -> case (leadingLines, trailingLines) of
-        (_ :> leadingChars, trailingChars : (nextLine : _)) -> min
-            (length programText)
-            . (length trailingChars -- rest of the current line
-               + 1 -- \n
-               + min (length nextLine) (length leadingChars) +) -- end of or same column on the next line
-        _ -> const currentOffset
+moveCursor direction model = model & #cursorOffset %~ updateOffset
   where
+    updateOffset = case direction of
+        Leftward -> max 0 . subtract 1
+        Rightward -> min (length programText) . (+ 1)
+         -- extra subtract 1 for the \n
+        Upward -> case leadingLines of
+            ((_ :> previousLine) :> leadingChars) -> max 0
+                . subtract
+                    (length leadingChars -- rest of the current line
+                     + 1 -- \n
+                     + max 0 (length previousLine - length leadingChars)) -- end of or same column on the previous line
+            _ -> const currentOffset
+        Downward -> case (leadingLines, trailingLines) of
+            (_ :> leadingChars, trailingChars : (nextLine : _)) -> min
+                (length programText)
+                . (length trailingChars -- rest of the current line
+                   + 1 -- \n
+                   + min (length nextLine) (length leadingChars) +) -- end of or same column on the next line
+            _ -> const currentOffset
     (leadingLines, trailingLines)
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
@@ -180,10 +180,10 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        = fmap (cons item) variations
-        <> if has (traversalVL $ template @Node @CstrSite) node
-            then mappend <$> textVariations (decompose node) <*> variations
-            else mempty
+        = (if is (pre $ def @(Traversal' Node CstrSite)) node
+               then fmap (cons item) variations
+               else mempty)
+        <> (mappend <$> textVariations (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int

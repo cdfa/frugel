@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,7 +17,6 @@ import           Control.Enumerable.Combinators
 import           Control.ValidEnumerable
 import           Control.ValidEnumerable.Whitespace
 
-import           Data.Data
 import           Data.GenValidity
 import           Data.GenValidity.Text              ()
 import           Data.Has
@@ -32,15 +31,15 @@ import           Relude.Unsafe                      ( (!!) )
 import qualified Test.QuickCheck.Gen                as QuickCheck
 
 data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
-    deriving ( Eq, Ord, Show, Generic, Has Meta, Data )
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 data ProgramMeta
     = ProgramMeta { standardMeta :: Meta, trailingWhitespace :: Text }
-    deriving ( Eq, Ord, Show, Generic, Has Meta, Data )
+    deriving ( Eq, Ord, Show, Generic, Has Meta )
 
 -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
 newtype Meta = Meta { interstitialWhitespace :: [Text] }
-    deriving ( Eq, Ord, Show, Generic, Data )
+    deriving ( Eq, Ord, Show, Generic )
 
 makeFieldLabelsWith noPrefixFieldLabels ''ExprMeta
 
