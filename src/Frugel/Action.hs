@@ -84,7 +84,8 @@ insert c model
 delete :: Model -> Model
 delete model
     = case attemptEdit
-        (zipperAtCursor suffixTail $ view #cursorOffset model)
+        (zipperAtCursor (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
+         $ view #cursorOffset model)
         model of
         (Success, newModel) -> newModel
         (Failure, newModel) -> newModel & #errors .~ []
@@ -102,7 +103,9 @@ backspace model
     | view #cursorOffset model > 0
         = snd
         . attemptEdit
-            (zipperAtCursor suffixTail (view #cursorOffset model - 1))
+            (zipperAtCursor
+                 (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
+                 (view #cursorOffset model - 1))
         $ over #cursorOffset (subtract 1) model
 backspace model = model
 
