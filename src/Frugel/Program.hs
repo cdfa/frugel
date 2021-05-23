@@ -1,6 +1,8 @@
 module Frugel.Program
     ( module Frugel.Program
     , Program(Program, ProgramCstrSite)
+    , _Program
+    , _ProgramCstrSite
     , programMeta
     , programCstrSite'
     ) where

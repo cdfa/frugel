@@ -1,12 +1,9 @@
 {-# LANGUAGE DataKinds #-}
-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
-
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -35,6 +32,8 @@ data Program
     deriving ( Show, Eq, Generic, Has ProgramMeta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program
+
+makePrisms ''Program
 
 instance Has Meta Program where
     getter p = standardMeta $ getter p
