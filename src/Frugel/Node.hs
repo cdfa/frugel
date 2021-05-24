@@ -81,8 +81,8 @@ unwrapParentheses e = Left e
 
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)
-identifier' :: Identifier -> Expr
-identifier' = Variable $ defaultExprMeta 0
+variable' :: Identifier -> Expr
+variable' = Variable $ defaultExprMeta 0
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction $ defaultExprMeta 3
@@ -105,7 +105,7 @@ toCstrSite :: CstrSite' -> CstrSite
 toCstrSite = fromList . concatMap (either (map Left) (one . Right))
 
 minimalCstrSite :: CstrSite
-minimalCstrSite = one . Right . ExprNode $ identifier' "x"
+minimalCstrSite = one . Right . ExprNode $ variable' "x"
 
 nested :: CstrSite
 nested = one . Right . ExprNode . exprCstrSite' $ minimalCstrSite
@@ -114,24 +114,27 @@ frugelId :: CstrSite
 frugelId = toCstrSite [ Left "\\x=x" ]
 
 frugelId' :: CstrSite
-frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ identifier' "x" ]
+frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ variable' "x" ]
 
 whitespaceId :: CstrSite
 whitespaceId = toCstrSite [ Left "\\  \tx \n=x  \t\n\n" ]
 
 app :: CstrSite
-app = [ Left 'x', Right . ExprNode $ identifier' "x", Left 'x' ]
+app = [ Left 'x', Right . ExprNode $ variable' "x", Left 'x' ]
 
 parensTest :: CstrSite
 parensTest
     = toCstrSite
-        [ Left "(((\\x=(", Right . ExprNode $ identifier' "x", Left "))))" ]
+        [ Left "(((\\x=(", Right . ExprNode $ variable' "x", Left "))))" ]
 
 whereClauseTest :: CstrSite
 whereClauseTest
     = toCstrSite
         [ Left "x where\n  y = "
-        , Right . ExprNode $ identifier' "z"
+        , Right . ExprNode
+          $ variable'
+          $ IdentifierCstrSite
+          $ fromList [ Left 'z' ]
         , Left "\n  u = w"
         ]
 
@@ -139,9 +142,10 @@ declNodeTest :: CstrSite
 declNodeTest
     = toCstrSite
         [ Left "x where "
-        , Right . DeclNode $ decl' "y" $ identifier' "z" -- , whereClause' = []
+        , Right . DeclNode $ decl' "y" $ variable' "z" -- , whereClause' = []
         ]
 
 sumTest :: CstrSite
-sumTest = toCstrSite [ Right . ExprNode $ identifier' "x", Left "+ y x" ]
+sumTest = toCstrSite [ Right . ExprNode $ variable' "x", Left "+ y x" ]
+
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -158,11 +159,14 @@ conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
 
 instance Decomposable CstrSite where
     mapMComponents mapChar mapNode
-        = traverseOf (_CstrSite % traversed) . bitraverse mapChar
-        $ mapMComponents mapChar mapNode
+        = traverseOf (_CstrSite % traversed) . bitraverse mapChar $ \case
+            IdentifierNode identifier -> IdentifierNode <$> mapNode identifier
+            ExprNode expr -> ExprNode <$> mapNode expr
+            DeclNode decl -> DeclNode <$> mapNode decl
+            WhereNode whereClause -> WhereNode <$> mapNode whereClause
 
 instance Decomposable Node where
-    mapMComponents mapChar mapNode n = case n of
+    mapMComponents mapChar mapNode = \case
         IdentifierNode identifier ->
             IdentifierNode <$> mapMComponents mapChar mapNode identifier
         ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
@@ -195,7 +199,7 @@ instance Decomposable Expr where
                 , (<$ mapChar ')')
                 ]
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
-        Variable _ _ -> _Variable % _2 %%~ mapNode
+        Variable{} -> _Variable % _2 %%~ mapNode
         Abstraction{} -> chain
             $ intersperseWhitespaceTraversals'
                 [ (<$ mapChar '\\')
@@ -263,9 +267,3 @@ instance Decomposable Program where
             program
     mapMComponents mapChar mapNode (ProgramCstrSite meta materials)
         = ProgramCstrSite meta <$> mapMComponents mapChar mapNode materials
-    -- class Decomposable' n where
-    --     mapMComponents' :: Monad m
-    --         => (Char -> m Char)
-    --         -> (forall n'. (Decomposable' n', Refracts' An_AffineTraversal NoIx n' CstrSite) => n' -> m n')
-    --         -> n
-    --         -> m n

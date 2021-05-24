@@ -44,7 +44,7 @@ term
                 <*%> expr
                 -- Non recursive production rules at the bottom
               , exprCstrSite' (CstrSite empty) <$% string "..."
-              , Node.identifier' <$%> identifier
+              , variable' <$%> identifier
               ]
         , node "an expression node"
         ]
