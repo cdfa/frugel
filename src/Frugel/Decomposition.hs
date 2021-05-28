@@ -59,12 +59,12 @@ step = do
     when (textOffset /= -1) (#textOffset -= 1)
     when (textOffset > 0) (#cstrSiteOffset += 1)
 
-modifyNodeAt :: forall m'.
-    MonadError InternalError m'
+modifyNodeAt :: forall m' p.
+    (MonadError InternalError m', Decomposable p, Default (Getter CstrSite p))
     => (Int -> CstrSite -> m' CstrSite)
     -> Int
-    -> Program
-    -> m' Program
+    -> p
+    -> m' p
 modifyNodeAt f cursorOffset program
     = runModification >>= \(newProgram, decompositionState) -> if
         | view #textOffset decompositionState
