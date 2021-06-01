@@ -1,6 +1,5 @@
 { sources, ghc }:
 let
-  unstablePkgs = import sources.nixpkgs-unstable { };
   stablePkgs = import sources.nixpkgs { };
   /* Don't change to fetchFromGitHub like the warning recommends, because this automatically unzips the complete archive which is huge */
   all-cabal-hashes = stablePkgs.fetchurl {
@@ -17,7 +16,7 @@ import sources.miso {
             ${ghc} = super.haskell.packages.${ghc}.override (
               old: {
                 inherit all-cabal-hashes;
-                overrides = unstablePkgs.lib.composeManyExtensions [
+                overrides = stablePkgs.lib.composeManyExtensions [
                   (old.overrides or (_: _: { }))
                   (
                     self.haskell.lib.packageSourceOverrides

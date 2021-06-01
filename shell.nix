@@ -2,7 +2,6 @@
 , ghc ? "ghc865"
 }:
 let
-  unstablePkgs = import sources.nixpkgs-unstable { };
   stablePkgs = import sources.nixpkgs { };
   miso = import ./nix/miso.nix { inherit sources ghc; };
   pkgs = miso.pkgs;
@@ -21,7 +20,7 @@ let
         -T 'Main.main'
   '';
 
-  floskell = unstablePkgs.haskellPackages.floskell;
+  floskell = stablePkgs.haskellPackages.floskell;
   nix-pre-commit-hooks = import sources."pre-commit-hooks.nix";
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;

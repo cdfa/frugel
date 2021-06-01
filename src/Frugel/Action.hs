@@ -181,7 +181,7 @@ textVariations
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
         = (if is (pre $ def @(Traversal' Node CstrSite)) node
-               then fmap (cons item) variations
+               then cons item <$> variations
                else mempty)
         <> (mappend <$> textVariations (decompose node) <*> variations)
 

@@ -79,6 +79,9 @@ executables:
     when:
       - condition: "!impl(ghcjs)"
         dependencies: jsaddle-warp
+      - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
+        other-modules: Paths_frugel
+
 
 tests:
   frugel-test:
@@ -92,3 +95,6 @@ tests:
       - frugel
       - sydtest
       - genvalidity-sydtest
+    when: # Work around hpack issue https://github.com/sol/hpack/issues/303
+      - condition: false
+        other-modules: Paths_frugel
