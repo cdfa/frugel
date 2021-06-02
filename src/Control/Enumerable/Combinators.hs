@@ -1,7 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Control.Enumerable.Combinators where
 
 import           Control.Enumerable

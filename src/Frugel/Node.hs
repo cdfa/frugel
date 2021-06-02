@@ -13,6 +13,7 @@ module Frugel.Node
     , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
+    , _Identifier
     , _Abstraction
     , _Application
     , _CstrSite
@@ -21,9 +22,6 @@ module Frugel.Node
     , _DeclNode
     , _ExprCstrSite
     , _ExprNode
-    , _Identifier
-    , _IdentifierCstrSite
-    , _IdentifierNode
     , _Sum
     , _Variable
     , _WhereClause
@@ -38,10 +36,13 @@ module Frugel.Node
     , addMetaWith
     ) where
 
+import           Frugel.Identifier    as Identifier
 import           Frugel.Internal.Node
 import           Frugel.Meta
 
 import           Optics
+
+import           Relude.Unsafe        ( fromJust )
 
 parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
 parenthesizeExpr parenthesize prettyExpr x
@@ -84,8 +85,14 @@ unwrapParentheses e = Left e
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
 
+unsafeVariable :: String -> Expr
+unsafeVariable = variable' . fromJust . Identifier.fromString
+
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction $ defaultExprMeta 3
+
+unsafeAbstraction :: String -> Expr -> Expr
+unsafeAbstraction = abstraction' . fromJust . Identifier.fromString
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
@@ -96,6 +103,9 @@ sum' = Sum $ defaultExprMeta 2
 decl' :: Identifier -> Expr -> Decl
 decl' = Decl $ defaultMeta 2
 
+unsafeDecl :: String -> Expr -> Decl
+unsafeDecl = decl' . fromJust . Identifier.fromString
+
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' decls = WhereClause (defaultMeta $ length decls) decls
 
@@ -105,7 +115,7 @@ toCstrSite :: CstrSite' -> CstrSite
 toCstrSite = fromList . concatMap (either (map Left) (one . Right))
 
 minimalCstrSite :: CstrSite
-minimalCstrSite = one . Right . ExprNode $ variable' "x"
+minimalCstrSite = one . Right . ExprNode $ unsafeVariable "x"
 
 nested :: CstrSite
 nested = one . Right . ExprNode . exprCstrSite' $ minimalCstrSite
@@ -114,27 +124,24 @@ frugelId :: CstrSite
 frugelId = toCstrSite [ Left "\\x=x" ]
 
 frugelId' :: CstrSite
-frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ variable' "x" ]
+frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ unsafeVariable "x" ]
 
 whitespaceId :: CstrSite
 whitespaceId = toCstrSite [ Left "\\  \tx \n=x  \t\n\n" ]
 
 app :: CstrSite
-app = [ Left 'x', Right . ExprNode $ variable' "x", Left 'x' ]
+app = [ Left 'x', Right . ExprNode $ unsafeVariable "x", Left 'x' ]
 
 parensTest :: CstrSite
 parensTest
     = toCstrSite
-        [ Left "(((\\x=(", Right . ExprNode $ variable' "x", Left "))))" ]
+        [ Left "(((\\x=(", Right . ExprNode $ unsafeVariable "x", Left "))))" ]
 
 whereClauseTest :: CstrSite
 whereClauseTest
     = toCstrSite
         [ Left "x where\n  y = "
-        , Right . ExprNode
-          $ variable'
-          $ IdentifierCstrSite
-          $ fromList [ Left 'z' ]
+        , Right . ExprNode . exprCstrSite' $ fromList [ Left 'z' ]
         , Left "\n  u = w"
         ]
 
@@ -142,10 +149,10 @@ declNodeTest :: CstrSite
 declNodeTest
     = toCstrSite
         [ Left "x where "
-        , Right . DeclNode $ decl' "y" $ variable' "z" -- , whereClause' = []
+        , Right . DeclNode $ unsafeDecl "y" $ unsafeVariable "z" -- , whereClause' = []
         ]
 
 sumTest :: CstrSite
-sumTest = toCstrSite [ Right . ExprNode $ variable' "x", Left "+ y x" ]
+sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
 

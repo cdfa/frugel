@@ -18,13 +18,11 @@ instance DisplayProjection CstrSite where
     displayDoc = prettyCstrSite displayDoc
 
 instance DisplayProjection Node where
-    displayDoc (IdentifierNode name) = displayDoc name
     displayDoc (ExprNode expr) = displayDoc expr
     displayDoc (DeclNode decl) = displayDoc decl
     displayDoc (WhereNode w) = displayDoc w
 
 instance DisplayProjection Identifier where
-    displayDoc (IdentifierCstrSite contents) = displayDoc contents
     displayDoc identifier = decomposableDoc identifier
 
 instance DisplayProjection Expr where

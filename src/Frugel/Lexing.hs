@@ -1,7 +1,8 @@
 module Frugel.Lexing where
 
+import           Data.Alphanumeric
 import           Data.Char
-import qualified Data.Set        as Set
+import qualified Data.Set          as Set
 
 import           Frugel.Node
 
@@ -18,11 +19,9 @@ char c = c <$ single (Left c)
 string :: String -> Parser String
 string s = s <$ chunk (fromList $ map Left s)
 
-alphaNumChar :: Parser Char
+alphaNumChar :: Parser Alphanumeric
 alphaNumChar
-    = namedToken
-        "an alphanumeric character"
-        (leftToMaybe >=> guarded isAlphaNum)
+    = namedToken "an alphanumeric character" (leftToMaybe >=> fromChar)
 
 lowerChar :: Parser Char
 lowerChar

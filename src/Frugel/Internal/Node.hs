@@ -13,28 +13,26 @@
 
 module Frugel.Internal.Node where
 
-import           Control.Enumerable.Combinators       ()
+import           Control.Enumerable.Combinators     ()
 import           Control.ValidEnumerable
-import           Control.ValidEnumerable.Alphanumeric
 import           Control.ValidEnumerable.Whitespace
 
-import           Data.Char
 import           Data.GenValidity
-import           Data.GenValidity.Sequence            ()
+import           Data.GenValidity.Sequence          ()
 import           Data.Has
-import qualified Data.Text                            as Text
-import           Data.Text.Optics
-import           Data.Validity.Sequence               ()
+import qualified Data.Text                          as Text
+import           Data.Validity.Sequence             ()
 
-import           Frugel.Internal.Meta                 ( ExprMeta(standardMeta) )
+import           Frugel.Identifier
+import           Frugel.Internal.Meta               ( ExprMeta(standardMeta) )
 import qualified Frugel.Internal.Meta
 import           Frugel.Meta
 
 import           Optics
 
-import           Relude.Unsafe                        ( (!!) )
+import           Relude.Unsafe                      ( (!!) )
 
-import           Test.QuickCheck.Gen                  as Gen
+import           Test.QuickCheck.Gen                as Gen
 
 import           Text.Megaparsec.Stream
 
@@ -42,15 +40,7 @@ newtype CstrSite = CstrSite (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, Generic )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
-data Node
-    = IdentifierNode Identifier
-    | ExprNode Expr
-    | DeclNode Decl
-    | WhereNode WhereClause
-    deriving ( Eq, Ord, Show, Generic )
-
--- Invariant: identifiers should consist only of alphanumeric characters and should not be the empty string
-data Identifier = Identifier Text | IdentifierCstrSite CstrSite
+data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
     deriving ( Eq, Ord, Show, Generic )
 
 data Expr
@@ -75,8 +65,6 @@ makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
 makePrisms ''CstrSite
 
-makePrisms ''Identifier
-
 makePrisms ''Node
 
 makePrisms ''Expr
@@ -92,9 +80,6 @@ instance Snoc CstrSite CstrSite (Either Char Node) (Either Char Node) where
     _Snoc = _CstrSite % _Snoc % swapped % aside (re _CstrSite) % swapped
 
 instance AsEmpty CstrSite
-
-instance IsString Identifier where
-    fromString = Identifier . toText
 
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
@@ -120,16 +105,9 @@ whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
 instance Default (Traversal' Node CstrSite) where
     def
-        = (_IdentifierNode % _IdentifierCstrSite)
-        `adjoin` (_ExprNode % _ExprCstrSite % _2)
+        = (_ExprNode % _ExprCstrSite % _2)
         `adjoin` (_DeclNode % _DeclCstrSite % _2)
         `adjoin` (_WhereNode % _WhereCstrSite % _2)
-
-instance Default (Getter CstrSite Identifier) where
-    def = to IdentifierCstrSite
-
-instance Default (Prism' Node Identifier) where
-    def = _IdentifierNode
 
 instance Default (Getter CstrSite Expr) where
     def = to exprCstrSite'
@@ -154,8 +132,6 @@ class (Default (Prism' Node a), Default (Getter CstrSite a)) => IsNode a where
     nodePrism = def
     fromCstrSite :: Getter CstrSite a
     fromCstrSite = def
-
-instance IsNode Identifier
 
 instance IsNode Expr
 
@@ -188,22 +164,6 @@ instance ValidInterstitialWhitespace WhereClause where
 instance Validity CstrSite
 
 instance Validity Node
-
-instance Validity Identifier where
-    validate
-        = mconcat
-            [ genericValidate
-            , fromMaybe valid
-              . preview
-                  (_Identifier
-                   % unpacked
-                   % to
-                       (mconcat
-                            [ declare "consists of alpha-numeric characters"
-                              . all isAlphaNum
-                            , declare "is not empty" . not . null
-                            ]))
-            ]
 
 instance Validity Expr where
     validate
@@ -246,12 +206,6 @@ instance GenValid Node where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
-instance GenValid Identifier where
-    genValid = sized uniformValid
-    shrinkValid
-        = filter (allOf _Identifier (not . Text.null))
-        . shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking maintains the alphanumeric invariant
-
 instance GenValid Expr where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
@@ -268,20 +222,7 @@ instance ValidEnumerable CstrSite where
     enumerateValid = datatype [ c1 CstrSite ]
 
 instance ValidEnumerable Node where
-    enumerateValid
-        = datatype
-            [ c1 IdentifierNode, c1 ExprNode, c1 DeclNode, c1 WhereNode ]
-
-instance ValidEnumerable Identifier where
-    enumerateValid
-        = datatype
-            [ c1
-                  (Identifier
-                   . toText
-                   . map unAlphanumeric
-                   . toList @(NonEmpty Alphanumeric))
-            , c1 IdentifierCstrSite
-            ]
+    enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
 
 instance ValidEnumerable Expr where
     enumerateValid

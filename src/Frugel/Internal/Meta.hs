@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -78,14 +77,6 @@ instance Validity Meta where
 
 instance GenValid ExprMeta where
     genValid = QuickCheck.sized . uniformWith $ enumerateValidExprMeta 0
-        -- <&> #parenthesisLevels
-        -- %%~ const
-        --     (QuickCheck.frequency
-        --          [ (35, pure 0)
-        --          , (35, pure 1)
-        --          , (30, QuickCheck.growingElements [ 1 .. 5 ])
-        --          ])
-        -- & join
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required since shrinking Ints does not shrink to negative numbers
 
 instance GenValid ProgramMeta where
@@ -99,9 +90,11 @@ instance GenValid Meta where
     genValid = QuickCheck.sized . uniformWith $ enumerateValidMeta 0
     shrinkValid meta@Meta{interstitialWhitespace}
         = shrinkValidStructurallyWithoutExtraFiltering meta
+        -- ensure number of whitespace fragments is preserved
         & filter
             ((length interstitialWhitespace ==)
              . lengthOf #interstitialWhitespace)
+        -- ensure only characters from previous whitespace fragments are used
         & mapped % #interstitialWhitespace % imapped
         %@~ \i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
         $ interstitialWhitespace !! i

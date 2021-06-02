@@ -8,27 +8,23 @@ module Frugel.Parsing
     ) where
 
 import           Control.Monad.Combinators.Expr
-
-import           Data.Composition
+import           Control.Monad.Combinators.NonEmpty
 
 import           Frugel.Lexing
 import           Frugel.Node
-import qualified Frugel.Node                    as Node
+import qualified Frugel.Node                        as Node
 import           Frugel.Parsing.Error
 import           Frugel.Parsing.Whitespace
-import           Frugel.Program                 as Program
+import           Frugel.Program                     as Program
 
 import           Optics
 
-import           Text.Megaparsec                hiding ( many )
+import           Prelude                            hiding ( some )
+
+import           Text.Megaparsec                    hiding ( many, some )
 
 identifier :: Parser Identifier
-identifier = literalIdentifier <|> identifierNode
-  where
-    literalIdentifier
-        = (fromString .: (:)) <$> lowerChar
-        <*> many alphaNumChar <?> "an identifier"
-    identifierNode = node "a declaration node"
+identifier = Identifier <$> some alphaNumChar <?> "an identifier"
 
 node :: IsNode w => String -> Parser w
 node name = namedToken name $ preview (_Right % nodePrism)

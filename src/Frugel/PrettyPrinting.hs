@@ -50,14 +50,12 @@ instance AnnotatedPretty CstrSite where
     annPretty = prettyCstrSite annPretty
 
 instance AnnotatedPretty Node where
-    annPretty (IdentifierNode name) = annPretty name
     annPretty (ExprNode expr) = annPretty expr
     annPretty (DeclNode decl) = annPretty decl
     annPretty (WhereNode w) = annPretty w
 
 instance AnnotatedPretty Identifier where
     annPretty (Identifier name) = pretty name
-    annPretty (IdentifierCstrSite contents) = annPretty contents
 
 instance AnnotatedPretty Expr where
     annPretty = parenthesizeExpr parens annPretty'

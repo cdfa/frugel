@@ -160,27 +160,23 @@ conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
 instance Decomposable CstrSite where
     mapMComponents mapChar mapNode
         = traverseOf (_CstrSite % traversed) . bitraverse mapChar $ \case
-            IdentifierNode identifier -> IdentifierNode <$> mapNode identifier
             ExprNode expr -> ExprNode <$> mapNode expr
             DeclNode decl -> DeclNode <$> mapNode decl
             WhereNode whereClause -> WhereNode <$> mapNode whereClause
 
 instance Decomposable Node where
     mapMComponents mapChar mapNode = \case
-        IdentifierNode identifier ->
-            IdentifierNode <$> mapMComponents mapChar mapNode identifier
         ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
         DeclNode decl -> DeclNode <$> mapMComponents mapChar mapNode decl
         WhereNode whereClause ->
             WhereNode <$> mapMComponents mapChar mapNode whereClause
 
 instance Decomposable Identifier where
-    conservativelyDecompose
-        = conservativelyDecomposeNode _IdentifierNode _IdentifierCstrSite
     mapMComponents mapChar _ identifier@(Identifier _)
-        = traverseOf (_Identifier % unpacked % traversed) mapChar identifier
-    mapMComponents mapChar mapNode (IdentifierCstrSite materials)
-        = IdentifierCstrSite <$> mapMComponents mapChar mapNode materials
+        = traverseOf
+            (_Identifier % traversed % #unAlphanumeric)
+            (\c -> c <$ mapChar c)
+            identifier
 
 instance Decomposable Expr where
     conservativelyDecompose
@@ -199,11 +195,11 @@ instance Decomposable Expr where
                 , (<$ mapChar ')')
                 ]
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
-        Variable{} -> _Variable % _2 %%~ mapNode
+        Variable{} -> _Variable % _2 %%~ mapMComponents mapChar mapNode
         Abstraction{} -> chain
             $ intersperseWhitespaceTraversals'
                 [ (<$ mapChar '\\')
-                , _Abstraction % _2 %%~ mapNode
+                , _Abstraction % _2 %%~ mapMComponents mapChar mapNode
                 , (<$ mapChar '=')
                 , _Abstraction % _3 %%~ mapNode
                 ]
@@ -231,7 +227,7 @@ instance Decomposable Decl where
             (intersperseWhitespaceTraversals
                  mapChar
                  decl
-                 [ traverseOf #name mapNode
+                 [ traverseOf #name $ mapMComponents mapChar mapNode
                  , (<$ mapChar '=')
                  , traverseOf #value mapNode
                  ])
