@@ -163,6 +163,7 @@ attemptEdit f model = case second reparse . f $ view #program model of
         = bimap (fromMaybe newProgram) (map ParseError . toList)
         . foldr findSuccessfulParse (Nothing, mempty)
         . textVariations
+        . resolveSingletonCstrSites
         $ decompose newProgram
     findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
         = firstSuccessfulParse
@@ -180,7 +181,7 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        = (if is (pre $ def @(Traversal' Node CstrSite)) node
+        = (if is (def @(AffineTraversal' Node CstrSite)) node
                then cons item <$> variations
                else mempty)
         <> (mappend <$> textVariations (decompose node) <*> variations)

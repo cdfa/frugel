@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Node
@@ -35,6 +36,10 @@ module Frugel.Node
     , addMeta
     , addMetaWith
     ) where
+
+import           Control.Lens.Plated
+
+import           Data.Data.Lens
 
 import           Frugel.Identifier    as Identifier
 import           Frugel.Internal.Node
@@ -79,6 +84,18 @@ unwrapParentheses e
              % ((,) <$^> _1 <*^> _2 % _Snoc))
             e
 unwrapParentheses e = Left e
+
+resolveSingletonCstrSites :: CstrSite -> CstrSite
+resolveSingletonCstrSites
+    = transformOnOf (traverseOf (_CstrSite % traversed % _Right)) uniplate
+    $ \node -> fromMaybe node
+    $ preview
+        (def @(AffineTraversal' Node CstrSite)
+         % _CstrSite
+         % filtered ((<= 1) . lengthOf folded)
+         % ix 0
+         % _Right)
+        node
 
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)

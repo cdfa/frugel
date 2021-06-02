@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -12,6 +13,7 @@ import           Control.Enumerable.Combinators
 import           Control.ValidEnumerable
 
 import           Data.Char
+import           Data.Data
 import           Data.GenValidity
 
 import           Optics
@@ -21,7 +23,7 @@ import           Prettyprinter
 import           Test.QuickCheck.Gen            hiding ( growingElements )
 
 newtype Alphanumeric = Alphanumeric { unAlphanumeric :: Char }
-    deriving ( Eq, Ord, Show, Generic, Pretty )
+    deriving ( Eq, Ord, Show, Generic, Data, Pretty )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Alphanumeric
 

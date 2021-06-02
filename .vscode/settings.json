@@ -59,6 +59,7 @@
         "rtsopts",
         "softline",
         "succ",
+        "uniplate",
         "unlines",
         "unwords",
         "vcat",

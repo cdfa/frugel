@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -17,6 +18,7 @@ import           Control.Enumerable.Combinators     ()
 import           Control.ValidEnumerable
 import           Control.ValidEnumerable.Whitespace
 
+import           Data.Data
 import           Data.GenValidity
 import           Data.GenValidity.Sequence          ()
 import           Data.Has
@@ -37,11 +39,11 @@ import           Test.QuickCheck.Gen                as Gen
 import           Text.Megaparsec.Stream
 
 newtype CstrSite = CstrSite (Seq (Either Char Node))
-    deriving ( Eq, Ord, Show, Generic )
+    deriving ( Eq, Ord, Show, Generic, Data )
     deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
 
 data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
-    deriving ( Eq, Ord, Show, Generic )
+    deriving ( Eq, Ord, Show, Generic, Data )
 
 data Expr
     = Variable ExprMeta Identifier
@@ -49,17 +51,17 @@ data Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
     | ExprCstrSite ExprMeta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has ExprMeta )
+    deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
 
 data Decl
     = Decl { meta :: Meta, name :: Identifier, value :: Expr }
       -- , whereClause :: WhereClause
     | DeclCstrSite Meta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has Meta )
+    deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
 data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Has Meta )
+    deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
@@ -103,9 +105,10 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
-instance Default (Traversal' Node CstrSite) where
+instance Default (AffineTraversal' Node CstrSite) where
     def
-        = (_ExprNode % _ExprCstrSite % _2)
+        = singular
+        $ (_ExprNode % _ExprCstrSite % _2)
         `adjoin` (_DeclNode % _DeclCstrSite % _2)
         `adjoin` (_WhereNode % _WhereCstrSite % _2)
 

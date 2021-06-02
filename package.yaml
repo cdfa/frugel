@@ -50,6 +50,7 @@ library:
     - it-has
     - optics >= 0.3
     - optics-vl >= 0.2.1
+    - lens
     - mtl
     - data-default-class
     - genvalidity
