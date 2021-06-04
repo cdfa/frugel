@@ -6,7 +6,9 @@
 module Frugel.Node
     ( module Frugel.Node
     , module Frugel.Meta
-    , IsNode(..)
+    , IsNode
+    , NodePrism(..)
+    , SetCstrSite(..)
     , ValidInterstitialWhitespace(..)
     , Expr(..)
     , CstrSite(..)

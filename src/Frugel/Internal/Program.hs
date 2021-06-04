@@ -45,8 +45,8 @@ programMeta = hasLens
 programCstrSite' :: CstrSite -> Program
 programCstrSite' = ProgramCstrSite $ defaultProgramMeta 0
 
-instance Default (Getter CstrSite Program) where
-    def = to programCstrSite'
+instance SetCstrSite Program where
+    setCstrSite = const . programCstrSite'
 
 instance Validity Program where
     validate

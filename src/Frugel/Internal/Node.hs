@@ -112,35 +112,48 @@ instance Default (AffineTraversal' Node CstrSite) where
         `adjoin` (_DeclNode % _DeclCstrSite % _2)
         `adjoin` (_WhereNode % _WhereCstrSite % _2)
 
-instance Default (Getter CstrSite Expr) where
-    def = to exprCstrSite'
+class (NodePrism a, SetCstrSite a) => IsNode a
 
-instance Default (Prism' Node Expr) where
-    def = _ExprNode
-
-instance Default (Getter CstrSite Decl) where
-    def = to declCstrSite'
-
-instance Default (Prism' Node Decl) where
-    def = _DeclNode
-
-instance Default (Getter CstrSite WhereClause) where
-    def = to whereCstrSite'
-
-instance Default (Prism' Node WhereClause) where
-    def = _WhereNode
-
-class (Default (Prism' Node a), Default (Getter CstrSite a)) => IsNode a where
-    nodePrism :: Prism' Node a
-    nodePrism = def
-    fromCstrSite :: Getter CstrSite a
-    fromCstrSite = def
+instance IsNode Node
 
 instance IsNode Expr
 
 instance IsNode Decl
 
 instance IsNode WhereClause
+
+class NodePrism a where
+    nodePrism :: Prism' Node a
+
+instance NodePrism Node where
+    nodePrism = castOptic simple
+
+instance NodePrism Expr where
+    nodePrism = _ExprNode
+
+instance NodePrism Decl where
+    nodePrism = _DeclNode
+
+instance NodePrism WhereClause where
+    nodePrism = _WhereNode
+
+class SetCstrSite a where
+    setCstrSite :: CstrSite -> a -> a
+
+instance SetCstrSite Node where
+    setCstrSite cstrSite = \case
+        ExprNode expr -> ExprNode $ setCstrSite cstrSite expr
+        DeclNode expr -> DeclNode $ setCstrSite cstrSite expr
+        WhereNode expr -> WhereNode $ setCstrSite cstrSite expr
+
+instance SetCstrSite Expr where
+    setCstrSite = const . exprCstrSite'
+
+instance SetCstrSite Decl where
+    setCstrSite = const . declCstrSite'
+
+instance SetCstrSite WhereClause where
+    setCstrSite = const . whereCstrSite'
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int

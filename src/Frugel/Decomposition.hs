@@ -60,7 +60,7 @@ step = do
     when (textOffset > 0) (#cstrSiteOffset += 1)
 
 modifyNodeAt :: forall m' p.
-    (MonadError InternalError m', Decomposable p, Default (Getter CstrSite p))
+    (MonadError InternalError m', Decomposable p, SetCstrSite p)
     => (Int -> CstrSite -> m' CstrSite)
     -> Int
     -> p
@@ -76,9 +76,7 @@ modifyNodeAt f cursorOffset program
     runModification
         = mapNode program `runStateT` initialDecompositionState cursorOffset
     mapChar c = c <$ step -- trace (show c) step
-    mapNode :: (Decomposable n, Default (Getter CstrSite n))
-        => n
-        -> DecompositionMonad m' n
+    mapNode :: (Decomposable n, SetCstrSite n) => n -> DecompositionMonad m' n
     mapNode n = do
         -- t <- guse #textOffset
         -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
@@ -100,8 +98,8 @@ modifyNodeAt f cursorOffset program
                         (guses #textOffset (<= 0)
                          &&^ guses #modificationStatus (isn't _Success))
                         (catchError
-                             (view @A_Getter @NoIx def <$> transform n
-                              <* assign #modificationStatus Success)
+                             (setCstrSite <$> transform n
+                              ?? n <* assign #modificationStatus Success)
                          $ const (pure n))
                         (pure newNode)
     -- transform :: (Decomposable n) => n -> StateT DecompositionState m' CstrSite
@@ -159,10 +157,7 @@ conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
 
 instance Decomposable CstrSite where
     mapMComponents mapChar mapNode
-        = traverseOf (_CstrSite % traversed) . bitraverse mapChar $ \case
-            ExprNode expr -> ExprNode <$> mapNode expr
-            DeclNode decl -> DeclNode <$> mapNode decl
-            WhereNode whereClause -> WhereNode <$> mapNode whereClause
+        = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
 
 instance Decomposable Node where
     mapMComponents mapChar mapNode = \case
