@@ -105,13 +105,6 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
-instance Default (AffineTraversal' Node CstrSite) where
-    def
-        = singular
-        $ (_ExprNode % _ExprCstrSite % _2)
-        `adjoin` (_DeclNode % _DeclCstrSite % _2)
-        `adjoin` (_WhereNode % _WhereCstrSite % _2)
-
 class (NodePrism a, SetCstrSite a) => IsNode a
 
 instance IsNode Node

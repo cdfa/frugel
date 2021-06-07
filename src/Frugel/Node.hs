@@ -1,6 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Node
@@ -87,12 +86,19 @@ unwrapParentheses e
             e
 unwrapParentheses e = Left e
 
+_NodeCstrSite :: AffineTraversal' Node CstrSite
+_NodeCstrSite
+    = singular
+    $ (_ExprNode % _ExprCstrSite % _2)
+    `adjoin` (_DeclNode % _DeclCstrSite % _2)
+    `adjoin` (_WhereNode % _WhereCstrSite % _2)
+
 resolveSingletonCstrSites :: CstrSite -> CstrSite
 resolveSingletonCstrSites
     = transformOnOf (traverseOf (_CstrSite % traversed % _Right)) uniplate
     $ \node -> fromMaybe node
     $ preview
-        (def @(AffineTraversal' Node CstrSite)
+        (_NodeCstrSite
          % _CstrSite
          % filtered ((<= 1) . lengthOf folded)
          % ix 0

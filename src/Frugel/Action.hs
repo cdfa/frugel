@@ -1,8 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE StandaloneDeriving #-}
-
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -181,9 +178,7 @@ textVariations
   where
     processItem item@(Left _) variations = cons item <$> variations
     processItem item@(Right node) variations
-        = (if is (def @(AffineTraversal' Node CstrSite)) node
-               then cons item <$> variations
-               else mempty)
+        = (if is _NodeCstrSite node then cons item <$> variations else mempty)
         <> (mappend <$> textVariations (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
