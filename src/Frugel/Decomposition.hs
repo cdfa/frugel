@@ -92,6 +92,11 @@ instance Decomposable CstrSite where
 
 instance Decomposable Node where
     hasParser = Just anyNode
+    conservativelyDecompose cstrSiteOffset = \case
+        ExprNode expr -> conservativelyDecompose cstrSiteOffset expr
+        DeclNode decl -> conservativelyDecompose cstrSiteOffset decl
+        WhereNode
+            whereClause -> conservativelyDecompose cstrSiteOffset whereClause
     mapMComponents mapChar mapNode = \case
         ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
         DeclNode decl -> DeclNode <$> mapMComponents mapChar mapNode decl
