@@ -16,12 +16,13 @@ module Frugel.Internal.DecompositionState
     , initialDecompositionState
     , _Todo
     , _Success
+    , _Reparsed
     ) where
 
 import           Optics
 
-data ModificationStatus = Todo | Success
-    deriving ( Show )
+data ModificationStatus = Todo | Success | Reparsed
+    deriving ( Show, Eq )
 
 -- A text offset of -1 is used for representing that we are done with parsing
 -- because 0 could also mean we are at the start of a node that still needs to be decomposed
@@ -30,7 +31,7 @@ data DecompositionState
                          , cstrSiteOffset     :: Int
                          , modificationStatus :: ModificationStatus
                          }
-    deriving ( Show )
+    deriving ( Show, Eq )
 
 type DecompositionMonad m = StateT DecompositionState m
 
