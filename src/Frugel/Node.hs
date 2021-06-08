@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Node
@@ -40,6 +42,7 @@ module Frugel.Node
 
 import           Control.Lens.Plated
 
+import           Data.Data
 import           Data.Data.Lens
 
 import           Frugel.Identifier    as Identifier
@@ -93,20 +96,13 @@ _NodeCstrSite
     `adjoin` (_DeclNode % _DeclCstrSite % _2)
     `adjoin` (_WhereNode % _WhereCstrSite % _2)
 
-resolveSingletonCstrSites :: CstrSite -> CstrSite
-resolveSingletonCstrSites
-    = transformOnOf (traverseOf (_CstrSite % traversed % _Right)) uniplate
-    $ \node -> fromMaybe node
-    $ preview
-        (_NodeCstrSite
-         % _CstrSite
-         % filtered ((<= 1) . lengthOf folded)
-         % ix 0
-         % _Right)
-        node
+flattenConstructionSites :: forall n. Data n => n -> n
+flattenConstructionSites
+    = transformOnOf (template @n @CstrSite) uniplate
+    $ foldMapOf
+        (_CstrSite % folded)
+        (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
 
--- concatCstrSite :: [CstrSite] -> CstrSite
--- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
 

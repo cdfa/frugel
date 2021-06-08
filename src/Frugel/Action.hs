@@ -161,10 +161,11 @@ attemptEdit f model = case second reparse . f $ view #program model of
         (Success, model & #program .~ newProgram & #errors .~ newErrors)
   where
     reparse newProgram
-        = bimap (fromMaybe newProgram) (map ParseError . toList)
+        = bimap
+            (flattenConstructionSites . fromMaybe newProgram)
+            (map ParseError . toList)
         . foldr findSuccessfulParse (Nothing, mempty)
         . textVariations
-        . resolveSingletonCstrSites
         $ decompose newProgram
     findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
         = firstSuccessfulParse

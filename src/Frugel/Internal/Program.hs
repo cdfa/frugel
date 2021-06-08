@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -13,6 +15,7 @@ module Frugel.Internal.Program where
 
 import           Control.ValidEnumerable
 
+import           Data.Data
 import           Data.GenValidity
 import           Data.Has
 
@@ -29,7 +32,7 @@ data Program
               , whereClause :: Maybe WhereClause
               }
     | ProgramCstrSite ProgramMeta CstrSite
-    deriving ( Show, Eq, Generic, Has ProgramMeta )
+    deriving ( Show, Eq, Generic, Has ProgramMeta, Data )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Program
 
