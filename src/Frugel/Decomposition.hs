@@ -44,6 +44,10 @@ decompose n
   where
     consing f x = x <$ modify (f x :)
 
+textLength :: Decomposable n => n -> Int
+textLength
+    = sum . fmap (either (const 1) textLength) . view _CstrSite . decompose
+
 intersperseWhitespaceTraversals :: (Monad m, Has Meta n)
     => (Char -> m Char)
     -> n

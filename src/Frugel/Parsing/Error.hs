@@ -13,15 +13,24 @@ import qualified Data.Set              as Set
 import           Frugel.Node
 import           Frugel.PrettyPrinting
 
-import           Text.Megaparsec.Error hiding ( parseErrorTextPretty )
+import           Optics
+
+import qualified Text.Megaparsec       as Megaparsec
+import           Text.Megaparsec.Error
+                 hiding ( ParseError, errorOffset, parseErrorTextPretty )
 import           Text.Megaparsec.Pos
+
+type ParseError = Megaparsec.ParseError CstrSite Void
+
+errorOffset :: Lens' (Megaparsec.ParseError s e) Int
+errorOffset = lens Megaparsec.errorOffset $ flip setErrorOffset
 
 -- | Pretty-print a 'ParseError'. The rendered 'Doc Annotation ' always ends with a
 -- newline.
-parseErrorPretty :: ParseError CstrSite Void -> Doc Annotation
+parseErrorPretty :: ParseError -> Doc Annotation
 parseErrorPretty e
     = "offset="
-    <> show (errorOffset e)
+    <> show (Megaparsec.errorOffset e)
     <> ":"
     <> line
     <> parseErrorTextPretty e
@@ -31,7 +40,7 @@ parseErrorPretty e
 -- newline.
 --
 -- @since 5.1.0
-parseErrorTextPretty :: ParseError CstrSite Void -> Doc Annotation
+parseErrorTextPretty :: ParseError -> Doc Annotation
 parseErrorTextPretty (TrivialError _ us ps)
     = if isNothing us && Set.null ps
         then "unknown parse error"

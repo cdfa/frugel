@@ -37,7 +37,8 @@ import           Prettyprinter.Render.String
 import           Prettyprinter.Render.Util.SimpleDocTree
 
 import           Text.Megaparsec
-                 hiding ( parseErrorPretty )
+                 hiding ( ParseError, errorOffset, parseErrorPretty )
+import qualified Text.Megaparsec                         as Megaparsec
 
 data EditResult = Success | Failure
     deriving ( Show, Eq )
@@ -56,7 +57,7 @@ data Action
     | PrettyPrint
     deriving ( Show, Eq )
 
-deriving instance (Ord (Token s), Ord e) => Ord (ParseError s e)
+deriving instance (Ord (Token s), Ord e) => Ord (Megaparsec.ParseError s e)
 
 -- Updates model, optionally introduces side effects
 updateModel :: Action -> Model -> Effect Action Model
@@ -171,10 +172,21 @@ attemptEdit f model = case second reparse . f $ view #program model of
         = firstSuccessfulParse
     findSuccessfulParse materials (Nothing, errors)
         = ( rightToMaybe parsed
-          , maybe errors (Set.union errors . fromFoldable) $ leftToMaybe parsed
+          , maybe
+                errors
+                (Set.union errors
+                 . fromFoldable
+                 . fmap (normalizeErrorOffset materials))
+            $ leftToMaybe parsed
           )
       where
         parsed = parseCstrSite fileName materials
+
+normalizeErrorOffset :: CstrSite -> ParseError -> ParseError
+normalizeErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
+    + sumOf
+        (folded % _Right % to (pred . textLength))
+        (Seq.take (offset - 1) materials)
 
 -- construction sites with least nested construction sites should be at the end
 textVariations :: CstrSite -> Seq CstrSite

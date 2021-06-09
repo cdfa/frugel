@@ -21,7 +21,8 @@ import           Optics
 
 import           Prelude                            hiding ( some )
 
-import           Text.Megaparsec                    hiding ( many, some )
+import           Text.Megaparsec
+                 hiding ( ParseError, many, some )
 
 identifier :: Parser Identifier
 identifier = Identifier <$> some alphaNumChar <?> "an identifier"
@@ -116,8 +117,6 @@ program
         $ setWhitespace (whitespaceFragments, p)
     setProgramWhitespace _ = error "not enough whitespace fragments"
 
-parseCstrSite :: FilePath
-    -> CstrSite
-    -> Either (NonEmpty (ParseError CstrSite Void)) Program
+parseCstrSite :: FilePath -> CstrSite -> Either (NonEmpty ParseError) Program
 parseCstrSite filePath cstrSite
     = first bundleErrors $ runParser (program <* eof) filePath cstrSite
