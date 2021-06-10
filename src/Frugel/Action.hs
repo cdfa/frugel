@@ -161,38 +161,36 @@ attemptEdit f model = case second reparse . f $ view #program model of
         = bimap
             (flattenConstructionSites . fromMaybe newProgram)
             (map ParseError . toList)
-        . foldr findSuccessfulParse (Nothing, mempty)
-        . textVariations
+        . findSuccessfulParse
+        . groupSortOn cstrSiteCount
+        . partiallyLinearise
         $ decompose newProgram
-    findSuccessfulParse _ firstSuccessfulParse@(Just _, _)
-        = firstSuccessfulParse
-    findSuccessfulParse materials (Nothing, errors)
-        = ( rightToMaybe parsed
-          , maybe
-                errors
-                (Set.union errors
-                 . fromFoldable
-                 . fmap (normalizeErrorOffset materials))
-            $ leftToMaybe parsed
+    findSuccessfulParse = foldl' collectResults (Nothing, mempty)
+    collectResults firstSuccessfulParse@(Just _, _) _ = firstSuccessfulParse
+    collectResults (Nothing, errors) cstrSiteBucket
+        = ( case rights parses of
+                [n] -> Just n
+                _ -> Nothing
+          , Set.union errors . Set.unions . fmap fromFoldable $ lefts parses
           )
       where
-        parsed = parseCstrSite fileName materials
+        parses = map (\cstrSite -> first (fmap (fixErrorOffset cstrSite))
+                      $ parseCstrSite fileName cstrSite) cstrSiteBucket
 
-normalizeErrorOffset :: CstrSite -> ParseError -> ParseError
-normalizeErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
+fixErrorOffset :: CstrSite -> ParseError -> ParseError
+fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
     + sumOf
         (folded % _Right % to (pred . textLength))
         (Seq.take (offset - 1) materials)
 
 -- construction sites with least nested construction sites should be at the end
-textVariations :: CstrSite -> Seq CstrSite
-textVariations
-    = foldr processItem (Seq.singleton $ fromList []) . view _CstrSite
+partiallyLinearise :: CstrSite -> [CstrSite]
+partiallyLinearise = foldr addItem [ fromList [] ] . view _CstrSite
   where
-    processItem item@(Left _) variations = cons item <$> variations
-    processItem item@(Right node) variations
+    addItem item@(Left _) variations = cons item <$> variations
+    addItem item@(Right node) variations
         = (if is _NodeCstrSite node then cons item <$> variations else mempty)
-        <> (mappend <$> textVariations (decompose node) <*> variations)
+        <> (mappend <$> partiallyLinearise (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int

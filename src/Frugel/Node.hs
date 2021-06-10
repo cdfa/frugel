@@ -40,6 +40,7 @@ module Frugel.Node
     , addMetaWith
     ) where
 
+import qualified Control.Lens         as Lens
 import           Control.Lens.Plated
 
 import           Data.Data
@@ -102,6 +103,9 @@ flattenConstructionSites
     $ foldMapOf
         (_CstrSite % folded)
         (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
+
+cstrSiteCount :: CstrSite -> Int
+cstrSiteCount = Lens.lengthOf $ cosmosOf uniplate
 
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0

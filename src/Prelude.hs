@@ -13,6 +13,7 @@ module Prelude
 
 import           Data.Default.Class
 import qualified Data.Foldable      as Foldable
+import           Data.List          ( groupBy )
 import           Data.Sequence      ( (><) )
 
 import           GHC.Exts
@@ -116,5 +117,13 @@ fromFoldable = fromList . Foldable.toList
 -- the one after it in the list.
 chain :: (Monad m, Foldable t) => t (a -> m a) -> a -> m a
 chain = foldr (>=>) return
+
 -- foldAlt :: (Foldable t, Alternative f) => t a -> f a
 -- foldAlt = getAlt . foldMap (Alt . pure)
+-- Copied from https://hackage.haskell.org/package/extra-1.7.9/docs/src/Data.List.Extra.html#groupSort
+groupSortOn :: Ord b => (a -> b) -> [a] -> [[a]]
+groupSortOn f
+    = map (map snd)
+    . groupBy ((==) `on` fst)
+    . sortBy (compare `on` fst)
+    . map (f &&& id)
