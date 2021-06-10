@@ -1,16 +1,24 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Frugel.Action where
 
+import qualified Control.Lens                            as Lens
+import           Control.Monad.Writer
 import           Control.Zipper.Seq                      hiding ( insert )
 import qualified Control.Zipper.Seq                      as SeqZipper
 
+import           Data.Data
+import           Data.Data.Lens
 import qualified Data.Sequence                           as Seq
 import qualified Data.Set                                as Set
+import           Data.Set.Optics
 
 import           Frugel.Decomposition
                  hiding ( ModificationStatus(..) )
@@ -18,8 +26,8 @@ import           Frugel.DisplayProjection
 import           Frugel.Error
 import           Frugel.Model
 import           Frugel.Node
-import           Frugel.Parsing
-                 hiding ( node, program )
+import           Frugel.Parsing                          hiding ( node )
+import qualified Frugel.Parsing                          as Parsing
 import           Frugel.PrettyPrinting
 import           Frugel.Program
 
@@ -152,30 +160,69 @@ prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
 attemptEdit :: (Program -> Either InternalError Program)
     -> Model
     -> (EditResult, Model)
-attemptEdit f model = case second reparse . f $ view #program model of
+attemptEdit
+    f
+    model = case second (reparse Parsing.program) . f $ view #program model of
     Left editError -> (Failure, model & #errors .~ [ InternalError editError ])
     Right (newProgram, newErrors) ->
-        (Success, model & #program .~ newProgram & #errors .~ newErrors)
+        ( Success
+        , model
+          & #program .~ flattenConstructionSites newProgram
+          & #errors .~ map ParseError (toList newErrors)
+        )
   where
-    reparse newProgram
-        = bimap
-            (flattenConstructionSites . fromMaybe newProgram)
-            (map ParseError . toList)
+    reparse :: forall n.
+        (Data n, Decomposable n)
+        => Parser n
+        -> n
+        -> (n, Set ParseError)
+    reparse parser node
+        = uncurry reparseNestedCstrSites
+        . first (fromMaybe (decompose node, node))
         . findSuccessfulParse
         . groupSortOn cstrSiteCount
-        . partiallyLinearise
-        $ decompose newProgram
-    findSuccessfulParse = foldl' collectResults (Nothing, mempty)
-    collectResults firstSuccessfulParse@(Just _, _) _ = firstSuccessfulParse
-    collectResults (Nothing, errors) cstrSiteBucket
-        = ( case rights parses of
-                [n] -> Just n
-                _ -> Nothing
-          , Set.union errors . Set.unions . fmap fromFoldable $ lefts parses
-          )
+        . squishCstrSite
+        $ decompose node
       where
-        parses = map (\cstrSite -> first (fmap (fixErrorOffset cstrSite))
-                      $ parseCstrSite fileName cstrSite) cstrSiteBucket
+        reparseNestedCstrSites (cstrSite, newNode) errors
+            = runWriter
+            $ tell errors
+            >> Lens.itraverseOf
+                (Lens.indexing $ template @n @Node)
+                (\i -> writer
+                 . second (increaseErrorOffsets i cstrSite)
+                 . reparse anyNode)
+                newNode
+        increaseErrorOffsets i cstrSite
+            = setmapped % errorOffset
+            +~ fst
+                (Seq.filter
+                     (isRight . snd)
+                     (leadingCumulativeTextLengths cstrSite)
+                 `Seq.index` i)
+        -- not exactly a prefix sum; first element of pair is text length of construction materials before the item in the right element
+        leadingCumulativeTextLengths (CstrSite materials)
+            = snd
+            $ mapAccumL (\l item -> let
+                             itemLength = either (const 1) textLength item
+                             in
+                                 (l + itemLength, (l, item))) 0 materials
+        findSuccessfulParse = foldl' collectResults (Nothing, mempty)
+        collectResults firstSuccessfulParse@(Just _, _) _
+            = firstSuccessfulParse
+        collectResults (Nothing, errors) cstrSiteBucket
+            = ( head <.> nonEmpty $ rights parses -- It would be possible to do some ambiguity checking by keeping track of ambiguously resolved construction sites across construction sites buckets, but as long as there is no way of parsing a nested construction site without considering the parent, these cases are so rare the checking is not worth the added complexity
+              , Set.union errors . Set.unions . fmap fromFoldable
+                $ lefts parses
+              )
+          where
+            parses
+                = map
+                    (\cstrSite -> bimap
+                         (fmap (fixErrorOffset cstrSite) . bundleErrors)
+                         (cstrSite, )
+                     $ runParser (parser <* eof) fileName cstrSite)
+                    cstrSiteBucket
 
 fixErrorOffset :: CstrSite -> ParseError -> ParseError
 fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
@@ -184,13 +231,13 @@ fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
         (Seq.take (offset - 1) materials)
 
 -- construction sites with least nested construction sites should be at the end
-partiallyLinearise :: CstrSite -> [CstrSite]
-partiallyLinearise = foldr addItem [ fromList [] ] . view _CstrSite
+squishCstrSite :: CstrSite -> [CstrSite]
+squishCstrSite = foldr addItem [ fromList [] ] . view _CstrSite
   where
     addItem item@(Left _) variations = cons item <$> variations
     addItem item@(Right node) variations
         = (if is _NodeCstrSite node then cons item <$> variations else mempty)
-        <> (mappend <$> partiallyLinearise (decompose node) <*> variations)
+        <> (mappend <$> squishCstrSite (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int

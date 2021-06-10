@@ -1,10 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE TypeApplications #-}
 
 module Frugel.Parsing
     ( module Frugel.Parsing
     , module Frugel.Parsing.Error
+    , module Frugel.Lexing
     ) where
 
 import           Control.Monad.Combinators.Expr
@@ -30,6 +30,14 @@ identifier = Identifier <$> some alphaNumChar <?> "an identifier"
 node :: IsNode w => String -> Parser w
 node name = namedToken name $ preview (_Right % nodePrism)
 
+anyNode :: Parser Node
+anyNode
+    = choice
+        [ WhereNode <$> whereClause
+        , DeclNode <$> try decl
+        , ExprNode <$> try expr
+        ]
+
 term :: Parser Expr
 term
     = choice
@@ -52,7 +60,10 @@ term
             & exprMeta % #parenthesisLevels +~ 1
             & exprMeta % #standardMeta % #interstitialWhitespace
             %~ cons leftFragment . flip snoc rightFragment
-        _ -> error "Unexpected number of whitespace fragments"
+        _ -> error
+            $ toText
+                ("Unexpected number of whitespace fragments: "
+                 ++ show whitespaceFragments)
 
 expr :: Parser Expr
 expr
