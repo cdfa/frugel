@@ -1,31 +1,39 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Frugel.Decomposition
-    ( module Frugel.Decomposition
-    , module Frugel.Internal.DecompositionState
+    ( module Frugel.Internal.DecompositionState
+    , CstrSiteZipper
+    , Decomposable(..)
+    , modifyNodeAt
+    , decompose
+    , textLength
     ) where
+
+import           Control.Monad.Except
+import           Control.Zipper.Seq
 
 import           Data.Has
 import           Data.Text.Optics
 
+import           Frugel.Error
 import           Frugel.Internal.DecompositionState
 import           Frugel.Node
-import           Frugel.Parsing                     ( Parser, anyNode )
 import           Frugel.Program
 
 import           Numeric.Optics
 
 import           Optics
 
+type CstrSiteZipper = SeqZipper (Either Char Node)
+
 class Decomposable n where
     conservativelyDecompose :: Int -> n -> Maybe (Int, CstrSite)
     conservativelyDecompose _ _ = Nothing
-    hasParser :: Maybe (Parser n)
-    hasParser = Nothing
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
@@ -39,14 +47,76 @@ decompose :: Decomposable n => n -> CstrSite
 decompose n
     = fromList . reverse
     $ execState
-        (mapMComponents (consing Left) (consing (Right . review nodePrism)) n)
+        (mapMComponents (conses Left) (conses (Right . review nodePrism)) n)
         []
   where
-    consing f x = x <$ modify (f x :)
+    conses f x = x <$ modify (f x :)
 
 textLength :: Decomposable n => n -> Int
 textLength
     = sum . fmap (either (const 1) textLength) . view _CstrSite . decompose
+
+step :: MonadState DecompositionState m => m ()
+step = do
+    textOffset <- use #textOffset
+    -- c <- guse #cstrSiteOffset
+    -- traceM ("step t: " <> show textOffset <> " c: " <> show c)
+    when (textOffset /= -1) (#textOffset -= 1)
+    when (textOffset > 0) (#cstrSiteOffset += 1)
+
+modifyNodeAt :: forall m' p.
+    (MonadError InternalError m', Decomposable p, SetCstrSite p)
+    => (Int -> CstrSite -> m' CstrSite)
+    -> Int
+    -> p
+    -> m' p
+modifyNodeAt f cursorOffset program
+    = runModification >>= \(newProgram, decompositionState) -> if
+        | view #textOffset decompositionState
+            > 0 -> throwError $ DecompositionFailed cursorOffset
+        | Todo <- view #modificationStatus decompositionState ->
+            throwError $ ASTModificationNotPerformed cursorOffset
+        | otherwise -> pure newProgram
+  where
+    runModification
+        = mapNode program `runStateT` initialDecompositionState cursorOffset
+    mapChar c = c <$ step -- trace (show c) step
+    mapNode :: (Decomposable n, SetCstrSite n) => n -> DecompositionMonad m' n
+    mapNode n = do
+        -- t <- guse #textOffset
+        -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
+        ifM (guses #textOffset (< 0)) (pure n) -- node is located after cursor
+            $ do
+                #cstrSiteOffset += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
+                withLocal #cstrSiteOffset 0 $ do
+                    newNode <- mapMComponents mapChar mapNode n
+                    -- t <- guse #textOffset
+                    -- c <- guse #cstrSiteOffset
+                    -- traceM
+                    --     ("post "
+                    --      <> take 20 (show n)
+                    --      <> " t: "
+                    --      <> show t
+                    --      <> " c: "
+                    --      <> show c)
+                    ifM
+                        (guses #textOffset (<= 0)
+                         &&^ guses #modificationStatus (isn't _Success))
+                        (catchError
+                             (setCstrSite <$> transform n
+                              ?? n <* assign #modificationStatus Success)
+                         $ const (pure n))
+                        (pure newNode)
+    -- transform :: (Decomposable n) => n -> StateT DecompositionState m' CstrSite
+    transform n = do
+        cstrSiteOffset <- use #cstrSiteOffset
+        lift $ case conservativelyDecompose cstrSiteOffset n of
+            Just (cstrSiteOffset', cstrSite)
+                | cstrSiteOffset == 0
+                    || cstrSiteOffset == length (toList $ decompose n) ->
+                    catchError (f cstrSiteOffset' cstrSite)
+                    $ const (f cstrSiteOffset $ decompose n)
+            _ -> f cstrSiteOffset $ decompose n
 
 intersperseWhitespaceTraversals :: (Monad m, Has Meta n)
     => (Char -> m Char)
@@ -95,7 +165,6 @@ instance Decomposable CstrSite where
         = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
 
 instance Decomposable Node where
-    hasParser = Just anyNode
     conservativelyDecompose cstrSiteOffset = \case
         ExprNode expr -> conservativelyDecompose cstrSiteOffset expr
         DeclNode decl -> conservativelyDecompose cstrSiteOffset decl
@@ -117,9 +186,9 @@ instance Decomposable Identifier where
 instance Decomposable Expr where
     conservativelyDecompose
         = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
-    mapMComponents mapChar mapNode e
-        | e ^. exprMeta % #parenthesisLevels > 0
-            = chain
+    mapMComponents mapChar mapNode e = e & case e of
+        _
+            | e ^. exprMeta % #parenthesisLevels > 0 -> chain
                 [ (<$ mapChar '(')
                 , whitespaceFragmentTraversal _head %%~ mapChar
                 , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
@@ -130,8 +199,6 @@ instance Decomposable Expr where
                 , whitespaceFragmentTraversal _last %%~ mapChar
                 , (<$ mapChar ')')
                 ]
-                e
-    mapMComponents mapChar mapNode e = e & case e of
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
         Variable{} -> _Variable % _2 %%~ mapMComponents mapChar mapNode
         Abstraction{} -> chain
