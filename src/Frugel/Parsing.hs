@@ -7,22 +7,21 @@ module Frugel.Parsing
     , module Frugel.Lexing
     ) where
 
-import           Control.Monad.Combinators.Expr
-import           Control.Monad.Combinators.NonEmpty
+import Control.Monad.Combinators.Expr
+import Control.Monad.Combinators.NonEmpty
 
-import           Frugel.Lexing
-import           Frugel.Node
-import qualified Frugel.Node                        as Node
-import           Frugel.Parsing.Error
-import           Frugel.Parsing.Whitespace
-import           Frugel.Program                     as Program
+import Frugel.Lexing
+import Frugel.Node
+import qualified Frugel.Node        as Node
+import Frugel.Parsing.Error
+import Frugel.Parsing.Whitespace
+import Frugel.Program               as Program
 
-import           Optics
+import Optics
 
-import           Prelude                            hiding ( some )
+import Prelude                      hiding ( some )
 
-import           Text.Megaparsec
-                 hiding ( ParseError, many, some )
+import Text.Megaparsec              hiding ( ParseError, many, some )
 
 identifier :: Parser Identifier
 identifier = Identifier <$> some alphaNumChar <?> "an identifier"
@@ -32,27 +31,25 @@ node name = namedToken name $ preview (_Right % nodePrism)
 
 anyNode :: Parser Node
 anyNode
-    = choice
-        [ WhereNode <$> whereClause
-        , DeclNode <$> try decl
-        , ExprNode <$> try expr
-        ]
+    = choice [ WhereNode <$> whereClause
+             , DeclNode <$> try decl
+             , ExprNode <$> try expr
+             ]
 
 term :: Parser Expr
 term
-    = choice
-        [ surroundOriginalWhitespace
-          <$> (char '(' *%> fmap noWhitespace expr <*% char ')')
-        , setWhitespace
-          <$> choice
-              [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
-                <*%> expr
-                -- Non recursive production rules at the bottom
-              , exprCstrSite' (CstrSite empty) <$% string "..."
-              , variable' <$%> identifier
-              ]
-        , node "an expression node"
-        ]
+    = choice [ surroundOriginalWhitespace
+               <$> (char '(' *%> fmap noWhitespace expr <*% char ')')
+             , setWhitespace
+               <$> choice [ Node.abstraction' <$% char '\\' <*%> identifier
+                            <*% char '='
+                            <*%> expr
+                            -- Non recursive production rules at the bottom
+                          , exprCstrSite' (CstrSite empty) <$% string "..."
+                          , variable' <$%> identifier
+                          ]
+             , node "an expression node"
+             ]
   where
     surroundOriginalWhitespace
         (whitespaceFragments, e) = case whitespaceFragments of
@@ -61,28 +58,24 @@ term
             & exprMeta % #standardMeta % #interstitialWhitespace
             %~ cons leftFragment . flip snoc rightFragment
         _ -> error
-            $ toText
-                ("Unexpected number of whitespace fragments: "
-                 ++ show whitespaceFragments)
+            $ toText ("Unexpected number of whitespace fragments: "
+                      ++ show whitespaceFragments)
 
 expr :: Parser Expr
 expr
     = makeExprParser
         term
-        [ [ InfixL
-                (Application . setWhitespace
-                 <$> try
-                     (defaultExprMeta 1 <<$> whitespace
-                      <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
-                          (choice
-                               [ () <$ char '+'
-                               , () <$ string "where"
-                               , () <$ node @WhereClause ""
-                               , () <$ (() <$% identifier <*% char '=')
-                               , () <$ node @Decl ""
-                               , () <$ char ')'
-                               , eof
-                               ])))
+        [ [ InfixL (Application . setWhitespace
+                    <$> try (defaultExprMeta 1 <<$> whitespace
+                             <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
+                             (choice [ () <$ char '+'
+                                     , () <$ string "where"
+                                     , () <$ node @WhereClause ""
+                                     , () <$ (() <$% identifier <*% char '=')
+                                     , () <$ node @Decl ""
+                                     , () <$ char ')'
+                                     , eof
+                                     ])))
           ]
         , [ InfixL
                 (Sum . setWhitespace

@@ -7,8 +7,8 @@ module Frugel.Program
     , programCstrSite'
     ) where
 
-import           Frugel.Internal.Program
-import           Frugel.Node
+import Frugel.Internal.Program
+import Frugel.Node
 
 program' :: Expr -> Maybe WhereClause -> Program
 program' = Program $ defaultProgramMeta 1

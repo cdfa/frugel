@@ -9,18 +9,18 @@
 
 module Data.Alphanumeric where
 
-import           Control.Enumerable.Combinators
-import           Control.ValidEnumerable
+import Control.Enumerable.Combinators
+import Control.ValidEnumerable
 
-import           Data.Char
-import           Data.Data
-import           Data.GenValidity
+import Data.Char
+import Data.Data
+import Data.GenValidity
 
-import           Optics
+import Optics
 
-import           Prettyprinter
+import Prettyprinter
 
-import           Test.QuickCheck.Gen            hiding ( growingElements )
+import Test.QuickCheck.Gen      hiding ( growingElements )
 
 newtype Alphanumeric = Alphanumeric { unAlphanumeric :: Char }
     deriving ( Eq, Ord, Show, Generic, Data, Pretty )
@@ -29,12 +29,11 @@ makeFieldLabelsWith noPrefixFieldLabels ''Alphanumeric
 
 instance Validity Alphanumeric where
     validate
-        = mconcat
-            [ genericValidate
-            , declare "is an alpha-numeric character"
-              . isAlphaNum
-              . unAlphanumeric
-            ]
+        = mconcat [ genericValidate
+                  , declare "is an alpha-numeric character"
+                    . isAlphaNum
+                    . unAlphanumeric
+                  ]
 
 instance GenValid Alphanumeric where
     genValid = sized uniformValid

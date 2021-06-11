@@ -14,20 +14,20 @@ module Frugel.Decomposition
     , textLength
     ) where
 
-import           Control.Monad.Except
-import           Control.Zipper.Seq
+import Control.Monad.Except
+import Control.Zipper.Seq
 
-import           Data.Has
-import           Data.Text.Optics
+import Data.Has
+import Data.Text.Optics
 
-import           Frugel.Error
-import           Frugel.Internal.DecompositionState
-import           Frugel.Node
-import           Frugel.Program
+import Frugel.Error
+import Frugel.Internal.DecompositionState
+import Frugel.Node
+import Frugel.Program
 
-import           Numeric.Optics
+import Numeric.Optics
 
-import           Optics
+import Optics
 
 type CstrSiteZipper = SeqZipper (Either Char Node)
 
@@ -71,12 +71,12 @@ modifyNodeAt :: forall m' p.
     -> p
     -> m' p
 modifyNodeAt f cursorOffset program
-    = runModification >>= \(newProgram, decompositionState) -> if
-        | view #textOffset decompositionState
-            > 0 -> throwError $ DecompositionFailed cursorOffset
-        | Todo <- view #modificationStatus decompositionState ->
-            throwError $ ASTModificationNotPerformed cursorOffset
-        | otherwise -> pure newProgram
+    = runModification >>= \(newProgram, decompositionState) ->
+    if | view #textOffset decompositionState
+           > 0 -> throwError $ DecompositionFailed cursorOffset
+       | Todo <- view #modificationStatus decompositionState ->
+           throwError $ ASTModificationNotPerformed cursorOffset
+       | otherwise -> pure newProgram
   where
     runModification
         = mapNode program `runStateT` initialDecompositionState cursorOffset
@@ -99,12 +99,10 @@ modifyNodeAt f cursorOffset program
                     --      <> show t
                     --      <> " c: "
                     --      <> show c)
-                    ifM
-                        (guses #textOffset (<= 0)
+                    ifM (guses #textOffset (<= 0)
                          &&^ guses #modificationStatus (isn't _Success))
-                        (catchError
-                             (setCstrSite <$> transform n
-                              ?? n <* assign #modificationStatus Success)
+                        (catchError (setCstrSite <$> transform n
+                                     ?? n <* assign #modificationStatus Success)
                          $ const (pure n))
                         (pure newNode)
     -- transform :: (Decomposable n) => n -> StateT DecompositionState m' CstrSite
@@ -126,11 +124,10 @@ intersperseWhitespaceTraversals :: (Monad m, Has Meta n)
     -> [n
        -> m n]
 intersperseWhitespaceTraversals mapChar n traversals
-    = interleave
-        [ traversals
-        , imap (\i _ -> whitespaceFragmentTraversal (ix i) %%~ mapChar)
-          $ view (hasLens @Meta % #interstitialWhitespace) n
-        ]
+    = interleave [ traversals
+                 , imap (\i _ -> whitespaceFragmentTraversal (ix i) %%~ mapChar)
+                   $ view (hasLens @Meta % #interstitialWhitespace) n
+                 ]
 
 whitespaceFragmentTraversal :: (Is k An_AffineTraversal, Has Meta n)
     => Optic' k NoIx [Text] Text
@@ -151,11 +148,9 @@ conservativelyDecomposeNode
     -> Maybe (Int, CstrSite)
 conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
     = case cstrSiteOffset of
-        0
-            | isn't cstrSiteFold n -> Just (0, singletonCstrSite)
-        l
-            | isn't cstrSiteFold n && l == length (toList $ decompose n) ->
-                Just (1, singletonCstrSite)
+        0 | isn't cstrSiteFold n -> Just (0, singletonCstrSite)
+        l | isn't cstrSiteFold n && l == length (toList $ decompose n) ->
+              Just (1, singletonCstrSite)
         _ -> Nothing
   where
     singletonCstrSite = fromList [ Right $ review nodeReview n ]
@@ -168,8 +163,8 @@ instance Decomposable Node where
     conservativelyDecompose cstrSiteOffset = \case
         ExprNode expr -> conservativelyDecompose cstrSiteOffset expr
         DeclNode decl -> conservativelyDecompose cstrSiteOffset decl
-        WhereNode
-            whereClause -> conservativelyDecompose cstrSiteOffset whereClause
+        WhereNode whereClause ->
+            conservativelyDecompose cstrSiteOffset whereClause
     mapMComponents mapChar mapNode = \case
         ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
         DeclNode decl -> DeclNode <$> mapMComponents mapChar mapNode decl
@@ -178,27 +173,25 @@ instance Decomposable Node where
 
 instance Decomposable Identifier where
     mapMComponents mapChar _ identifier@(Identifier _)
-        = traverseOf
-            (_Identifier % traversed % #unAlphanumeric)
-            (\c -> c <$ mapChar c)
-            identifier
+        = traverseOf (_Identifier % traversed % #unAlphanumeric)
+                     (\c -> c <$ mapChar c)
+                     identifier
 
 instance Decomposable Expr where
     conservativelyDecompose
         = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
     mapMComponents mapChar mapNode e = e & case e of
-        _
-            | e ^. exprMeta % #parenthesisLevels > 0 -> chain
-                [ (<$ mapChar '(')
-                , whitespaceFragmentTraversal _head %%~ mapChar
-                , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
-                  % refracting
-                      (exprMeta % #standardMeta % #interstitialWhitespace)
-                      (_tail % _init)
-                  %%~ mapNode
-                , whitespaceFragmentTraversal _last %%~ mapChar
-                , (<$ mapChar ')')
-                ]
+        _ | e ^. exprMeta % #parenthesisLevels > 0 -> chain
+              [ (<$ mapChar '(')
+              , whitespaceFragmentTraversal _head %%~ mapChar
+              , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
+                % refracting
+                    (exprMeta % #standardMeta % #interstitialWhitespace)
+                    (_tail % _init)
+                %%~ mapNode
+              , whitespaceFragmentTraversal _last %%~ mapChar
+              , (<$ mapChar ')')
+              ]
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
         Variable{} -> _Variable % _2 %%~ mapMComponents mapChar mapNode
         Abstraction{} -> chain
@@ -209,10 +202,9 @@ instance Decomposable Expr where
                 , _Abstraction % _3 %%~ mapNode
                 ]
         Application{} -> chain
-            $ intersperseWhitespaceTraversals'
-                [ _Application % _2 %%~ mapNode
-                , _Application % _3 %%~ mapNode
-                ]
+            $ intersperseWhitespaceTraversals' [ _Application % _2 %%~ mapNode
+                                               , _Application % _3 %%~ mapNode
+                                               ]
         Sum{} -> chain
             $ intersperseWhitespaceTraversals'
                 [ _Sum % _2 %%~ mapNode
@@ -228,15 +220,14 @@ instance Decomposable Decl where
     conservativelyDecompose
         = conservativelyDecomposeNode _DeclNode (_DeclCstrSite % _2)
     mapMComponents mapChar mapNode decl@Decl{}
-        = chain
-            (intersperseWhitespaceTraversals
-                 mapChar
-                 decl
-                 [ traverseOf #name $ mapMComponents mapChar mapNode
-                 , (<$ mapChar '=')
-                 , traverseOf #value mapNode
-                 ])
-            decl
+        = chain (intersperseWhitespaceTraversals
+                     mapChar
+                     decl
+                     [ traverseOf #name $ mapMComponents mapChar mapNode
+                     , (<$ mapChar '=')
+                     , traverseOf #value mapNode
+                     ])
+                decl
     mapMComponents mapChar mapNode (DeclCstrSite meta materials)
         = DeclCstrSite meta <$> mapMComponents mapChar mapNode materials
 
@@ -244,15 +235,13 @@ instance Decomposable WhereClause where
     conservativelyDecompose
         = conservativelyDecomposeNode _WhereNode (_WhereCstrSite % _2)
     mapMComponents mapChar mapNode whereClause@(WhereClause _ decls)
-        = chain
-            (intersperseWhitespaceTraversals
-                 mapChar
-                 whereClause
-                 ((<$ traverse_ @[] mapChar "where")
-                  : imap
-                      (\i _ -> _WhereClause % _2 % ix i %%~ mapNode)
-                      (toList decls)))
-            whereClause
+        = chain (intersperseWhitespaceTraversals
+                     mapChar
+                     whereClause
+                     ((<$ traverse_ @[] mapChar "where")
+                      : imap (\i _ -> _WhereClause % _2 % ix i %%~ mapNode)
+                             (toList decls)))
+                whereClause
     mapMComponents mapChar mapNode (WhereCstrSite meta materials)
         = WhereCstrSite meta <$> mapMComponents mapChar mapNode materials
 

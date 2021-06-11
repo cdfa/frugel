@@ -10,9 +10,9 @@ module Frugel
     , parseCstrSite
     ) where
 
-import           Frugel.Action
-import           Frugel.DisplayProjection
+import Frugel.Action
+import Frugel.DisplayProjection
 import qualified Frugel.Internal.Model
-import           Frugel.Model
-import           Frugel.Parsing
-import           Frugel.PrettyPrinting
+import Frugel.Model
+import Frugel.Parsing
+import Frugel.PrettyPrinting

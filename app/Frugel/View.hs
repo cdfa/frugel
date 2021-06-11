@@ -2,18 +2,18 @@
 
 module Frugel.View where
 
-import           Frugel
-import           Frugel.View.Elements                    as Elements
-import           Frugel.View.ViewModel                   as ViewModel
+import Frugel
+import Frugel.View.Elements              as Elements
+import Frugel.View.ViewModel             as ViewModel
 
-import           Miso                                    hiding ( node, view )
+import Miso                              hiding ( node, view )
 import qualified Miso.String
 
-import           Optics                                  hiding ( views )
+import Optics                            hiding ( views )
 
-import           Prelude                                 hiding ( lines )
+import Prelude                           hiding ( lines )
 
-import           Prettyprinter.Render.Util.SimpleDocTree
+import Prettyprinter.Render.Util.SimpleDocTree
 
 webPrint :: Miso.String.ToMisoString a => a -> View Action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
@@ -57,9 +57,8 @@ textTreeForm = \case
 
 textLeavesConcat :: [DocTextTree ann] -> [DocTextTree ann]
 textLeavesConcat
-    = over
-        (mapped % _Annotated % _2)
-        (textLeavesConcat . concatByPrism _TextLeaf)
+    = over (mapped % _Annotated % _2)
+           (textLeavesConcat . concatByPrism _TextLeaf)
 
 splitMultiLineAnnotations
     :: [DocTextTree Annotation] -> [DocTextTree Annotation]

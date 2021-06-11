@@ -40,54 +40,50 @@ module Frugel.Node
     , addMetaWith
     ) where
 
-import qualified Control.Lens         as Lens
-import           Control.Lens.Plated
+import qualified Control.Lens as Lens
+import Control.Lens.Plated
 
-import           Data.Data
-import           Data.Data.Lens
+import Data.Data
+import Data.Data.Lens
 
-import           Frugel.Identifier    as Identifier
-import           Frugel.Internal.Node
-import           Frugel.Meta
+import Frugel.Identifier as Identifier
+import Frugel.Internal.Node
+import Frugel.Meta
 
-import           Optics
+import Optics
 
-import           Relude.Unsafe        ( fromJust )
+import Relude.Unsafe  ( fromJust )
 
 parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
 parenthesizeExpr parenthesize prettyExpr x
     | x ^. exprMeta % #parenthesisLevels > 0
         = parenthesize
-        $ parenthesizeExpr
-            parenthesize
-            prettyExpr
-            (x & exprMeta % #parenthesisLevels -~ 1)
+        $ parenthesizeExpr parenthesize
+                           prettyExpr
+                           (x & exprMeta % #parenthesisLevels -~ 1)
 parenthesizeExpr _ prettyExpr x = prettyExpr x
 
 unwrapParentheses :: Expr -> Either Expr (Text, Expr, Text)
 unwrapParentheses e
     | e ^. exprMeta % #parenthesisLevels > 0
-        = Right
-            ( leadingFragment
-            , e
-              & exprMeta % #parenthesisLevels -~ 1
-              & exprMeta % #standardMeta % #interstitialWhitespace
-              .~ middleWhitespaceFragments
-            , trailingFragment
-            )
+        = Right ( leadingFragment
+                , e
+                  & exprMeta % #parenthesisLevels -~ 1
+                  & exprMeta % #standardMeta % #interstitialWhitespace
+                  .~ middleWhitespaceFragments
+                , trailingFragment
+                )
   where
     (leadingFragment, (middleWhitespaceFragments, trailingFragment))
         = fromMaybe
-            (error
-                 ("Encountered incorrect number of whitespace fragments in "
-                  <> show e))
-        $ preview
-            (exprMeta
-             % #standardMeta
-             % #interstitialWhitespace
-             % _Cons
-             % ((,) <$^> _1 <*^> _2 % _Snoc))
-            e
+            (error ("Encountered incorrect number of whitespace fragments in "
+                    <> show e))
+        $ preview (exprMeta
+                   % #standardMeta
+                   % #interstitialWhitespace
+                   % _Cons
+                   % ((,) <$^> _1 <*^> _2 % _Snoc))
+                  e
 unwrapParentheses e = Left e
 
 _NodeCstrSite :: AffineTraversal' Node CstrSite
@@ -100,9 +96,8 @@ _NodeCstrSite
 flattenConstructionSites :: forall n. Data n => n -> n
 flattenConstructionSites
     = transformOnOf (template @n @CstrSite) uniplate
-    $ foldMapOf
-        (_CstrSite % folded)
-        (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
+    $ foldMapOf (_CstrSite % folded)
+                (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
 
 cstrSiteCount :: CstrSite -> Int
 cstrSiteCount = Lens.lengthOf $ cosmosOf uniplate
@@ -164,11 +159,10 @@ parensTest
 
 whereClauseTest :: CstrSite
 whereClauseTest
-    = toCstrSite
-        [ Left "x where\n  y = "
-        , Right . ExprNode . exprCstrSite' $ fromList [ Left 'z' ]
-        , Left "\n  u = w"
-        ]
+    = toCstrSite [ Left "x where\n  y = "
+                 , Right . ExprNode . exprCstrSite' $ fromList [ Left 'z' ]
+                 , Left "\n  u = w"
+                 ]
 
 declNodeTest :: CstrSite
 declNodeTest

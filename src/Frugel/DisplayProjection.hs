@@ -2,14 +2,14 @@
 
 module Frugel.DisplayProjection where
 
-import           Frugel.Decomposition
-import           Frugel.Error
-import           Frugel.Node
-import           Frugel.Parsing.Error
-import           Frugel.PrettyPrinting
-import           Frugel.Program
+import Frugel.Decomposition
+import Frugel.Error
+import Frugel.Node
+import Frugel.Parsing.Error
+import Frugel.PrettyPrinting
+import Frugel.Program
 
-import           Optics
+import Optics
 
 class DisplayProjection a where
     displayDoc :: a -> Doc Annotation
@@ -30,10 +30,9 @@ instance DisplayProjection Expr where
     displayDoc = either displayDoc' parenthesize . unwrapParentheses
       where
         parenthesize (leadingFragment, e, trailingFragment)
-            = parens
-                (pretty leadingFragment
-                 <> displayDoc e
-                 <> pretty trailingFragment)
+            = parens (pretty leadingFragment
+                      <> displayDoc e
+                      <> pretty trailingFragment)
         displayDoc' (ExprCstrSite _ contents) = displayDoc contents
         displayDoc' expr = decomposableDoc expr
 

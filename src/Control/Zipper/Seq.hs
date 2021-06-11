@@ -12,7 +12,7 @@ module Control.Zipper.Seq where
 
 import qualified Data.Sequence as Seq
 
-import           Optics
+import Optics
 
 data SeqZipper a = SeqZipper { reversedPrefix :: Seq a, suffix :: Seq a }
     deriving ( Eq )
@@ -20,9 +20,8 @@ data SeqZipper a = SeqZipper { reversedPrefix :: Seq a, suffix :: Seq a }
 makeFieldLabelsWith noPrefixFieldLabels ''SeqZipper
 
 unzipTo :: Int -> Seq a -> Maybe (SeqZipper a)
-unzipTo i xs
-    | 0 <= i && i <= length xs, (prefix, suffix) <- Seq.splitAt i xs
-        = Just SeqZipper { reversedPrefix = Seq.reverse prefix, .. }
+unzipTo i xs | 0 <= i && i <= length xs, (prefix, suffix) <- Seq.splitAt i xs
+                 = Just SeqZipper { reversedPrefix = Seq.reverse prefix, .. }
 unzipTo _ _ = Nothing
 
 rezip :: SeqZipper a -> Seq a

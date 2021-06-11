@@ -8,12 +8,12 @@ module Control.ValidEnumerable.Class
     , module Control.Sized
     ) where
 
-import           Control.Enumerable  ( access, datatype )
-import           Control.Sized
+import Control.Enumerable ( access, datatype )
+import Control.Sized
 
-import           Data.ClassSharing
+import Data.ClassSharing
 
-import           Test.Feat.Modifiers hiding ( NonEmpty(..) )
+import Test.Feat.Modifiers hiding ( NonEmpty(..) )
 
 class Typeable a => ValidEnumerable a where
     enumerateValid :: (Typeable f, Sized f) => Shared f a
@@ -28,8 +28,8 @@ c1 :: (ValidEnumerable a, Sized f, Typeable f) => (a -> x) -> Shareable f x
 c1 f = fmap f accessValid
 
 c2 :: (ValidEnumerable a, ValidEnumerable b, Sized f, Typeable f)
-    => (a -> b -> x)
-    -> Shareable f x
+   => (a -> b -> x)
+   -> Shareable f x
 c2 f = c1 (uncurry f)
 
 c3 :: ( ValidEnumerable a
@@ -38,8 +38,8 @@ c3 :: ( ValidEnumerable a
       , Sized f
       , Typeable f
       )
-    => (a -> b -> c -> x)
-    -> Shareable f x
+   => (a -> b -> c -> x)
+   -> Shareable f x
 c3 f = c2 (uncurry f)
 
 c4 :: ( ValidEnumerable a
@@ -49,8 +49,8 @@ c4 :: ( ValidEnumerable a
       , Sized f
       , Typeable f
       )
-    => (a -> b -> c -> d -> x)
-    -> Shareable f x
+   => (a -> b -> c -> d -> x)
+   -> Shareable f x
 c4 f = c3 (uncurry f)
 
 c5 :: ( ValidEnumerable a
@@ -61,8 +61,8 @@ c5 :: ( ValidEnumerable a
       , Sized f
       , Typeable f
       )
-    => (a -> b -> c -> d -> e -> x)
-    -> Shareable f x
+   => (a -> b -> c -> d -> e -> x)
+   -> Shareable f x
 c5 f = c4 (uncurry f)
 
 c6 :: ( ValidEnumerable a
@@ -74,8 +74,8 @@ c6 :: ( ValidEnumerable a
       , Sized f
       , Typeable f
       )
-    => (a -> b -> c -> d -> e -> g -> x)
-    -> Shareable f x
+   => (a -> b -> c -> d -> e -> g -> x)
+   -> Shareable f x
 c6 f = c5 (uncurry f)
 
 c7 :: ( ValidEnumerable a
@@ -88,8 +88,8 @@ c7 :: ( ValidEnumerable a
       , Sized f
       , Typeable f
       )
-    => (a -> b -> c -> d -> e -> g -> h -> x)
-    -> Shareable f x
+   => (a -> b -> c -> d -> e -> g -> h -> x)
+   -> Shareable f x
 c7 f = c6 (uncurry f)
 
 -- Size of characters is determined by number of significant bits (see also Control.Enumerable docs)

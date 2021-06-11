@@ -3,15 +3,15 @@
 
 module Frugel.Identifier where
 
-import           Control.ValidEnumerable
+import Control.ValidEnumerable
 
-import           Data.Alphanumeric
-import           Data.Data
-import           Data.GenValidity
+import Data.Alphanumeric
+import Data.Data
+import Data.GenValidity
 
-import           Optics
+import Optics
 
-import           Test.QuickCheck.Gen
+import Test.QuickCheck.Gen
 
 newtype Identifier = Identifier (NonEmpty Alphanumeric)
     deriving ( Eq, Ord, Show, Generic, Data )

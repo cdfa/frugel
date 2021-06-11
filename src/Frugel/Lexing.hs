@@ -1,12 +1,12 @@
 module Frugel.Lexing where
 
-import           Data.Alphanumeric
-import           Data.Char
-import qualified Data.Set          as Set
+import Data.Alphanumeric
+import Data.Char
+import qualified Data.Set as Set
 
-import           Frugel.Node
+import Frugel.Node
 
-import           Text.Megaparsec
+import Text.Megaparsec
 
 type Parser = Parsec Void CstrSite
 

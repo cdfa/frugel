@@ -7,18 +7,18 @@
 
 module Frugel.Parsing.Error where
 
-import qualified Data.List.NonEmpty    as NE
-import qualified Data.Set              as Set
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as Set
 
-import           Frugel.Node
-import           Frugel.PrettyPrinting
+import Frugel.Node
+import Frugel.PrettyPrinting
 
-import           Optics
+import Optics
 
-import qualified Text.Megaparsec       as Megaparsec
-import           Text.Megaparsec.Error
-                 hiding ( ParseError, errorOffset, parseErrorTextPretty )
-import           Text.Megaparsec.Pos
+import qualified Text.Megaparsec as Megaparsec
+import Text.Megaparsec.Error
+    hiding ( ParseError, errorOffset, parseErrorTextPretty )
+import Text.Megaparsec.Pos
 
 type ParseError = Megaparsec.ParseError CstrSite Void
 
@@ -43,22 +43,20 @@ parseErrorPretty e
 parseErrorTextPretty :: ParseError -> Doc Annotation
 parseErrorTextPretty (TrivialError _ us ps)
     = if isNothing us && Set.null ps
-        then "unknown parse error"
-        else messageItemsPretty
-            "unexpected "
-            (showErrorItem
-             <$> maybe
-                 (error "Internal logic error: missing expected item")
-                 one
-                 us)
-            <> line
-            <> messageItemsPretty
-                "expecting "
-                (showErrorItem <$> fromList (toList ps))
+      then "unknown parse error"
+      else messageItemsPretty
+          "unexpected "
+          (showErrorItem
+           <$> maybe (error "Internal logic error: missing expected item")
+                     one
+                     us)
+          <> line
+          <> messageItemsPretty "expecting "
+                                (showErrorItem <$> fromList (toList ps))
 parseErrorTextPretty (FancyError _ xs)
     = if Set.null xs
-        then "unknown fancy parse error"
-        else vsep (showErrorFancy <$> Set.toAscList xs)
+      then "unknown fancy parse error"
+      else vsep (showErrorFancy <$> Set.toAscList xs)
 
 -- | Pretty-print an 'ErrorItem'.
 showErrorItem :: ErrorItem (Either Char Node) -> Doc Annotation
@@ -94,9 +92,8 @@ errorFancyLength = \case
 messageItemsPretty ::
     -- | Prefix to prepend
     Doc Annotation -> NonEmpty (Doc Annotation) -> Doc Annotation
-messageItemsPretty prefix ts
-    | null ts = ""
-    | otherwise = prefix `nestingLine` orList ts
+messageItemsPretty prefix ts | null ts = ""
+                             | otherwise = prefix `nestingLine` orList ts
 
 -- | Print a pretty list where items are separated with commas and the word
 -- “or” according to the rules of English punctuation.

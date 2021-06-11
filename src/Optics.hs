@@ -5,7 +5,7 @@ module Optics
     , module Optics.Applicative
     ) where
 
-import           Optics.Applicative
-import           Optics.External
-import           Optics.Extra
-import           Optics.State.Operators
+import Optics.Applicative
+import Optics.External
+import Optics.Extra
+import Optics.State.Operators

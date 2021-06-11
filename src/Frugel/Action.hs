@@ -9,40 +9,38 @@
 
 module Frugel.Action where
 
-import qualified Control.Lens                            as Lens
-import           Control.Monad.Writer
-import           Control.Zipper.Seq                      hiding ( insert )
-import qualified Control.Zipper.Seq                      as SeqZipper
+import qualified Control.Lens            as Lens
+import Control.Monad.Writer
+import Control.Zipper.Seq                hiding ( insert )
+import qualified Control.Zipper.Seq      as SeqZipper
 
-import           Data.Data
-import           Data.Data.Lens
-import qualified Data.Sequence                           as Seq
-import qualified Data.Set                                as Set
-import           Data.Set.Optics
+import Data.Data
+import Data.Data.Lens
+import qualified Data.Sequence           as Seq
+import qualified Data.Set                as Set
+import Data.Set.Optics
 
-import           Frugel.Decomposition
-                 hiding ( ModificationStatus(..) )
-import           Frugel.DisplayProjection
-import           Frugel.Error
-import           Frugel.Model
-import           Frugel.Node
-import           Frugel.Parsing                          hiding ( node )
-import qualified Frugel.Parsing                          as Parsing
-import           Frugel.PrettyPrinting
-import           Frugel.Program
+import Frugel.Decomposition              hiding ( ModificationStatus(..) )
+import Frugel.DisplayProjection
+import Frugel.Error
+import Frugel.Model
+import Frugel.Node
+import Frugel.Parsing                    hiding ( node )
+import qualified Frugel.Parsing          as Parsing
+import Frugel.PrettyPrinting
+import Frugel.Program
 
-import           Miso
-                 hiding ( focus, model, node, view )
+import Miso                              hiding ( focus, model, node, view )
 import qualified Miso
 
-import           Optics
+import Optics
 
-import           Prettyprinter.Render.String
-import           Prettyprinter.Render.Util.SimpleDocTree
+import Prettyprinter.Render.String
+import Prettyprinter.Render.Util.SimpleDocTree
 
-import           Text.Megaparsec
-                 hiding ( ParseError, errorOffset, parseErrorPretty )
-import qualified Text.Megaparsec                         as Megaparsec
+import Text.Megaparsec
+    hiding ( ParseError, errorOffset, parseErrorPretty )
+import qualified Text.Megaparsec         as Megaparsec
 
 data EditResult = Success | Failure
     deriving ( Show, Eq )
@@ -78,10 +76,9 @@ updateModel PrettyPrint model = noEff $ prettyPrint model
 
 insert :: Char -> Model -> Model
 insert c model
-    = case attemptEdit
-        (zipperAtCursor (Just . SeqZipper.insert (Left c))
-         $ view #cursorOffset model)
-        model of
+    = case attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
+                        $ view #cursorOffset model)
+                       model of
         (Success, newModel) -> newModel & #cursorOffset +~ 1
         (Failure, newModel) -> newModel
 
@@ -124,10 +121,9 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
          -- extra subtract 1 for the \n
         Upward -> case leadingLines of
             ((_ :> previousLine) :> leadingChars) -> max 0
-                . subtract
-                    (length leadingChars -- rest of the current line
-                     + 1 -- \n
-                     + max 0 (length previousLine - length leadingChars)) -- end of or same column on the previous line
+                . subtract (length leadingChars -- rest of the current line
+                            + 1 -- \n
+                            + max 0 (length previousLine - length leadingChars)) -- end of or same column on the previous line
             _ -> const currentOffset
         Downward -> case (leadingLines, trailingLines) of
             (_ :> leadingChars, trailingChars : (nextLine : _)) -> min
@@ -187,26 +183,22 @@ attemptEdit
         reparseNestedCstrSites (cstrSite, newNode) errors
             = runWriter
             $ tell errors
-            >> Lens.itraverseOf
-                (Lens.indexing $ template @n @Node)
-                (\i -> writer
-                 . second (increaseErrorOffsets i cstrSite)
-                 . reparse anyNode)
-                newNode
+            >> Lens.itraverseOf (Lens.indexing $ template @n @Node)
+                                (\i -> writer
+                                 . second (increaseErrorOffsets i cstrSite)
+                                 . reparse anyNode)
+                                newNode
         increaseErrorOffsets i cstrSite
             = setmapped % errorOffset
-            +~ fst
-                (Seq.filter
-                     (isRight . snd)
-                     (leadingCumulativeTextLengths cstrSite)
-                 `Seq.index` i)
+            +~ fst (Seq.filter (isRight . snd)
+                               (leadingCumulativeTextLengths cstrSite)
+                    `Seq.index` i)
         -- not exactly a prefix sum; first element of pair is text length of construction materials before the item in the right element
         leadingCumulativeTextLengths (CstrSite materials)
             = snd
-            $ mapAccumL (\l item -> let
-                             itemLength = either (const 1) textLength item
-                             in
-                                 (l + itemLength, (l, item))) 0 materials
+            $ mapAccumL (\l item ->
+                         let itemLength = either (const 1) textLength item
+                         in (l + itemLength, (l, item))) 0 materials
         findSuccessfulParse = foldl' collectResults (Nothing, mempty)
         collectResults firstSuccessfulParse@(Just _, _) _
             = firstSuccessfulParse
@@ -217,18 +209,16 @@ attemptEdit
               )
           where
             parses
-                = map
-                    (\cstrSite -> bimap
-                         (fmap (fixErrorOffset cstrSite) . bundleErrors)
-                         (cstrSite, )
-                     $ runParser (parser <* eof) fileName cstrSite)
-                    cstrSiteBucket
+                = map (\cstrSite ->
+                       bimap (fmap (fixErrorOffset cstrSite) . bundleErrors)
+                             (cstrSite, )
+                       $ runParser (parser <* eof) fileName cstrSite)
+                      cstrSiteBucket
 
 fixErrorOffset :: CstrSite -> ParseError -> ParseError
 fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
-    + sumOf
-        (folded % _Right % to (pred . textLength))
-        (Seq.take (offset - 1) materials)
+    + sumOf (folded % _Right % to (pred . textLength))
+            (Seq.take (offset - 1) materials)
 
 -- construction sites with least nested construction sites should be at the end
 squishCstrSite :: CstrSite -> [CstrSite]
@@ -244,9 +234,8 @@ zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Program
     -> Either InternalError Program
 zipperAtCursor f
-    = modifyNodeAt (\cstrSiteOffset materials -> maybeToRight
-                        (CstrSiteActionFailed cstrSiteOffset materials)
-                    $ traverseOf
-                        _CstrSite
-                        (rezip <.> f <=< unzipTo cstrSiteOffset)
-                        materials)
+    = modifyNodeAt (\cstrSiteOffset materials ->
+                    maybeToRight (CstrSiteActionFailed cstrSiteOffset materials)
+                    $ traverseOf _CstrSite
+                                 (rezip <.> f <=< unzipTo cstrSiteOffset)
+                                 materials)

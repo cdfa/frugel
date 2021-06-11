@@ -7,14 +7,14 @@ module Frugel.PrettyPrinting
     , module Prettyprinter
     ) where
 
-import           Data.Data
+import Data.Data
 
-import           Frugel.Internal.Node    ( Decl(name, value) )
-import           Frugel.Internal.Program ( Program(expr, whereClause) )
-import           Frugel.Node
-import           Frugel.Program
+import Frugel.Internal.Node ( Decl(name, value) )
+import Frugel.Internal.Program ( Program(expr, whereClause) )
+import Frugel.Node
+import Frugel.Program
 
-import           Prettyprinter
+import Prettyprinter
 
 data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq, Data )
@@ -72,19 +72,18 @@ instance AnnotatedPretty Expr where
         annPretty' (ExprCstrSite _ contents) = annPretty contents
 
 instance AnnotatedPretty Decl where
-    annPretty
-        Decl{..} = annPretty name `nestingLine` equals <+> annPretty value
+    annPretty Decl{..}
+        = annPretty name `nestingLine` equals <+> annPretty value
     annPretty (DeclCstrSite _ contents) = annPretty contents
 
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
     annPretty (WhereCstrSite _ contents) = annPretty contents
     annPretty (WhereClause _ decls)
-        = nest
-            2
-            (line'
-             <> "where"
-             <> nest 2 (line <> vsep (map annPretty $ toList decls)))
+        = nest 2
+               (line'
+                <> "where"
+                <> nest 2 (line <> vsep (map annPretty $ toList decls)))
 
 instance AnnotatedPretty Program where
     annPretty Program{..} = annPretty expr <> annPretty whereClause

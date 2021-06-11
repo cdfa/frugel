@@ -13,10 +13,10 @@
 
 module Frugel.Internal.Model where
 
-import           Frugel.Error
-import           Frugel.Program
+import Frugel.Error
+import Frugel.Program
 
-import           Optics
+import Optics
 
 data Model
     = Model { cursorOffset :: Int, program :: Program, errors :: [Error] }

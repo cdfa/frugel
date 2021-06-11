@@ -2,9 +2,9 @@
 
 module Control.Enumerable.Combinators where
 
-import           Control.Enumerable
+import Control.Enumerable
 
-import           Data.List          ( genericIndex )
+import Data.List    ( genericIndex )
 
 vectorOf :: Applicative f => Int -> Shareable f a -> Shareable f [a]
 vectorOf = replicateM

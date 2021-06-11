@@ -5,17 +5,17 @@
 
 module Main where
 
-import           Frugel
-import           Frugel.View
-import           Frugel.View.Elements
+import Frugel
+import Frugel.View
+import Frugel.View.Elements
 
 #ifndef __GHCJS__
-import           Language.Javascript.JSaddle.Warp as JSaddle
+import Language.Javascript.JSaddle.Warp as JSaddle
 #endif
 
-import           Miso
+import Miso
 
-import           Text.Show.Pretty
+import Text.Show.Pretty
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -42,30 +42,25 @@ main = runApp $ startApp App { .. }
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
 viewModel model
-    = div_
-        [ codeStyle, class_ "has-background-white-bis" ]
-        [ link_
-              [ rel_ "stylesheet"
-              , href_
-                    "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
-              ]
-        , div_ [ class_ "columns" ]
-          $ map
-              (div_ [ class_ "column" ])
-              [ [ codeRoot []
-                  . renderSmart
-                  . insertCursor (cursorOffset model)
-                  . layoutSmart defaultLayoutOptions
-                  . displayDoc
-                  $ program model
-                ]
-              , conditionalViews (not . null $ errors model)
-                $ map
-                    (pre_ [ class_ "box has-background-danger-light" ]
-                     . renderSmart
-                     . layoutSmart defaultLayoutOptions
-                     . displayDoc)
-                $ errors model
-              ]
-        , webPrint $ ppShow model
-        ]
+    = div_ [ codeStyle, class_ "has-background-white-bis" ]
+           [ link_ [ rel_ "stylesheet"
+                   , href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
+                   ]
+           , div_ [ class_ "columns" ]
+             $ map (div_ [ class_ "column" ])
+                   [ [ codeRoot []
+                       . renderSmart
+                       . insertCursor (cursorOffset model)
+                       . layoutSmart defaultLayoutOptions
+                       . displayDoc
+                       $ program model
+                     ]
+                   , conditionalViews (not . null $ errors model)
+                     $ map (pre_ [ class_ "box has-background-danger-light" ]
+                            . renderSmart
+                            . layoutSmart defaultLayoutOptions
+                            . displayDoc)
+                     $ errors model
+                   ]
+           , webPrint $ ppShow model
+           ]

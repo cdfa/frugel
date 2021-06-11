@@ -13,18 +13,18 @@
 
 module Frugel.Internal.Program where
 
-import           Control.ValidEnumerable
+import Control.ValidEnumerable
 
-import           Data.Data
-import           Data.GenValidity
-import           Data.Has
+import Data.Data
+import Data.GenValidity
+import Data.Has
 
-import           Frugel.Internal.Meta    ( ProgramMeta(standardMeta) )
-import           Frugel.Node
+import Frugel.Internal.Meta ( ProgramMeta(standardMeta) )
+import Frugel.Node
 
-import           Optics
+import Optics
 
-import           Test.QuickCheck.Gen
+import Test.QuickCheck.Gen
 
 data Program
     = Program { meta        :: ProgramMeta
@@ -53,10 +53,9 @@ instance SetCstrSite Program where
 
 instance Validity Program where
     validate
-        = mconcat
-            [ genericValidate
-            , validateInterstitialWhitespace validInterstitialWhitespace
-            ]
+        = mconcat [ genericValidate
+                  , validateInterstitialWhitespace validInterstitialWhitespace
+                  ]
 
 instance ValidInterstitialWhitespace Program where
     validInterstitialWhitespace = \case
@@ -69,7 +68,6 @@ instance GenValid Program where
 
 instance ValidEnumerable Program where
     enumerateValid
-        = datatype
-            [ addMetaWith enumerateValidProgramMeta (uncurry . Program)
-            , addMetaWith enumerateValidProgramMeta ProgramCstrSite
-            ]
+        = datatype [ addMetaWith enumerateValidProgramMeta (uncurry . Program)
+                   , addMetaWith enumerateValidProgramMeta ProgramCstrSite
+                   ]

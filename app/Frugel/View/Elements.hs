@@ -1,9 +1,9 @@
 module Frugel.View.Elements where
 
-import           Frugel
-import           Frugel.Event
+import Frugel
+import Frugel.Event
 
-import           Miso
+import Miso
 import qualified Miso.String
 
 noButtonStyle :: Attribute action

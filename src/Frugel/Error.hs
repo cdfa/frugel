@@ -1,8 +1,8 @@
 module Frugel.Error where
 
-import           Frugel.Node
+import Frugel.Node
 
-import           Text.Megaparsec.Error hiding ( parseErrorPretty )
+import Text.Megaparsec.Error hiding ( parseErrorPretty )
 
 data Error
     = ParseError (ParseError CstrSite Void) | InternalError InternalError

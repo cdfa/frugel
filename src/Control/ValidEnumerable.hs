@@ -3,5 +3,5 @@ module Control.ValidEnumerable
     , module Control.ValidEnumerable.Access
     ) where
 
-import           Control.ValidEnumerable.Access
-import           Control.ValidEnumerable.Class
+import Control.ValidEnumerable.Access
+import Control.ValidEnumerable.Class

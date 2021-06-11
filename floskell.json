@@ -134,20 +134,20 @@
         },
         "indent": {
             "deriving": 4,
-            "if": "indent-by 4",
-            "let-binds": "indent-by 4",
-            "import-spec-list": "align-or-indent-by 17",
+            "if": "align-or-indent-by 4",
+            "let-binds": "align-or-indent-by 4",
+            "import-spec-list": "align-or-indent-by 4",
             "onside": 4,
             "where": 2,
-            "typesig": "indent-by 4",
+            "typesig": "align-or-indent-by 4",
             "do": "indent-by 4",
-            "app": "indent-by 4",
+            "app": "align-or-indent-by 4",
             "case": "indent-by 4",
-            "let-in": "indent-by 4",
+            "let-in": "align-or-indent-by 4",
             "where-binds": "indent-by 2",
-            "let": "indent-by 4",
+            "let": "align-or-indent-by 4",
             "export-spec-list": "indent-by 4",
-            "multi-if": "indent-by 4",
+            "multi-if": "align-or-indent-by 4",
             "class": "indent-by 4"
         },
         "align": {
@@ -159,7 +159,7 @@
                 25
             ],
             "case": false,
-            "import-module": true,
+            "import-module": false,
             "import-spec": true,
             "class": false,
             "record-fields": true

@@ -2,15 +2,15 @@
 
 module Control.ValidEnumerable.Access ( uniformValid, uniformWith ) where
 
-import           Control.ValidEnumerable.Class
+import Control.ValidEnumerable.Class
 
-import           Data.ClassSharing
+import Data.ClassSharing
 
-import           Prelude                       hiding ( local )
+import Prelude                 hiding ( local )
 
-import           Test.Feat
-import qualified Test.Feat.Access              as Feat
-import           Test.QuickCheck.Gen
+import Test.Feat
+import qualified Test.Feat.Access as Feat
+import Test.QuickCheck.Gen
 
 uniformValid :: ValidEnumerable a => Int -> Gen a
 uniformValid = uniformWith accessValid

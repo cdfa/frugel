@@ -1,7 +1,7 @@
 module Data.Validity.Extra where
 
-import           Data.Char
-import           Data.GenValidity
+import Data.Char
+import Data.GenValidity
 
 validateWhitespace :: ToString a => a -> Validation
 validateWhitespace

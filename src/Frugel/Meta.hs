@@ -10,30 +10,29 @@ module Frugel.Meta
     , enumerateValidMeta
     ) where
 
-import           Data.GenValidity
-import           Data.Has
-import           Data.Validity.Text   ()
+import Data.GenValidity
+import Data.Has
+import Data.Validity.Text ()
 
-import           Frugel.Internal.Meta
+import Frugel.Internal.Meta
 
 defaultExprMeta :: Int -> ExprMeta
-defaultExprMeta
-    n = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta n }
+defaultExprMeta n
+    = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta n }
 
 defaultProgramMeta :: Int -> ProgramMeta
-defaultProgramMeta
-    n = ProgramMeta { standardMeta = defaultMeta n, trailingWhitespace = "" }
+defaultProgramMeta n
+    = ProgramMeta { standardMeta = defaultMeta n, trailingWhitespace = "" }
 
 defaultMeta :: Int -> Meta
 defaultMeta n = Meta { interstitialWhitespace = replicate n "" }
 
 validateInterstitialWhitespace :: Has Meta b => (b -> Int) -> b -> Validation
 validateInterstitialWhitespace expectedWhitespaceFragmentCount n
-    = mconcat
-        [ genericValidate
-        , declare "has the correct number of whitespace fragments"
-          . (== expectedWhitespaceFragmentCount n)
-          . length
-          . interstitialWhitespace
-        ]
+    = mconcat [ genericValidate
+              , declare "has the correct number of whitespace fragments"
+                . (== expectedWhitespaceFragmentCount n)
+                . length
+                . interstitialWhitespace
+              ]
     $ getter n

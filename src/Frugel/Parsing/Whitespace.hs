@@ -8,15 +8,15 @@
 
 module Frugel.Parsing.Whitespace where
 
-import           Data.Char
-import           Data.Has
-import qualified Data.Set        as Set
+import Data.Char
+import Data.Has
+import qualified Data.Set as Set
 
-import           Frugel.Node
+import Frugel.Node
 
-import           Optics
+import Optics
 
-import           Text.Megaparsec hiding ( some )
+import Text.Megaparsec hiding ( some )
 
 type WithWhitespace a = ([Text], a)
 

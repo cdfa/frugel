@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeApplications #-}
 
-import           Frugel.Program
+import Frugel.Program
 
-import           Test.Syd
-import           Test.Syd.Validity.GenValidity
+import Test.Syd
+import Test.Syd.Validity.GenValidity
 
 main :: IO ()
 main = sydTest $ do

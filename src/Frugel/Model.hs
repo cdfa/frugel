@@ -1,8 +1,8 @@
 module Frugel.Model ( module Frugel.Model, Model(Model) ) where
 
-import           Frugel.Internal.Model
-import           Frugel.Node
-import           Frugel.Program
+import Frugel.Internal.Model
+import Frugel.Node
+import Frugel.Program
 
 initialModel :: Model
 initialModel

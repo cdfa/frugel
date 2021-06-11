@@ -12,10 +12,10 @@
 
 module Optics.Extra where
 
-import           Data.Has
+import Data.Has
 
-import           Optics.External
-import           Optics.State.Operators
+import Optics.External
+import Optics.State.Operators
 
 infixr 4 %%~, +~, -~, %@~
 
@@ -148,11 +148,9 @@ adjoin :: (Is k A_Traversal, Is l A_Traversal)
 adjoin o1 o2 = combined % traversed
   where
     combined = traversalVL $ \f s0 ->
-        (\r1 r2 -> let
-             s1 = evalState (traverseOf o1 update s0) r1
-             s2 = evalState (traverseOf o2 update s1) r2
-             in
-                 s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
+        (\r1 r2 -> let s1 = evalState (traverseOf o1 update s0) r1
+                       s2 = evalState (traverseOf o2 update s1) r2
+             in s2) <$> f (toListOf (castOptic @A_Traversal o1) s0)
         <*> f (toListOf (castOptic @A_Traversal o2) s0)
     update a = get >>= \case
         a' : as' -> put as' >> pure a'

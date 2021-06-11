@@ -14,29 +14,29 @@
 
 module Frugel.Internal.Node where
 
-import           Control.Enumerable.Combinators     ()
-import           Control.ValidEnumerable
-import           Control.ValidEnumerable.Whitespace
+import Control.Enumerable.Combinators ()
+import Control.ValidEnumerable
+import Control.ValidEnumerable.Whitespace
 
-import           Data.Data
-import           Data.GenValidity
-import           Data.GenValidity.Sequence          ()
-import           Data.Has
-import qualified Data.Text                          as Text
-import           Data.Validity.Sequence             ()
+import Data.Data
+import Data.GenValidity
+import Data.GenValidity.Sequence    ()
+import Data.Has
+import qualified Data.Text          as Text
+import Data.Validity.Sequence       ()
 
-import           Frugel.Identifier
-import           Frugel.Internal.Meta               ( ExprMeta(standardMeta) )
+import Frugel.Identifier
+import Frugel.Internal.Meta         ( ExprMeta(standardMeta) )
 import qualified Frugel.Internal.Meta
-import           Frugel.Meta
+import Frugel.Meta
 
-import           Optics
+import Optics
 
-import           Relude.Unsafe                      ( (!!) )
+import Relude.Unsafe                ( (!!) )
 
-import           Test.QuickCheck.Gen                as Gen
+import Test.QuickCheck.Gen          as Gen
 
-import           Text.Megaparsec.Stream
+import Text.Megaparsec.Stream
 
 newtype CstrSite = CstrSite (Seq (Either Char Node))
     deriving ( Eq, Ord, Show, Generic, Data )
@@ -186,26 +186,23 @@ instance Validity Expr where
                    % _1
                    % #standardMeta
                    % #interstitialWhitespace
-                   % to
-                       (not
-                        . Text.null
-                        . (\whitespaceFragments -> whitespaceFragments
-                           !! ((length whitespaceFragments `div` 2) + 1))))
+                   % to (not
+                         . Text.null
+                         . (\whitespaceFragments -> whitespaceFragments
+                            !! ((length whitespaceFragments `div` 2) + 1))))
             ]
 
 instance Validity Decl where
     validate
-        = mconcat
-            [ genericValidate
-            , validateInterstitialWhitespace validInterstitialWhitespace
-            ]
+        = mconcat [ genericValidate
+                  , validateInterstitialWhitespace validInterstitialWhitespace
+                  ]
 
 instance Validity WhereClause where
     validate
-        = mconcat
-            [ genericValidate
-            , validateInterstitialWhitespace validInterstitialWhitespace
-            ]
+        = mconcat [ genericValidate
+                  , validateInterstitialWhitespace validInterstitialWhitespace
+                  ]
 
 instance GenValid CstrSite where
     genValid = sized uniformValid
@@ -254,20 +251,19 @@ instance ValidEnumerable Expr where
             ]
       where
         addExprMeta minimumWhitespaceFragments c
-            = (\meta' parenthesisWhitespace args -> c
-                   ExprMeta { parenthesisLevels = length parenthesisWhitespace
-                            , standardMeta      = meta'
-                                  & #interstitialWhitespace
-                                  %~ (\whitespaceFragments ->
-                                      toWhitespaceFragment
-                                          fst
-                                          parenthesisWhitespace
-                                      ++ whitespaceFragments
-                                      ++ toWhitespaceFragment
-                                          snd
-                                          parenthesisWhitespace)
-                            }
-                   args) <$> enumerateValidMeta minimumWhitespaceFragments
+            = (\meta' parenthesisWhitespace args ->
+               c ExprMeta { parenthesisLevels = length parenthesisWhitespace
+                          , standardMeta      = meta'
+                                & #interstitialWhitespace
+                                %~ (\whitespaceFragments -> toWhitespaceFragment
+                                        fst
+                                        parenthesisWhitespace
+                                    ++ whitespaceFragments
+                                    ++ toWhitespaceFragment
+                                        snd
+                                        parenthesisWhitespace)
+                          }
+                 args) <$> enumerateValidMeta minimumWhitespaceFragments
             <*> accessValid
             <*> accessValid
         toWhitespaceFragment project

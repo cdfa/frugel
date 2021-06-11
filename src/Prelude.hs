@@ -11,15 +11,15 @@ module Prelude
     , dup
     ) where
 
-import           Data.Default.Class
-import qualified Data.Foldable      as Foldable
-import           Data.List          ( groupBy )
-import           Data.Sequence      ( (><) )
+import Data.Default.Class
+import qualified Data.Foldable as Foldable
+import Data.List    ( groupBy )
+import Data.Sequence ( (><) )
 
-import           GHC.Exts
+import GHC.Exts
 
-import           Relude             hiding ( Sum, abs, group, toList )
-import           Relude.Extra.Tuple
+import Relude       hiding ( Sum, abs, group, toList )
+import Relude.Extra.Tuple
 
 infixl 4 <<$>
 
@@ -93,8 +93,7 @@ splitOn x l = prefix : rest'
     (prefix, rest) = break (x ==) l
     rest' = case rest of
         [] -> []
-        e : es
-            | e == x -> splitOn x es
+        e : es | e == x -> splitOn x es
         es -> splitOn x es
 
 -- From: https://hackage.haskell.org/package/universe-base-1.1.2/docs/src/Data.Universe.Helpers.html#interleave

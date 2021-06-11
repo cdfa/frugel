@@ -4,7 +4,7 @@
 
 module Optics.Applicative where
 
-import           Optics.External
+import Optics.External
 
 infixl 4 <*^>
 

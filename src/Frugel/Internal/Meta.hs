@@ -13,23 +13,23 @@
 
 module Frugel.Internal.Meta where
 
-import           Control.Enumerable.Combinators
-import           Control.ValidEnumerable
-import           Control.ValidEnumerable.Whitespace
+import Control.Enumerable.Combinators
+import Control.ValidEnumerable
+import Control.ValidEnumerable.Whitespace
 
-import           Data.Data
-import           Data.GenValidity
-import           Data.GenValidity.Text              ()
-import           Data.Has
-import qualified Data.Text                          as Text
-import           Data.Validity.Extra
-import           Data.Validity.Text                 ()
+import Data.Data
+import Data.GenValidity
+import Data.GenValidity.Text        ()
+import Data.Has
+import qualified Data.Text          as Text
+import Data.Validity.Extra
+import Data.Validity.Text           ()
 
-import           Optics
+import Optics
 
-import           Relude.Unsafe                      ( (!!) )
+import Relude.Unsafe                ( (!!) )
 
-import qualified Test.QuickCheck.Gen                as QuickCheck
+import qualified Test.QuickCheck.Gen as QuickCheck
 
 data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
@@ -50,32 +50,29 @@ makeFieldLabelsWith noPrefixFieldLabels ''Meta
 
 instance Validity ExprMeta where
     validate
-        = mconcat
-            [ genericValidate
-            , decorate "parenthesisLevels"
-              . declare "the number is greater than or equal to 0"
-              . (>= 0)
-              . parenthesisLevels
-            ]
+        = mconcat [ genericValidate
+                  , decorate "parenthesisLevels"
+                    . declare "the number is greater than or equal to 0"
+                    . (>= 0)
+                    . parenthesisLevels
+                  ]
 
 instance Validity ProgramMeta where
     validate
-        = mconcat
-            [ genericValidate
-            , decorate "trailingWhitespace"
-              . validateWhitespace
-              --   . traceShowId
-              . trailingWhitespace
-            ]
+        = mconcat [ genericValidate
+                  , decorate "trailingWhitespace"
+                    . validateWhitespace
+                    --   . traceShowId
+                    . trailingWhitespace
+                  ]
 
 instance Validity Meta where
     validate
-        = mconcat
-            [ genericValidate
-            , decorate "interstitialWhitespace"
-              . flip decorateList validateWhitespace
-              . interstitialWhitespace
-            ]
+        = mconcat [ genericValidate
+                  , decorate "interstitialWhitespace"
+                    . flip decorateList validateWhitespace
+                    . interstitialWhitespace
+                  ]
 
 instance GenValid ExprMeta where
     genValid = QuickCheck.sized . uniformWith $ enumerateValidExprMeta 0
@@ -93,9 +90,8 @@ instance GenValid Meta where
     shrinkValid meta@Meta{interstitialWhitespace}
         = shrinkValidStructurallyWithoutExtraFiltering meta
         -- ensure number of whitespace fragments is preserved
-        & filter
-            ((length interstitialWhitespace ==)
-             . lengthOf #interstitialWhitespace)
+        & filter ((length interstitialWhitespace ==)
+                  . lengthOf #interstitialWhitespace)
         -- ensure only characters from previous whitespace fragments are used
         & mapped % #interstitialWhitespace % imapped
         %@~ \i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
@@ -114,5 +110,5 @@ enumerateValidProgramMeta n
     $ aconcat [ ProgramMeta <$> enumerateValidMeta n <*> enumerateWhitespace ]
 
 enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
-enumerateValidMeta
-    n = pay $ aconcat [ Meta <$> vectorOf n enumerateWhitespace ]
+enumerateValidMeta n
+    = pay $ aconcat [ Meta <$> vectorOf n enumerateWhitespace ]
