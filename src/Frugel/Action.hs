@@ -177,7 +177,7 @@ attemptEdit
         . first (fromMaybe (decompose node, node))
         . findSuccessfulParse
         . groupSortOn cstrSiteCount
-        . squishCstrSite
+        . inliningVariations
         $ decompose node
       where
         reparseNestedCstrSites (cstrSite, newNode) errors
@@ -220,14 +220,15 @@ fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
     + sumOf (folded % _Right % to (pred . textLength))
             (Seq.take (offset - 1) materials)
 
--- construction sites with least nested construction sites should be at the end
-squishCstrSite :: CstrSite -> [CstrSite]
-squishCstrSite = foldr addItem [ fromList [] ] . view _CstrSite
+inliningVariations :: CstrSite -> [CstrSite]
+inliningVariations = foldr addItem [ fromList [] ] . view _CstrSite
   where
     addItem item@(Left _) variations = cons item <$> variations
+    -- It would be more efficient to have the node's inlining variations also saved in the variation where the node's construction site is not inlined
+    -- (it's now recomputed in `reparseNestedConstructionSites`)
     addItem item@(Right node) variations
         = (if is _NodeCstrSite node then cons item <$> variations else mempty)
-        <> (mappend <$> squishCstrSite (decompose node) <*> variations)
+        <> (mappend <$> inliningVariations (decompose node) <*> variations)
 
 zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
     -> Int

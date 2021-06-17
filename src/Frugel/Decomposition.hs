@@ -32,6 +32,7 @@ import Optics
 type CstrSiteZipper = SeqZipper (Either Char Node)
 
 class Decomposable n where
+    -- Preserves node when cursor is at start or end. Only useful for nodes starting or ending with a character (e.g. lambda and parenthesis).
     conservativelyDecompose :: Int -> n -> Maybe (Int, CstrSite)
     conservativelyDecompose _ _ = Nothing
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
@@ -109,11 +110,9 @@ modifyNodeAt f cursorOffset program
     transform n = do
         cstrSiteOffset <- use #cstrSiteOffset
         lift $ case conservativelyDecompose cstrSiteOffset n of
-            Just (cstrSiteOffset', cstrSite)
-                | cstrSiteOffset == 0
-                    || cstrSiteOffset == length (toList $ decompose n) ->
-                    catchError (f cstrSiteOffset' cstrSite)
-                    $ const (f cstrSiteOffset $ decompose n)
+            Just (cstrSiteOffset', cstrSite) -> catchError
+                (f cstrSiteOffset' cstrSite)
+                $ const (f cstrSiteOffset $ decompose n)
             _ -> f cstrSiteOffset $ decompose n
 
 intersperseWhitespaceTraversals :: (Monad m, Has Meta n)
@@ -174,24 +173,27 @@ instance Decomposable Node where
 instance Decomposable Identifier where
     mapMComponents mapChar _ identifier@(Identifier _)
         = traverseOf (_Identifier % traversed % #unAlphanumeric)
-                     (\c -> c <$ mapChar c)
+                     mapChar
                      identifier
 
 instance Decomposable Expr where
     conservativelyDecompose
         = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
+    mapMComponents mapChar mapNode e
+        | e ^. exprMeta % #parenthesisLevels > 0
+            = chain
+                [ (<$ mapChar '(')
+                , whitespaceFragmentTraversal _head %%~ mapChar
+                , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
+                  % refracting
+                      (exprMeta % #standardMeta % #interstitialWhitespace)
+                      (_tail % _init)
+                  %%~ mapNode
+                , whitespaceFragmentTraversal _last %%~ mapChar
+                , (<$ mapChar ')')
+                ]
+                e
     mapMComponents mapChar mapNode e = e & case e of
-        _ | e ^. exprMeta % #parenthesisLevels > 0 -> chain
-              [ (<$ mapChar '(')
-              , whitespaceFragmentTraversal _head %%~ mapChar
-              , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
-                % refracting
-                    (exprMeta % #standardMeta % #interstitialWhitespace)
-                    (_tail % _init)
-                %%~ mapNode
-              , whitespaceFragmentTraversal _last %%~ mapChar
-              , (<$ mapChar ')')
-              ]
         -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
         Variable{} -> _Variable % _2 %%~ mapMComponents mapChar mapNode
         Abstraction{} -> chain
