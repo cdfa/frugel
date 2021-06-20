@@ -1,44 +1,13 @@
--- Doc's are used in Model which needs to have an Eq instance, so Reactive/conditional layouts and filling function can not be used
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Frugel.PrettyPrinting
-    ( module Frugel.PrettyPrinting
-    , module Prettyprinter
-    ) where
+module Frugel.PrettyPrinting where
 
-import Data.Data
-
+import Frugel.DisplayProjection
 import Frugel.Internal.Node ( Decl(name, value) )
 import Frugel.Internal.Program ( Program(expr, whereClause) )
 import Frugel.Node
 import Frugel.Program
-
-import Prettyprinter
-
-data CompletionStatus = InConstruction | Complete
-    deriving ( Show, Eq, Data )
-
-data Annotation
-    = CompletionAnnotation CompletionStatus
-    | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream after layout. Any contents will be discarded.
-    deriving ( Show, Eq, Data )
-
-annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation
-annotateInConstruction = annotate $ CompletionAnnotation InConstruction
-
-annotateComplete = annotate $ CompletionAnnotation Complete
-
-nestingLine :: Doc ann -> Doc ann -> Doc ann
-nestingLine x y = x <> nest 4 (softline <> y)
-
--- Invariant: prettyCstrSite of a non-empty Seq results in a non-empty render
-prettyCstrSite :: (Node -> Doc Annotation) -> CstrSite -> Doc Annotation
-prettyCstrSite prettyNode (CstrSite contents)
-    = annotateInConstruction
-    . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
-    . groupByEither
-    $ toList contents
 
 class AnnotatedPretty a where
     annPretty :: a -> Doc Annotation

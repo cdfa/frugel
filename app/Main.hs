@@ -1,11 +1,14 @@
 {-# LANGUAGE CPP #-}
-
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Main where
 
 import Frugel
+import Frugel.Node
+import Frugel.Program
 import Frugel.View
 import Frugel.View.Elements
 
@@ -26,12 +29,26 @@ runApp :: IO () -> IO ()
 runApp app = app
 #endif
 
+deriving instance Eq (InternalError Program)
+
+deriving instance Eq (Error Program)
+
+deriving instance Eq (Model Program)
+
+deriving instance Show (InternalError Program)
+
+deriving instance Show (Error Program)
+
+deriving instance Show (Model Program)
+
+instance Editable Program
+
 -- Entry point for a miso application
 main :: IO ()
 main = runApp $ startApp App { .. }
   where
     initialAction = Load  -- initial action to be executed on application load
-    model = initialModel  -- initial model
+    model = initialModel $ programCstrSite' whereClauseTest  -- initial model
     update = updateModel -- update function
     view = viewModel -- view function
     events = defaultEvents -- default delegated events
@@ -40,7 +57,7 @@ main = runApp $ startApp App { .. }
     logLevel = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
 
 -- Constructs a virtual DOM from a model
-viewModel :: Model -> View Action
+viewModel :: Model Program -> View Action
 viewModel model
     = div_ [ codeStyle, class_ "has-background-white-bis" ]
            [ link_ [ rel_ "stylesheet"
@@ -52,14 +69,14 @@ viewModel model
                        . renderSmart
                        . insertCursor (cursorOffset model)
                        . layoutSmart defaultLayoutOptions
-                       . displayDoc
+                       . renderDoc
                        $ program model
                      ]
                    , conditionalViews (not . null $ errors model)
                      $ map (pre_ [ class_ "box has-background-danger-light" ]
                             . renderSmart
                             . layoutSmart defaultLayoutOptions
-                            . displayDoc)
+                            . renderDoc)
                      $ errors model
                    ]
            , webPrint $ ppShow model

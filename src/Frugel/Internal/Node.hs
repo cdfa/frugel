@@ -18,6 +18,7 @@ import Control.Enumerable.Combinators ()
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 
+import Data.Alphanumeric
 import Data.Data
 import Data.GenValidity
 import Data.GenValidity.Sequence    ()
@@ -25,7 +26,7 @@ import Data.Has
 import qualified Data.Text          as Text
 import Data.Validity.Sequence       ()
 
-import Frugel.Identifier
+import Frugel.CstrSite
 import Frugel.Internal.Meta         ( ExprMeta(standardMeta) )
 import qualified Frugel.Internal.Meta
 import Frugel.Meta
@@ -36,13 +37,12 @@ import Relude.Unsafe                ( (!!) )
 
 import Test.QuickCheck.Gen          as Gen
 
-import Text.Megaparsec.Stream
-
-newtype CstrSite = CstrSite (Seq (Either Char Node))
-    deriving ( Eq, Ord, Show, Generic, Data )
-    deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
+type CstrSite = ACstrSite Node
 
 data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
+    deriving ( Eq, Ord, Show, Generic, Data )
+
+newtype Identifier = Identifier (NonEmpty Alphanumeric)
     deriving ( Eq, Ord, Show, Generic, Data )
 
 data Expr
@@ -63,11 +63,21 @@ data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
+type instance NodeOf Node = Node
+
+type instance NodeOf Identifier = Node
+
+type instance NodeOf Expr = Node
+
+type instance NodeOf Decl = Node
+
+type instance NodeOf WhereClause = Node
+
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
-makePrisms ''CstrSite
-
 makePrisms ''Node
+
+makePrisms ''Identifier
 
 makePrisms ''Expr
 
@@ -75,17 +85,12 @@ makePrisms ''Decl
 
 makePrisms ''WhereClause
 
-instance Cons CstrSite CstrSite (Either Char Node) (Either Char Node) where
-    _Cons = _CstrSite % _Cons % aside (re _CstrSite)
-
-instance Snoc CstrSite CstrSite (Either Char Node) (Either Char Node) where
-    _Snoc = _CstrSite % _Snoc % swapped % aside (re _CstrSite) % swapped
-
-instance AsEmpty CstrSite
-
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
     modifier = over (exprMeta % #standardMeta)
+
+fromString :: [Char] -> Maybe Identifier
+fromString = Identifier <.> (nonEmpty <=< traverse fromChar)
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
@@ -105,7 +110,7 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
-class (NodePrism a, SetCstrSite a) => IsNode a
+class (NodePrism a, CstrSiteNode a) => IsNode a
 
 instance IsNode Node
 
@@ -116,7 +121,7 @@ instance IsNode Decl
 instance IsNode WhereClause
 
 class NodePrism a where
-    nodePrism :: Prism' Node a
+    nodePrism :: Prism' (NodeOf a) a
 
 instance NodePrism Node where
     nodePrism = castOptic simple
@@ -130,23 +135,32 @@ instance NodePrism Decl where
 instance NodePrism WhereClause where
     nodePrism = _WhereNode
 
-class SetCstrSite a where
-    setCstrSite :: CstrSite -> a -> a
+class CstrSiteNode a where
+    setCstrSite :: ACstrSite (NodeOf a) -> a -> a
+    _NodeCstrSite :: AffineTraversal' a (ACstrSite (NodeOf a))
 
-instance SetCstrSite Node where
+instance CstrSiteNode Node where
     setCstrSite cstrSite = \case
         ExprNode expr -> ExprNode $ setCstrSite cstrSite expr
         DeclNode expr -> DeclNode $ setCstrSite cstrSite expr
         WhereNode expr -> WhereNode $ setCstrSite cstrSite expr
+    _NodeCstrSite
+        = singular
+        $ (_ExprNode % _NodeCstrSite)
+        `adjoin` (_DeclNode % _NodeCstrSite)
+        `adjoin` (_WhereNode % _NodeCstrSite)
 
-instance SetCstrSite Expr where
+instance CstrSiteNode Expr where
     setCstrSite = const . exprCstrSite'
+    _NodeCstrSite = _ExprCstrSite % _2
 
-instance SetCstrSite Decl where
+instance CstrSiteNode Decl where
     setCstrSite = const . declCstrSite'
+    _NodeCstrSite = _DeclCstrSite % _2
 
-instance SetCstrSite WhereClause where
+instance CstrSiteNode WhereClause where
     setCstrSite = const . whereCstrSite'
+    _NodeCstrSite = _WhereCstrSite % _2
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int
@@ -170,9 +184,9 @@ instance ValidInterstitialWhitespace WhereClause where
         WhereClause _ decls -> length decls
         WhereCstrSite{} -> 0
 
-instance Validity CstrSite
-
 instance Validity Node
+
+instance Validity Identifier
 
 instance Validity Expr where
     validate
@@ -204,11 +218,11 @@ instance Validity WhereClause where
                   , validateInterstitialWhitespace validInterstitialWhitespace
                   ]
 
-instance GenValid CstrSite where
+instance GenValid Node where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
-instance GenValid Node where
+instance GenValid Identifier where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
@@ -224,11 +238,11 @@ instance GenValid WhereClause where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
 
-instance ValidEnumerable CstrSite where
-    enumerateValid = datatype [ c1 CstrSite ]
-
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
+
+instance ValidEnumerable Identifier where
+    enumerateValid = datatype [ c1 Identifier ]
 
 instance ValidEnumerable Expr where
     enumerateValid

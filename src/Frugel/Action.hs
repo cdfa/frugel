@@ -3,6 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -25,10 +26,8 @@ import Frugel.DisplayProjection
 import Frugel.Error
 import Frugel.Model
 import Frugel.Node
-import Frugel.Parsing                    hiding ( node )
-import qualified Frugel.Parsing          as Parsing
+import Frugel.ParserOf
 import Frugel.PrettyPrinting
-import Frugel.Program
 
 import Miso                              hiding ( focus, model, node, view )
 import qualified Miso
@@ -38,8 +37,6 @@ import Optics
 import Prettyprinter.Render.String
 import Prettyprinter.Render.Util.SimpleDocTree
 
-import Text.Megaparsec
-    hiding ( ParseError, errorOffset, parseErrorPretty )
 import qualified Text.Megaparsec         as Megaparsec
 
 data EditResult = Success | Failure
@@ -59,10 +56,24 @@ data Action
     | PrettyPrint
     deriving ( Show, Eq )
 
-deriving instance (Ord (Token s), Ord e) => Ord (Megaparsec.ParseError s e)
+class ( Data p
+      , Data (NodeOf p)
+      , Decomposable p
+      , Decomposable (NodeOf p)
+      , CstrSiteNode p
+      , CstrSiteNode (NodeOf p)
+      , Parseable p
+      , Ord (ParseErrorOf p)
+      ) => Editable p
+
+deriving instance (Ord (Megaparsec.Token s), Ord e)
+    => Ord (Megaparsec.ParseError s e)
 
 -- Updates model, optionally introduces side effects
-updateModel :: Action -> Model -> Effect Action Model
+updateModel :: (AnnotatedPretty p, Editable p, DisplayProjection p)
+    => Action
+    -> Model p
+    -> Effect Action (Model p)
 updateModel NoOp model = noEff model
 updateModel Load model = model <# do
     Miso.focus "code-root" >> pure NoOp
@@ -74,7 +85,7 @@ updateModel Backspace model = noEff $ backspace model
 updateModel (Move direction) model = noEff $ moveCursor direction model
 updateModel PrettyPrint model = noEff $ prettyPrint model
 
-insert :: Char -> Model -> Model
+insert :: (Editable p) => Char -> Model p -> Model p
 insert c model
     = case attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
                         $ view #cursorOffset model)
@@ -84,7 +95,7 @@ insert c model
 
 -- This only works as long as there is always characters (or nothing) after nodes in construction sites
 -- and idem for backspace
-delete :: Model -> Model
+delete :: (Editable p) => Model p -> Model p
 delete model
     = case attemptEdit
         (zipperAtCursor (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
@@ -93,7 +104,7 @@ delete model
         (Success, newModel) -> newModel
         (Failure, newModel) -> newModel & #errors .~ []
 
-backspace :: Model -> Model
+backspace :: (Editable p) => Model p -> Model p
 
 -- when the bad default of "exiting" after a node when transformation failed is fixed
 -- backspace model
@@ -112,7 +123,7 @@ backspace model
         $ over #cursorOffset (subtract 1) model
 backspace model = model
 
-moveCursor :: Direction -> Model -> Model
+moveCursor :: DisplayProjection p => Direction -> Model p -> Model p
 moveCursor direction model = model & #cursorOffset %~ updateOffset
   where
     updateOffset = case direction of
@@ -136,29 +147,31 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
     programText
-        = renderString . layoutSmart defaultLayoutOptions . displayDoc
+        = renderString . layoutSmart defaultLayoutOptions . renderDoc
         $ view #program model
 
 -- Leaves everything as construction site, because parsing nested construction sites is not implemented yet
-prettyPrint :: Model -> Model
+prettyPrint :: (AnnotatedPretty p, Editable p) => Model p -> Model p
 prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
     (Success, newModel) -> newModel
     (Failure, newModel) -> newModel
         & #errors %~ cons (InternalError ParseFailedAfterPrettyPrint)
   where
-    prettyPrinted
-        = programCstrSite'
+    prettyPrinted program
+        = flip setCstrSite program
         . renderSimplyDecorated (fromList . map Left . toString) (const id)
         . treeForm
         . layoutSmart defaultLayoutOptions
-        . annPretty
+        $ annPretty program
 
-attemptEdit :: (Program -> Either InternalError Program)
-    -> Model
-    -> (EditResult, Model)
+attemptEdit :: forall p.
+    (Editable p)
+    => (p -> Either (InternalError p) p)
+    -> Model p
+    -> (EditResult, Model p)
 attemptEdit
     f
-    model = case second (reparse Parsing.program) . f $ view #program model of
+    model = case second (reparse programParser) . f $ view #program model of
     Left editError -> (Failure, model & #errors .~ [ InternalError editError ])
     Right (newProgram, newErrors) ->
         ( Success
@@ -168,10 +181,10 @@ attemptEdit
         )
   where
     reparse :: forall n.
-        (Data n, Decomposable n)
-        => Parser n
+        (Data n, Decomposable n, NodeOf p ~ NodeOf n)
+        => (ParserOf p) n
         -> n
-        -> (n, Set ParseError)
+        -> (n, Set (ParseErrorOf p))
     reparse parser node
         = uncurry reparseNestedCstrSites
         . first (fromMaybe (decompose node, node))
@@ -183,13 +196,13 @@ attemptEdit
         reparseNestedCstrSites (cstrSite, newNode) errors
             = runWriter
             $ tell errors
-            >> Lens.itraverseOf (Lens.indexing $ template @n @Node)
+            >> Lens.itraverseOf (Lens.indexing $ template @n @(NodeOf n))
                                 (\i -> writer
                                  . second (increaseErrorOffsets i cstrSite)
-                                 . reparse anyNode)
+                                 . reparse (anyNodeParser @p))
                                 newNode
         increaseErrorOffsets i cstrSite
-            = setmapped % errorOffset
+            = setmapped % errorOffset @p
             +~ fst (Seq.filter (isRight . snd)
                                (leadingCumulativeTextLengths cstrSite)
                     `Seq.index` i)
@@ -210,17 +223,12 @@ attemptEdit
           where
             parses
                 = map (\cstrSite ->
-                       bimap (fmap (fixErrorOffset cstrSite) . bundleErrors)
-                             (cstrSite, )
-                       $ runParser (parser <* eof) fileName cstrSite)
+                       second (cstrSite, ) $ runParser @p parser cstrSite)
                       cstrSiteBucket
 
-fixErrorOffset :: CstrSite -> ParseError -> ParseError
-fixErrorOffset (CstrSite materials) = errorOffset %~ \offset -> offset
-    + sumOf (folded % _Right % to (pred . textLength))
-            (Seq.take (offset - 1) materials)
-
-inliningVariations :: CstrSite -> [CstrSite]
+inliningVariations :: (n ~ NodeOf n, CstrSiteNode n, Decomposable n)
+    => ACstrSite n
+    -> [ACstrSite n]
 inliningVariations = foldr addItem [ fromList [] ] . view _CstrSite
   where
     addItem item@(Left _) variations = cons item <$> variations
@@ -230,10 +238,13 @@ inliningVariations = foldr addItem [ fromList [] ] . view _CstrSite
         = (if is _NodeCstrSite node then cons item <$> variations else mempty)
         <> (mappend <$> inliningVariations (decompose node) <*> variations)
 
-zipperAtCursor :: (CstrSiteZipper -> Maybe CstrSiteZipper)
+type CstrSiteZipper n = SeqZipper (Either Char (NodeOf n))
+
+zipperAtCursor :: (Decomposable p, CstrSiteNode p)
+    => (CstrSiteZipper p -> Maybe (CstrSiteZipper p))
     -> Int
-    -> Program
-    -> Either InternalError Program
+    -> p
+    -> Either (InternalError p) p
 zipperAtCursor f
     = modifyNodeAt (\cstrSiteOffset materials ->
                     maybeToRight (CstrSiteActionFailed cstrSiteOffset materials)

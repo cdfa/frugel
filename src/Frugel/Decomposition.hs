@@ -1,13 +1,15 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Decomposition
     ( module Frugel.Internal.DecompositionState
-    , CstrSiteZipper
     , Decomposable(..)
     , modifyNodeAt
     , decompose
@@ -15,12 +17,11 @@ module Frugel.Decomposition
     ) where
 
 import Control.Monad.Except
-import Control.Zipper.Seq
 
 import Data.Has
 import Data.Text.Optics
 
-import Frugel.Error
+import Frugel.Error.InternalError
 import Frugel.Internal.DecompositionState
 import Frugel.Node
 import Frugel.Program
@@ -29,22 +30,23 @@ import Numeric.Optics
 
 import Optics
 
-type CstrSiteZipper = SeqZipper (Either Char Node)
-
-class Decomposable n where
+class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
     -- Preserves node when cursor is at start or end. Only useful for nodes starting or ending with a character (e.g. lambda and parenthesis).
-    conservativelyDecompose :: Int -> n -> Maybe (Int, CstrSite)
+    conservativelyDecompose :: Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
     conservativelyDecompose _ _ = Nothing
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
     -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
     mapMComponents :: Monad m
         => (Char -> m Char)
-        -> (forall n'. (Decomposable n', IsNode n') => n' -> m n')
+        -> (forall n'.
+            (Decomposable n', IsNode n', NodeOf n ~ NodeOf n')
+            => n'
+            -> m n')
         -> n
         -> m n
 
-decompose :: Decomposable n => n -> CstrSite
+decompose :: Decomposable n => n -> ACstrSite (NodeOf n)
 decompose n
     = fromList . reverse
     $ execState
@@ -53,7 +55,7 @@ decompose n
   where
     conses f x = x <$ modify (f x :)
 
-textLength :: Decomposable n => n -> Int
+textLength :: (Decomposable n, Decomposable (NodeOf n)) => n -> Int
 textLength
     = sum . fmap (either (const 1) textLength) . view _CstrSite . decompose
 
@@ -66,8 +68,8 @@ step = do
     when (textOffset > 0) (#cstrSiteOffset += 1)
 
 modifyNodeAt :: forall m' p.
-    (MonadError InternalError m', Decomposable p, SetCstrSite p)
-    => (Int -> CstrSite -> m' CstrSite)
+    (MonadError (InternalError p) m', Decomposable p, CstrSiteNode p)
+    => (Int -> ACstrSite (NodeOf p) -> m' (ACstrSite (NodeOf p)))
     -> Int
     -> p
     -> m' p
@@ -82,7 +84,9 @@ modifyNodeAt f cursorOffset program
     runModification
         = mapNode program `runStateT` initialDecompositionState cursorOffset
     mapChar c = c <$ step -- trace (show c) step
-    mapNode :: (Decomposable n, SetCstrSite n) => n -> DecompositionMonad m' n
+    mapNode :: (Decomposable n, CstrSiteNode n, NodeOf n ~ NodeOf p)
+        => n
+        -> DecompositionMonad m' n
     mapNode n = do
         -- t <- guse #textOffset
         -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
@@ -106,7 +110,9 @@ modifyNodeAt f cursorOffset program
                                      ?? n <* assign #modificationStatus Success)
                          $ const (pure n))
                         (pure newNode)
-    -- transform :: (Decomposable n) => n -> StateT DecompositionState m' CstrSite
+    transform :: (Decomposable n, NodeOf n ~ NodeOf p)
+        => n
+        -> DecompositionMonad m' (ACstrSite (NodeOf n))
     transform n = do
         cstrSiteOffset <- use #cstrSiteOffset
         lift $ case conservativelyDecompose cstrSiteOffset n of

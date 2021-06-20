@@ -34,6 +34,8 @@ data Program
     | ProgramCstrSite ProgramMeta CstrSite
     deriving ( Show, Eq, Generic, Has ProgramMeta, Data )
 
+type instance NodeOf Program = Node
+
 makeFieldLabelsWith noPrefixFieldLabels ''Program
 
 makePrisms ''Program
@@ -48,8 +50,9 @@ programMeta = hasLens
 programCstrSite' :: CstrSite -> Program
 programCstrSite' = ProgramCstrSite $ defaultProgramMeta 0
 
-instance SetCstrSite Program where
+instance CstrSiteNode Program where
     setCstrSite = const . programCstrSite'
+    _NodeCstrSite = _ProgramCstrSite % _2
 
 instance Validity Program where
     validate

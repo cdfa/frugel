@@ -7,12 +7,13 @@
 module Frugel.Node
     ( module Frugel.Node
     , module Frugel.Meta
+    , module Frugel.CstrSite
     , IsNode
     , NodePrism(..)
-    , SetCstrSite(..)
+    , CstrSiteNode(..)
     , ValidInterstitialWhitespace(..)
     , Expr(..)
-    , CstrSite(..)
+    , CstrSite
     , Identifier(..)
     , Decl(Decl, DeclCstrSite)
     , Node(..)
@@ -20,7 +21,6 @@ module Frugel.Node
     , _Identifier
     , _Abstraction
     , _Application
-    , _CstrSite
     , _Decl
     , _DeclCstrSite
     , _DeclNode
@@ -40,14 +40,13 @@ module Frugel.Node
     , addMetaWith
     ) where
 
-import qualified Control.Lens as Lens
 import Control.Lens.Plated
 
 import Data.Data
 import Data.Data.Lens
 
-import Frugel.Identifier as Identifier
-import Frugel.Internal.Node
+import Frugel.CstrSite
+import Frugel.Internal.Node as Node
 import Frugel.Meta
 
 import Optics
@@ -86,33 +85,23 @@ unwrapParentheses e
                   e
 unwrapParentheses e = Left e
 
-_NodeCstrSite :: AffineTraversal' Node CstrSite
-_NodeCstrSite
-    = singular
-    $ (_ExprNode % _ExprCstrSite % _2)
-    `adjoin` (_DeclNode % _DeclCstrSite % _2)
-    `adjoin` (_WhereNode % _WhereCstrSite % _2)
-
 flattenConstructionSites :: forall n. Data n => n -> n
 flattenConstructionSites
     = transformOnOf (template @n @CstrSite) uniplate
     $ foldMapOf (_CstrSite % folded)
                 (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
 
-cstrSiteCount :: CstrSite -> Int
-cstrSiteCount = Lens.lengthOf $ cosmosOf uniplate
-
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
 
 unsafeVariable :: String -> Expr
-unsafeVariable = variable' . fromJust . Identifier.fromString
+unsafeVariable = variable' . fromJust . Node.fromString
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction $ defaultExprMeta 3
 
 unsafeAbstraction :: String -> Expr -> Expr
-unsafeAbstraction = abstraction' . fromJust . Identifier.fromString
+unsafeAbstraction = abstraction' . fromJust . Node.fromString
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
@@ -124,7 +113,7 @@ decl' :: Identifier -> Expr -> Decl
 decl' = Decl $ defaultMeta 2
 
 unsafeDecl :: String -> Expr -> Decl
-unsafeDecl = decl' . fromJust . Identifier.fromString
+unsafeDecl = decl' . fromJust . Node.fromString
 
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' decls = WhereClause (defaultMeta $ length decls) decls

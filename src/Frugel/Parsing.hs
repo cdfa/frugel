@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Frugel.Parsing
     ( module Frugel.Parsing
@@ -21,12 +22,13 @@ import Optics
 
 import Prelude                      hiding ( some )
 
-import Text.Megaparsec              hiding ( ParseError, many, some )
+import Text.Megaparsec              as Megaparsec
+    hiding ( ParseError, many, some )
 
 identifier :: Parser Identifier
 identifier = Identifier <$> some alphaNumChar <?> "an identifier"
 
-node :: IsNode w => String -> Parser w
+node :: (IsNode a, NodeOf a ~ Node) => String -> Parser a
 node name = namedToken name $ preview (_Right % nodePrism)
 
 anyNode :: Parser Node
@@ -109,7 +111,3 @@ program
         = set (#meta % #trailingWhitespace) trailingWhitespace
         $ setWhitespace (whitespaceFragments, p)
     setProgramWhitespace _ = error "not enough whitespace fragments"
-
-parseCstrSite :: FilePath -> CstrSite -> Either (NonEmpty ParseError) Program
-parseCstrSite filePath cstrSite
-    = first bundleErrors $ runParser (program <* eof) filePath cstrSite

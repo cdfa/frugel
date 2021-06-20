@@ -1,26 +1,32 @@
 -- Error formatting helpers copied from megaparsec, but modified for returning Doc's instead of strings
 {-# LANGUAGE FlexibleContexts #-}
+
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# LANGUAGE TypeApplications #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Frugel.Parsing.Error where
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
+import Frugel.DisplayProjection
 import Frugel.Node
-import Frugel.PrettyPrinting
 
 import Optics
 
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Error
-    hiding ( ParseError, errorOffset, parseErrorTextPretty )
+    hiding ( ParseError, errorOffset, parseErrorPretty, parseErrorTextPretty )
 import Text.Megaparsec.Pos
 
 type ParseError = Megaparsec.ParseError CstrSite Void
+
+instance DisplayProjection ParseError where
+    renderDoc = parseErrorPretty
 
 errorOffset :: Lens' (Megaparsec.ParseError s e) Int
 errorOffset = lens Megaparsec.errorOffset $ flip setErrorOffset
@@ -61,7 +67,7 @@ parseErrorTextPretty (FancyError _ xs)
 -- | Pretty-print an 'ErrorItem'.
 showErrorItem :: ErrorItem (Either Char Node) -> Doc Annotation
 showErrorItem = \case
-    Tokens ts -> annPretty @CstrSite $ fromFoldable ts
+    Tokens ts -> renderDoc @CstrSite $ fromFoldable ts
     Label label -> pretty $ toList label
     EndOfInput -> "end of input"
 
