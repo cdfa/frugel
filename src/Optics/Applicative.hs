@@ -1,10 +1,9 @@
--- {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Optics.Applicative where
 
-import Optics.External
+import Optics
 
 infixl 4 <*^>
 

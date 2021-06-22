@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-import Frugel.Program
+import Scout
 
 import Test.Syd
 import Test.Syd.Validity.GenValidity

@@ -9,7 +9,7 @@ import Frugel.View.ViewModel             as ViewModel
 import Miso                              hiding ( node, view )
 import qualified Miso.String
 
-import Optics                            hiding ( views )
+import Optics.Extra                      hiding ( views )
 
 import Prelude                           hiding ( lines )
 

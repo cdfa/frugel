@@ -20,7 +20,7 @@ import Frugel
 import Miso         ( Attribute, Options(..), defaultOptions, onWithOptions )
 import Miso.Event.Decoder hiding ( keyInfoDecoder )
 
-import Optics
+import Optics.Extra
 
 data KeyInfo
     = KeyInfo { key :: !String, shiftKey, metaKey, ctrlKey, altKey :: !Bool }

@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Frugel.Internal.Meta where
+module Scout.Internal.Meta where
 
 import Control.Enumerable.Combinators
 import Control.ValidEnumerable
@@ -25,7 +25,7 @@ import qualified Data.Text          as Text
 import Data.Validity.Extra
 import Data.Validity.Text           ()
 
-import Optics
+import Optics.Extra
 
 import Relude.Unsafe                ( (!!) )
 

@@ -6,15 +6,15 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Frugel.Parsing.Whitespace where
+module Scout.Parsing.Whitespace where
 
 import Data.Char
 import Data.Has
 import qualified Data.Set as Set
 
-import Frugel.Node
+import Optics.Extra
 
-import Optics
+import Scout.Node
 
 import Text.Megaparsec hiding ( some )
 

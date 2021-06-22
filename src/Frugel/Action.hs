@@ -11,6 +11,7 @@
 module Frugel.Action where
 
 import qualified Control.Lens            as Lens
+import Control.Lens.Plated
 import Control.Monad.Writer
 import Control.Zipper.Seq                hiding ( insert )
 import qualified Control.Zipper.Seq      as SeqZipper
@@ -21,18 +22,18 @@ import qualified Data.Sequence           as Seq
 import qualified Data.Set                as Set
 import Data.Set.Optics
 
+import Frugel.CstrSite
 import Frugel.Decomposition              hiding ( ModificationStatus(..) )
 import Frugel.DisplayProjection
 import Frugel.Error
 import Frugel.Model
-import Frugel.Node
-import Frugel.ParserOf
+import Frugel.Parsing
 import Frugel.PrettyPrinting
 
 import Miso                              hiding ( focus, model, node, view )
 import qualified Miso
 
-import Optics
+import Optics.Extra
 
 import Prettyprinter.Render.String
 import Prettyprinter.Render.Util.SimpleDocTree
@@ -225,6 +226,20 @@ attemptEdit
                 = map (\cstrSite ->
                        second (cstrSite, ) $ runParser @p parser cstrSite)
                       cstrSiteBucket
+
+flattenConstructionSites :: forall n.
+    ( Data n
+    , Typeable (NodeOf n)
+    , Data (NodeOf n)
+    , CstrSiteNode (NodeOf n)
+    , NodeOf n ~ NodeOf (NodeOf n)
+    )
+    => n
+    -> n
+flattenConstructionSites
+    = transformOnOf (template @n @(ACstrSite (NodeOf n))) uniplate
+    $ foldMapOf (_CstrSite % folded)
+                (\item -> fromMaybe (one item) (item ^? _Right % _NodeCstrSite))
 
 inliningVariations :: (n ~ NodeOf n, CstrSiteNode n, Decomposable n)
     => ACstrSite n

@@ -16,7 +16,7 @@ import Data.Char
 import Data.Data
 import Data.GenValidity
 
-import Optics
+import Optics.Extra
 
 import Prettyprinter
 

@@ -1,18 +1,17 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Frugel.Internal.Node where
+module Scout.Internal.Node where
 
 import Control.Enumerable.Combinators ()
 import Control.ValidEnumerable
@@ -24,16 +23,23 @@ import Data.GenValidity
 import Data.GenValidity.Sequence    ()
 import Data.Has
 import qualified Data.Text          as Text
+import Data.Text.Optics
 import Data.Validity.Sequence       ()
 
 import Frugel.CstrSite
-import Frugel.Internal.Meta         ( ExprMeta(standardMeta) )
-import qualified Frugel.Internal.Meta
-import Frugel.Meta
+import Frugel.Decomposition
+import Frugel.DisplayProjection
+import Frugel.PrettyPrinting
 
-import Optics
+import Numeric.Optics
+
+import Optics.Extra
 
 import Relude.Unsafe                ( (!!) )
+
+import Scout.Internal.Meta          ( ExprMeta(standardMeta) )
+import qualified Scout.Internal.Meta
+import Scout.Meta
 
 import Test.QuickCheck.Gen          as Gen
 
@@ -110,8 +116,6 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
-class (NodePrism a, CstrSiteNode a) => IsNode a
-
 instance IsNode Node
 
 instance IsNode Expr
@@ -119,9 +123,6 @@ instance IsNode Expr
 instance IsNode Decl
 
 instance IsNode WhereClause
-
-class NodePrism a where
-    nodePrism :: Prism' (NodeOf a) a
 
 instance NodePrism Node where
     nodePrism = castOptic simple
@@ -134,10 +135,6 @@ instance NodePrism Decl where
 
 instance NodePrism WhereClause where
     nodePrism = _WhereNode
-
-class CstrSiteNode a where
-    setCstrSite :: ACstrSite (NodeOf a) -> a -> a
-    _NodeCstrSite :: AffineTraversal' a (ACstrSite (NodeOf a))
 
 instance CstrSiteNode Node where
     setCstrSite cstrSite = \case
@@ -161,6 +158,205 @@ instance CstrSiteNode Decl where
 instance CstrSiteNode WhereClause where
     setCstrSite = const . whereCstrSite'
     _NodeCstrSite = _WhereCstrSite % _2
+
+instance DisplayProjection Node where
+    -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions
+    renderDoc (ExprNode expr) = renderDoc expr
+    renderDoc (DeclNode decl) = renderDoc decl
+    renderDoc (WhereNode w) = renderDoc w
+
+instance DisplayProjection Expr where
+    -- Parentheses are handled here (instead of relying on decompose), because the information would be removed when the expression is a construction site
+    renderDoc = either defaultRenderDoc parenthesize . unwrapParentheses
+      where
+        parenthesize (leadingFragment, e, trailingFragment)
+            = parens (pretty leadingFragment
+                      <> renderDoc e
+                      <> pretty trailingFragment)
+
+instance DisplayProjection Decl
+
+instance DisplayProjection WhereClause
+
+intersperseWhitespaceTraversals :: (Monad m, Has Meta n)
+    => (Char -> m Char)
+    -> n
+    -> [n
+       -> m n]
+    -> [n
+       -> m n]
+intersperseWhitespaceTraversals mapChar n traversals
+    = interleave [ traversals
+                 , imap (\i _ -> whitespaceFragmentTraversal (ix i) %%~ mapChar)
+                   $ view (hasLens @Meta % #interstitialWhitespace) n
+                 ]
+
+whitespaceFragmentTraversal :: (Is k An_AffineTraversal, Has Meta n)
+    => Optic' k NoIx [Text] Text
+    -> Traversal' n Char
+whitespaceFragmentTraversal selector
+    = hasLens @Meta
+    % #interstitialWhitespace
+    % castOptic @An_AffineTraversal selector
+    % unpacked
+    % traversed
+
+instance Decomposable Node where
+    conservativelyDecompose cstrSiteOffset = \case
+        ExprNode expr -> conservativelyDecompose cstrSiteOffset expr
+        DeclNode decl -> conservativelyDecompose cstrSiteOffset decl
+        WhereNode whereClause ->
+            conservativelyDecompose cstrSiteOffset whereClause
+    mapMComponents mapChar mapNode = \case
+        ExprNode expr -> ExprNode <$> mapMComponents mapChar mapNode expr
+        DeclNode decl -> DeclNode <$> mapMComponents mapChar mapNode decl
+        WhereNode whereClause ->
+            WhereNode <$> mapMComponents mapChar mapNode whereClause
+
+instance Decomposable Identifier where
+    mapMComponents mapChar _ identifier@(Identifier _)
+        = traverseOf (_Identifier % traversed % #unAlphanumeric)
+                     mapChar
+                     identifier
+
+instance Decomposable Expr where
+    conservativelyDecompose
+        = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
+    mapMComponents mapChar mapNode e
+        | e ^. exprMeta % #parenthesisLevels > 0
+            = chain
+                [ (<$ mapChar '(')
+                , whitespaceFragmentTraversal _head %%~ mapChar
+                , refracting (exprMeta % #parenthesisLevels) (subtracting 1)
+                  % refracting
+                      (exprMeta % #standardMeta % #interstitialWhitespace)
+                      (_tail % _init)
+                  %%~ mapNode
+                , whitespaceFragmentTraversal _last %%~ mapChar
+                , (<$ mapChar ')')
+                ]
+                e
+    mapMComponents mapChar mapNode e = e & case e of
+        -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
+        Variable{} -> _Variable % _2 %%~ mapMComponents mapChar mapNode
+        Abstraction{} -> chain
+            $ intersperseWhitespaceTraversals'
+                [ (<$ mapChar '\\')
+                , _Abstraction % _2 %%~ mapMComponents mapChar mapNode
+                , (<$ mapChar '=')
+                , _Abstraction % _3 %%~ mapNode
+                ]
+        Application{} -> chain
+            $ intersperseWhitespaceTraversals' [ _Application % _2 %%~ mapNode
+                                               , _Application % _3 %%~ mapNode
+                                               ]
+        Sum{} -> chain
+            $ intersperseWhitespaceTraversals'
+                [ _Sum % _2 %%~ mapNode
+                , (<$ mapChar '+')
+                , _Sum % _3 %%~ mapNode
+                ]
+        ExprCstrSite{} -> _ExprCstrSite % _2 %%~ mapMComponents mapChar mapNode
+      where
+        intersperseWhitespaceTraversals'
+            = intersperseWhitespaceTraversals mapChar e
+
+instance Decomposable Decl where
+    conservativelyDecompose
+        = conservativelyDecomposeNode _DeclNode (_DeclCstrSite % _2)
+    mapMComponents mapChar mapNode decl@Decl{}
+        = chain (intersperseWhitespaceTraversals
+                     mapChar
+                     decl
+                     [ traverseOf #name $ mapMComponents mapChar mapNode
+                     , (<$ mapChar '=')
+                     , traverseOf #value mapNode
+                     ])
+                decl
+    mapMComponents mapChar mapNode (DeclCstrSite meta materials)
+        = DeclCstrSite meta <$> mapMComponents mapChar mapNode materials
+
+instance Decomposable WhereClause where
+    conservativelyDecompose
+        = conservativelyDecomposeNode _WhereNode (_WhereCstrSite % _2)
+    mapMComponents mapChar mapNode whereClause@(WhereClause _ decls)
+        = chain (intersperseWhitespaceTraversals
+                     mapChar
+                     whereClause
+                     ((<$ traverse_ @[] mapChar "where")
+                      : imap (\i _ -> _WhereClause % _2 % ix i %%~ mapNode)
+                             (toList decls)))
+                whereClause
+    mapMComponents mapChar mapNode (WhereCstrSite meta materials)
+        = WhereCstrSite meta <$> mapMComponents mapChar mapNode materials
+
+instance AnnotatedPretty Node where
+    annPretty (ExprNode expr) = annPretty expr
+    annPretty (DeclNode decl) = annPretty decl
+    annPretty (WhereNode w) = annPretty w
+
+instance AnnotatedPretty Identifier where
+    annPretty (Identifier name) = pretty name
+
+instance AnnotatedPretty Expr where
+    annPretty = parenthesizeExpr parens annPretty'
+      where
+        annPretty' (Variable _ n) = annPretty n
+
+        annPretty' (Abstraction _ arg expr)
+            = (backslash <> annPretty arg) `nestingLine` equals
+            <+> annPretty expr
+        annPretty' (Application _ function arg)
+            = annPretty function `nestingLine` annPretty arg
+        annPretty' (Sum _ left right)
+            = annPretty left `nestingLine` "+" <+> annPretty right
+        annPretty' (ExprCstrSite _ contents) = annPretty contents
+
+instance AnnotatedPretty Decl where
+    annPretty Decl{..}
+        = annPretty name `nestingLine` equals <+> annPretty value
+    annPretty (DeclCstrSite _ contents) = annPretty contents
+
+    -- <> annPretty whereClause
+instance AnnotatedPretty WhereClause where
+    annPretty (WhereCstrSite _ contents) = annPretty contents
+    annPretty (WhereClause _ decls)
+        = nest 2
+               (line'
+                <> "where"
+                <> nest 2 (line <> vsep (map annPretty $ toList decls)))
+
+parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
+parenthesizeExpr parenthesize prettyExpr x
+    | x ^. exprMeta % #parenthesisLevels > 0
+        = parenthesize
+        $ parenthesizeExpr parenthesize
+                           prettyExpr
+                           (x & exprMeta % #parenthesisLevels -~ 1)
+parenthesizeExpr _ prettyExpr x = prettyExpr x
+
+unwrapParentheses :: Expr -> Either Expr (Text, Expr, Text)
+unwrapParentheses e
+    | e ^. exprMeta % #parenthesisLevels > 0
+        = Right ( leadingFragment
+                , e
+                  & exprMeta % #parenthesisLevels -~ 1
+                  & exprMeta % #standardMeta % #interstitialWhitespace
+                  .~ middleWhitespaceFragments
+                , trailingFragment
+                )
+  where
+    (leadingFragment, (middleWhitespaceFragments, trailingFragment))
+        = fromMaybe
+            (error ("Encountered incorrect number of whitespace fragments in "
+                    <> show e))
+        $ preview (exprMeta
+                   % #standardMeta
+                   % #interstitialWhitespace
+                   % _Cons
+                   % ((,) <$^> _1 <*^> _2 % _Snoc))
+                  e
+unwrapParentheses e = Left e
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int

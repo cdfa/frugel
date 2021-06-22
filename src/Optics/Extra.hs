@@ -1,20 +1,22 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# LANGUAGE TypeFamilies #-}
-
 {-# LANGUAGE TypeOperators #-}
 
-module Optics.Extra where
+module Optics.Extra
+    ( module Optics
+    , module Optics.Extra
+    , module Optics.State.Operators
+    , module Optics.Applicative
+    ) where
 
 import Data.Has
 
-import Optics.External
+import Optics
+import Optics.Applicative
 import Optics.State.Operators
 
 infixr 4 %%~, +~, -~, %@~

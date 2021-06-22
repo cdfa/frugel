@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Frugel.Meta
-    ( module Frugel.Meta
+module Scout.Meta
+    ( module Scout.Meta
     , Meta(Meta)
     , ExprMeta(ExprMeta)
     , ProgramMeta(ProgramMeta)
@@ -14,7 +14,7 @@ import Data.GenValidity
 import Data.Has
 import Data.Validity.Text ()
 
-import Frugel.Internal.Meta
+import Scout.Internal.Meta
 
 defaultExprMeta :: Int -> ExprMeta
 defaultExprMeta n

@@ -14,7 +14,6 @@ let
         ${stablePkgs.stack}/bin/stack repl\
         --ghci-options -fno-break-on-exception\
         --ghci-options -w\
-        frugel:lib frugel:exe:frugel-exe\
         '\
         --restart=package.yaml\
         -T 'Main.main'
@@ -49,6 +48,7 @@ base.env.overrideAttrs (
       floskell
       stablePkgs.ghcid
       stablePkgs.stack
+      stablePkgs.cabal-install
       pkgs.haskell.packages.ghcjs.ghc
       stablePkgs.git # has to be present for pre-commit-check shell hook
     ];

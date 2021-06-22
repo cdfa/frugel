@@ -1,6 +1,9 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.DisplayProjection
     ( module Frugel.DisplayProjection
@@ -9,11 +12,11 @@ module Frugel.DisplayProjection
 
 import Data.Data
 
+import Frugel.CstrSite
 import Frugel.Decomposition
-import Frugel.Node
-import Frugel.Program
+import Frugel.Error.InternalError
 
-import Optics
+import Optics.Extra
 
 import Prettyprinter
 
@@ -38,29 +41,24 @@ class DisplayProjection a where
         -> Doc Annotation
     renderDoc = defaultRenderDoc
 
-instance DisplayProjection Program
+instance DisplayProjection (NodeOf p)
+    => DisplayProjection (InternalError p) where
+    renderDoc = \case
+        ParseFailedAfterPrettyPrint
+         -> "failed to reparse a pretty-printed program"
+        ASTModificationNotPerformed cursorOffset ->
+            "AST was not modified. Cursor offset:" <+> show cursorOffset
+        DecompositionFailed cursorOffset ->
+            "failed to decompose AST for cursor offset" <+> show cursorOffset
+        CstrSiteActionFailed cstrSiteOffset cstrSite ->
+            "failed to modify the construction site"
+            `nestingLine` renderDoc cstrSite
+            <> line
+            <> "at index"
+            <+> show cstrSiteOffset
 
 instance DisplayProjection n => DisplayProjection (ACstrSite n) where
     renderDoc = prettyCstrSite renderDoc
-
-instance DisplayProjection Node where
-    -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions
-    renderDoc (ExprNode expr) = renderDoc expr
-    renderDoc (DeclNode decl) = renderDoc decl
-    renderDoc (WhereNode w) = renderDoc w
-
-instance DisplayProjection Expr where
-    -- Parentheses are handled here (instead of relying on decompose), because the information would be removed when the expression is a construction site
-    renderDoc = either defaultRenderDoc parenthesize . unwrapParentheses
-      where
-        parenthesize (leadingFragment, e, trailingFragment)
-            = parens (pretty leadingFragment
-                      <> renderDoc e
-                      <> pretty trailingFragment)
-
-instance DisplayProjection Decl
-
-instance DisplayProjection WhereClause
 
 defaultRenderDoc
     :: (Decomposable s, DisplayProjection (NodeOf s), CstrSiteNode s)

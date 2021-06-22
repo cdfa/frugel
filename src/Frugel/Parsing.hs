@@ -1,113 +1,33 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Frugel.Parsing
-    ( module Frugel.Parsing
-    , module Frugel.Parsing.Error
-    , module Frugel.Lexing
-    ) where
+module Frugel.Parsing where
 
-import Control.Monad.Combinators.Expr
-import Control.Monad.Combinators.NonEmpty
+import qualified Data.Sequence as Seq
 
-import Frugel.Lexing
-import Frugel.Node
-import qualified Frugel.Node        as Node
-import Frugel.Parsing.Error
-import Frugel.Parsing.Whitespace
-import Frugel.Program               as Program
+import Frugel.CstrSite
+import Frugel.Decomposition
 
-import Optics
+import Optics.Extra
 
-import Prelude                      hiding ( some )
+class Parseable p where
+    type ParserOf p :: * -> *
+    type ParseErrorOf p :: *
+    programParser :: (ParserOf p) p
+    anyNodeParser :: (ParserOf p) (NodeOf p)
+    runParser :: (ParserOf p) n
+        -> ACstrSite (NodeOf p)
+        -> Either (NonEmpty (ParseErrorOf p)) n
+    errorOffset :: Lens' (ParseErrorOf p) Int
 
-import Text.Megaparsec              as Megaparsec
-    hiding ( ParseError, many, some )
-
-identifier :: Parser Identifier
-identifier = Identifier <$> some alphaNumChar <?> "an identifier"
-
-node :: (IsNode a, NodeOf a ~ Node) => String -> Parser a
-node name = namedToken name $ preview (_Right % nodePrism)
-
-anyNode :: Parser Node
-anyNode
-    = choice [ WhereNode <$> whereClause
-             , DeclNode <$> try decl
-             , ExprNode <$> try expr
-             ]
-
-term :: Parser Expr
-term
-    = choice [ surroundOriginalWhitespace
-               <$> (char '(' *%> fmap noWhitespace expr <*% char ')')
-             , setWhitespace
-               <$> choice [ Node.abstraction' <$% char '\\' <*%> identifier
-                            <*% char '='
-                            <*%> expr
-                            -- Non recursive production rules at the bottom
-                          , exprCstrSite' (CstrSite empty) <$% string "..."
-                          , variable' <$%> identifier
-                          ]
-             , node "an expression node"
-             ]
-  where
-    surroundOriginalWhitespace
-        (whitespaceFragments, e) = case whitespaceFragments of
-        [rightFragment, leftFragment] -> e
-            & exprMeta % #parenthesisLevels +~ 1
-            & exprMeta % #standardMeta % #interstitialWhitespace
-            %~ cons leftFragment . flip snoc rightFragment
-        _ -> error
-            $ toText ("Unexpected number of whitespace fragments: "
-                      ++ show whitespaceFragments)
-
-expr :: Parser Expr
-expr
-    = makeExprParser
-        term
-        [ [ InfixL (Application . setWhitespace
-                    <$> try (defaultExprMeta 1 <<$> whitespace
-                             <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
-                             (choice [ () <$ char '+'
-                                     , () <$ string "where"
-                                     , () <$ node @WhereClause ""
-                                     , () <$ (() <$% identifier <*% char '=')
-                                     , () <$ node @Decl ""
-                                     , () <$ char ')'
-                                     , eof
-                                     ])))
-          ]
-        , [ InfixL
-                (Sum . setWhitespace
-                 <$> try
-                     (defaultExprMeta 2 <$% pure () <*% char '+' <*% pure ()))
-          ]
-        ]
-
-decl :: Parser Decl
-decl = setWhitespace <$> literalDecl <|> declNode
-  where
-    literalDecl = Node.decl' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
-    declNode = node "a declaration node"
-
-whereClause :: Parser WhereClause
-whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
-  where
-    literalWhere = Node.whereClause' <<$>> string "where" *%> wSome decl
-    whereNode = node "a where clause node"
-
-program :: Parser Program
-program
-    = setProgramWhitespace
-    <$> (Program.program' <$%> expr <*%> optional whereClause <*% pure ())
-  where
-    setProgramWhitespace :: WithWhitespace Program -> Program
-    setProgramWhitespace
-        ( trailingWhitespace : whitespaceFragments -- whitespace fragments are reversed
-        , p
-        )
-        = set (#meta % #trailingWhitespace) trailingWhitespace
-        $ setWhitespace (whitespaceFragments, p)
-    setProgramWhitespace _ = error "not enough whitespace fragments"
+fixErrorOffset :: forall p.
+    (Decomposable (NodeOf p), NodeOf p ~ NodeOf (NodeOf p), Parseable p)
+    => ACstrSite (NodeOf p)
+    -> ParseErrorOf p
+    -> ParseErrorOf p
+fixErrorOffset (CstrSite materials) = errorOffset @p %~ \offset -> offset
+    + sumOf (folded % _Right % to (pred . textLength))
+            (Seq.take (offset - 1) materials)

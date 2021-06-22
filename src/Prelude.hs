@@ -1,17 +1,8 @@
 {-# LANGUAGE KindSignatures #-}
-
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Prelude
-    ( module Prelude
-    , module Relude
-    , module Data.Default.Class
-    , (><)
-    , toList
-    , dup
-    ) where
+module Prelude ( module Prelude, module Relude, (><), toList, dup ) where
 
-import Data.Default.Class
 import qualified Data.Foldable as Foldable
 import Data.List    ( groupBy )
 import Data.Sequence ( (><) )

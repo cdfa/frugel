@@ -1,10 +1,10 @@
-module Frugel.Lexing where
+module Scout.Lexing where
 
 import Data.Alphanumeric
 import Data.Char
 import qualified Data.Set as Set
 
-import Frugel.Node
+import Scout.Node
 
 import Text.Megaparsec
 

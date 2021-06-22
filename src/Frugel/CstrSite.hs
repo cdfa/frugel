@@ -7,7 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,13 +21,22 @@ import Data.Data.Lens
 import Data.GenValidity
 import Data.GenValidity.Sequence ()
 
-import Optics
+import Optics.Extra
 
 import Test.QuickCheck.Gen
 
 import Text.Megaparsec.Stream
 
 type family NodeOf a :: *
+
+class (NodePrism a, CstrSiteNode a) => IsNode a
+
+class NodePrism a where
+    nodePrism :: Prism' (NodeOf a) a
+
+class CstrSiteNode a where
+    setCstrSite :: ACstrSite (NodeOf a) -> a -> a
+    _NodeCstrSite :: AffineTraversal' a (ACstrSite (NodeOf a))
 
 newtype ACstrSite n = CstrSite (Seq (Either Char n))
     deriving ( Eq, Ord, Show, Generic, Data )
@@ -54,20 +62,6 @@ instance (ValidEnumerable n, GenValid n) => GenValid (ACstrSite n) where
 
 instance ValidEnumerable n => ValidEnumerable (ACstrSite n) where
     enumerateValid = datatype [ c1 CstrSite ]
-
-resolveSingletonCstrSites :: forall n.
-    (Data n, Default (AffineTraversal' n (ACstrSite n)))
-    => ACstrSite n
-    -> ACstrSite n
-resolveSingletonCstrSites
-    = transformOnOf (traverseOf (_CstrSite % traversed % _Right)) uniplate
-    $ \node -> fromMaybe node
-    $ preview (def @(AffineTraversal' n (ACstrSite n))
-               % _CstrSite
-               % filtered ((<= 1) . lengthOf folded)
-               % ix 0
-               % _Right)
-              node
 
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)

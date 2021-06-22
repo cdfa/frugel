@@ -8,15 +8,16 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Frugel.Parsing.Error where
+module Scout.Parsing.Error where
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
 import Frugel.DisplayProjection
-import Frugel.Node
 
-import Optics
+import Optics.Extra
+
+import Scout.Node
 
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Error

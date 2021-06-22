@@ -6,7 +6,7 @@ module Frugel.View.ViewModel where
 
 import Frugel
 
-import Optics
+import Optics.Extra
 
 data DocTextTree ann
     = TextLeaf Text | LineLeaf | Annotated ann [DocTextTree ann]

@@ -5,12 +5,13 @@ module Frugel
     , module Frugel.Action
     , module Frugel.Decomposition
     , module Frugel.DisplayProjection
-    , Direction(..)
+    , module Frugel.Parsing
+    , module Frugel.CstrSite
     , Model(Model, program, cursorOffset, errors)
-    , parseErrorPretty
     ) where
 
 import Frugel.Action
+import Frugel.CstrSite
 import Frugel.Decomposition ( Decomposable(..) )
 import Frugel.DisplayProjection
 import Frugel.Error

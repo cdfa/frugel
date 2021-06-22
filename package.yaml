@@ -39,6 +39,11 @@ default-extensions:
 
 library:
   source-dirs: src
+  when:
+    - condition: "impl(ghcjs)"
+      source-dirs: scout-src
+      exposed-modules: Scout
+  # Note: you may need to stack build before changes are reflected in the editor, because we use a cabal cradle for this component, because stack does not support internal libraries https://github.com/commercialhaskell/stack/issues/4564
   dependencies:
     - miso
     - megaparsec >= 9.0.1
@@ -52,7 +57,6 @@ library:
     - optics-vl >= 0.2.1
     - lens
     - mtl
-    - data-default-class
     - genvalidity
     - validity-text
     - validity-containers
@@ -62,6 +66,35 @@ library:
     - testing-feat
     - size-based
     - dictionary-sharing
+
+
+internal-libraries:
+  scout:
+    when: # Ugly hack because ghcjs does not seem to support internal libraries: https://github.com/ghcjs/ghcjs/issues/806
+      - condition: "impl(ghcjs)"
+        buildable: false
+      - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
+        other-modules: Paths_frugel
+    source-dirs: scout-src
+    exposed-modules: Scout
+    dependencies:
+      - frugel
+      - megaparsec >= 9.0.1
+      - parser-combinators
+      - containers
+      - text
+      - prettyprinter >= 1.7.0
+      - composition
+      - it-has
+      - optics >= 0.3
+      - lens
+      - mtl
+      - genvalidity
+      - validity-text
+      - validity-containers
+      - genvalidity-text
+      - genvalidity-containers
+      - QuickCheck
 
 executables:
   frugel-exe:
@@ -79,10 +112,11 @@ executables:
       - aeson
     when:
       - condition: "!impl(ghcjs)"
-        dependencies: jsaddle-warp
+        dependencies:
+          - jsaddle-warp
+          - scout
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
-
 
 tests:
   frugel-test:
@@ -96,6 +130,8 @@ tests:
       - frugel
       - sydtest
       - genvalidity-sydtest
-    when: # Work around hpack issue https://github.com/sol/hpack/issues/303
-      - condition: false
+    when:
+      - condition: "!impl(ghcjs)"
+        dependencies: scout
+      - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
