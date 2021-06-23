@@ -36,7 +36,8 @@ module Scout.Node
     , addMetaWith
     , parenthesizeExpr
     , unwrapParentheses
-    , intersperseWhitespaceTraversals
+    , intersperseWhitespaceTraversers
+    , whitespaceFragmentTraverser
     ) where
 
 import Frugel.CstrSite
@@ -103,7 +104,7 @@ parensTest
 
 whereClauseTest :: CstrSite
 whereClauseTest
-    = toCstrSite [ Left "x where\n  y = "
+    = toCstrSite [ Left "x+y where\n  y = "
                  , Right . ExprNode . exprCstrSite' $ fromList [ Left 'z' ]
                  , Left "\n  u = w"
                  ]

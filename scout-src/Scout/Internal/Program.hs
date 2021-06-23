@@ -107,17 +107,18 @@ instance Parseable Program where
     errorOffset = Parsing.errorOffset
 
 instance Decomposable Program where
-    mapMComponents mapChar mapNode program@Program{}
-        = chain
-            (intersperseWhitespaceTraversals
-                 mapChar
-                 program
-                 [ traverseOf #expr mapNode, #whereClause % _Just %%~ mapNode ]
-             :> (#meta % #trailingWhitespace % unpacked % traversed
-                 %%~ mapChar))
-            program
-    mapMComponents mapChar mapNode (ProgramCstrSite meta materials)
-        = ProgramCstrSite meta <$> mapMComponents mapChar mapNode materials
+    traverseComponents mapChar mapNode program@Program{}
+        = chainDisJoint program
+        $ Disjoint (intersperseWhitespaceTraversers
+                        mapChar
+                        program
+                        [ Traverser' #expr mapNode
+                        , Traverser' (#whereClause % _Just) mapNode
+                        ]
+                    :> Traverser' (#meta % #trailingWhitespace)
+                                  (unpacked % traversed %%~ mapChar))
+    traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
+        = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
 
 instance DisplayProjection Program
 

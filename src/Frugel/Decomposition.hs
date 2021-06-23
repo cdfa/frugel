@@ -28,22 +28,21 @@ class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
     conservativelyDecompose :: Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
     conservativelyDecompose _ _ = Nothing
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
-    -- With writing more boilerplate, it would also be possible to generalize this for applicative functors instead of monads
-    -- Except for the Monad constraint, this function is like a monomorphic Bitraversable instance
-    mapMComponents :: Monad m
-        => (Char -> m Char)
+    -- traverseComponents could be generalised to a Bitraversal which might make implementation easier, but at the moment there is no library to work with them so I'm not sure
+    traverseComponents :: Applicative f
+        => (Char -> f Char)
         -> (forall n'.
             (Decomposable n', IsNode n', NodeOf n ~ NodeOf n')
             => n'
-            -> m n')
+            -> f n')
         -> n
-        -> m n
+        -> f n
 
 decompose :: Decomposable n => n -> ACstrSite (NodeOf n)
 decompose n
     = fromList . reverse
     $ execState
-        (mapMComponents (conses Left) (conses (Right . review nodePrism)) n)
+        (traverseComponents (conses Left) (conses (Right . review nodePrism)) n)
         []
   where
     conses f x = x <$ modify (f x :)
@@ -87,7 +86,7 @@ modifyNodeAt f cursorOffset program
             $ do
                 #cstrSiteOffset += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
                 withLocal #cstrSiteOffset 0 $ do
-                    newNode <- mapMComponents mapChar mapNode n
+                    newNode <- traverseComponents mapChar mapNode n
                     -- t <- guse #textOffset
                     -- c <- guse #cstrSiteOffset
                     -- traceM
@@ -132,7 +131,7 @@ conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
 
 instance (Decomposable n, IsNode n, n ~ NodeOf n)
     => Decomposable (ACstrSite n) where
-    mapMComponents mapChar mapNode
+    traverseComponents mapChar mapNode
         = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
 
 
