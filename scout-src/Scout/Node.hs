@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -40,12 +41,41 @@ module Scout.Node
     , whitespaceFragmentTraverser
     ) where
 
+import Control.Lens.Plated
+
+import Data.Char
+import Data.Data.Lens
+import Data.Sequence ( spanl, spanr )
+
 import Frugel.CstrSite
+
+import Optics.Extra
 
 import Relude.Unsafe ( fromJust )
 
 import Scout.Internal.Node as Node
 import Scout.Meta
+
+liftNestedCstrSiteOuterWhitespace :: CstrSite -> CstrSite
+liftNestedCstrSiteOuterWhitespace
+    = transformOf uniplate
+    $ foldMapOf (_CstrSite % folded) extractOuterWhitespace
+  where
+    isWhitespaceItem (Left c) = isSpace c
+    isWhitespaceItem _ = False
+    extractOuterWhitespace :: Either Char Node -> CstrSite
+    extractOuterWhitespace item
+        = CstrSite $ leadingWhitespace <> (newItem <| trailingWhitespace)
+      where
+        ((leadingWhitespace, trailingWhitespace), newItem)
+            = first (fromMaybe mempty)
+            $ passthrough
+                (_Right % _NodeCstrSite % _CstrSite)
+                ((\(leadingWhitespace', (trailingWhitespace', newMaterials)) ->
+                  ((leadingWhitespace', trailingWhitespace'), newMaterials))
+                 . second (spanr isWhitespaceItem)
+                 . spanl isWhitespaceItem)
+                item
 
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
@@ -104,8 +134,8 @@ parensTest
 
 whereClauseTest :: CstrSite
 whereClauseTest
-    = toCstrSite [ Left "x+y where\n  y = "
-                 , Right . ExprNode . exprCstrSite' $ fromList [ Left 'z' ]
+    = toCstrSite [ Left "x where\n  y = "
+                 , Right . ExprNode . exprCstrSite' $ toCstrSite [ Left "z+" ]
                  , Left "\n  u = w"
                  ]
 

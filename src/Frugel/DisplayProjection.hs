@@ -23,10 +23,12 @@ import Prettyprinter
 data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq, Data )
 
-data Annotation
-    = CompletionAnnotation CompletionStatus
+data Annotation' s
+    = CompletionAnnotation s
     | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream after layout. Any contents will be discarded.
     deriving ( Show, Eq, Data )
+
+type Annotation = Annotation' CompletionStatus
 
 annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation
 annotateInConstruction = annotate $ CompletionAnnotation InConstruction
@@ -44,8 +46,6 @@ class DisplayProjection a where
 instance DisplayProjection (NodeOf p)
     => DisplayProjection (InternalError p) where
     renderDoc = \case
-        ParseFailedAfterPrettyPrint
-         -> "failed to reparse a pretty-printed program"
         ASTModificationNotPerformed cursorOffset ->
             "AST was not modified. Cursor offset:" <+> show cursorOffset
         DecompositionFailed cursorOffset ->
@@ -58,14 +58,14 @@ instance DisplayProjection (NodeOf p)
             <+> show cstrSiteOffset
 
 instance DisplayProjection n => DisplayProjection (ACstrSite n) where
-    renderDoc = prettyCstrSite renderDoc
+    renderDoc = renderCstrSite renderDoc
 
 defaultRenderDoc
     :: (Decomposable s, DisplayProjection (NodeOf s), CstrSiteNode s)
     => s
     -> Doc Annotation
 defaultRenderDoc x
-    = maybe (renderDecomposable x) (prettyCstrSite renderDoc)
+    = maybe (renderDecomposable x) (renderCstrSite renderDoc)
     $ preview _NodeCstrSite x
 
 renderDecomposable
@@ -73,11 +73,18 @@ renderDecomposable
 renderDecomposable
     = foldMap (either pretty renderDoc) . view _CstrSite . decompose
 
--- Invariant: prettyCstrSite of a non-empty Seq results in a non-empty Doc
-prettyCstrSite :: (n -> Doc Annotation) -> ACstrSite n -> Doc Annotation
-prettyCstrSite prettyNode (CstrSite contents)
-    = annotateInConstruction
-    . foldMap (either pretty (foldMap (annotateComplete . prettyNode)))
+renderCstrSite :: (n -> Doc Annotation) -> ACstrSite n -> Doc Annotation
+renderCstrSite = renderCstrSite' annotateInConstruction annotateComplete
+
+-- Invariant: renderCstrSite of a non-empty Seq results in a non-empty Doc
+renderCstrSite' :: (Doc a -> Doc a)
+    -> (Doc a -> Doc a)
+    -> (n -> Doc a)
+    -> ACstrSite n
+    -> Doc a
+renderCstrSite' inConstruction complete prettyNode (CstrSite contents)
+    = inConstruction
+    . foldMap (either pretty (foldMap (complete . prettyNode)))
     . groupByEither
     $ toList contents
 

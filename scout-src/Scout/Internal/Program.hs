@@ -6,11 +6,14 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -Wno-deprecations #-}
 
 module Scout.Internal.Program where
 
@@ -22,17 +25,24 @@ import Data.Has
 import Data.Text.Optics
 
 import Frugel
+import Frugel.Decomposition
+import Frugel.PrettyPrinting
 
 import Optics.Extra
 
-import Scout.Internal.Meta ( ProgramMeta(standardMeta) )
+import Prettyprinter.Render.Util.SimpleDocTree
+
+import Scout.Internal.Meta               ( ProgramMeta(standardMeta) )
 import Scout.Node
-import qualified Scout.Parsing as Parsing
-import Scout.Parsing     hiding ( expr, whereClause )
+import qualified Scout.Parsing           as Parsing hiding ( node )
+import Scout.Parsing                     hiding ( expr, node, whereClause )
+import Scout.PrettyPrinting
 
 import Test.QuickCheck.Gen
 
-import Text.Megaparsec   as Megaparsec hiding ( ParseError, parseErrorPretty )
+import Text.Megaparsec
+    hiding ( ParseError, parseErrorPretty, runParser )
+import qualified Text.Megaparsec         as Megaparsec
 
 data Program
     = Program { meta        :: ProgramMeta
@@ -120,12 +130,46 @@ instance Decomposable Program where
     traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
         = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
 
-instance DisplayProjection Program
+instance PrettyPrint Program where
+    prettyPrint program
+        = second toList
+        . reparse programParser
+        . flip setCstrSite program
+        . liftNestedCstrSiteOuterWhitespace
+        . renderSimplyDecorated (fromList . map Left . toString)
+                                renderAnnotation
+        . removeRootCstrSiteAnnotation -- remove root construction site annotation, because a ExprNode won't be accepted as a program
+        . treeForm
+        . layoutSmart defaultLayoutOptions
+        $ unsafePrettyProgram program
+      where
+        removeRootCstrSiteAnnotation
+            (STAnn (CompletionAnnotation (InConstruction' _)) subTree)
+            | ProgramCstrSite{} <- program = subTree
+        removeRootCstrSiteAnnotation ann = ann
+        renderAnnotation (CompletionAnnotation (InConstruction' n)) cstrSite
+            = one . Right $ setCstrSite cstrSite n
+        renderAnnotation _ cstrSite
+            = one . Right . ExprNode $ exprCstrSite' cstrSite -- Wrapping all construction sites in ExprNodes is okay, because we use anyNode as parser (in reparseNestedCstrSites)
+        reparse :: forall n.
+            (Node ~ NodeOf n, Data n, Decomposable n)
+            => Parser n
+            -> n
+            -> (n, Set ParseError)
+        reparse parser node
+            = uncurry (reparseNestedCstrSites @Program reparse)
+            . (\cstrSite ->
+               either (\errors -> ((cstrSite, node), fromFoldable errors))
+                      (\newNode -> ((cstrSite, newNode), mempty))
+               $ runParser @Program parser cstrSite)
+            $ decompose node
 
-instance AnnotatedPretty Program where
-    annPretty (ProgramCstrSite _ contents) = annPretty contents
-    -- Weird definition to avoid shadowing
-    annPretty program = annPretty . expr <> annPretty . whereClause $ program
+unsafePrettyProgram :: Program -> Doc PrettyAnnotation
+unsafePrettyProgram (ProgramCstrSite _ contents)
+    = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed
+unsafePrettyProgram Program{..} = annPretty expr <> annPretty whereClause
+
+instance DisplayProjection Program
 
 instance Validity Program where
     validate

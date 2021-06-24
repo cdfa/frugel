@@ -53,7 +53,7 @@ viewModel model
                    [ [ codeRoot []
                        . renderSmart
                        . insertCursor (cursorOffset model)
-                       . layoutSmart defaultLayoutOptions
+                       . layoutPretty defaultLayoutOptions
                        . renderDoc
                        $ program model
                      ]

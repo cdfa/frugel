@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
@@ -10,35 +11,32 @@
 
 module Frugel.Action where
 
-import qualified Control.Lens            as Lens
 import Control.Lens.Plated
-import Control.Monad.Writer
-import Control.Zipper.Seq                hiding ( insert )
-import qualified Control.Zipper.Seq      as SeqZipper
+import Control.Zipper.Seq    hiding ( insert )
+import qualified Control.Zipper.Seq as SeqZipper
 
 import Data.Data
 import Data.Data.Lens
-import qualified Data.Sequence           as Seq
-import qualified Data.Set                as Set
-import Data.Set.Optics
+import qualified Data.Set    as Set
 
 import Frugel.CstrSite
-import Frugel.Decomposition              hiding ( ModificationStatus(..) )
+import Frugel.Decomposition  hiding ( ModificationStatus(..) )
 import Frugel.DisplayProjection
 import Frugel.Error
+import qualified Frugel.Internal.Model
 import Frugel.Model
 import Frugel.Parsing
-import Frugel.PrettyPrinting
+import Frugel.PrettyPrinting hiding ( prettyPrint )
+import qualified Frugel.PrettyPrinting as PrettyPrinting
 
-import Miso                              hiding ( focus, model, node, view )
+import Miso                  hiding ( focus, model, node, view )
 import qualified Miso
 
 import Optics.Extra
 
 import Prettyprinter.Render.String
-import Prettyprinter.Render.Util.SimpleDocTree
 
-import qualified Text.Megaparsec         as Megaparsec
+import qualified Text.Megaparsec as Megaparsec
 
 data EditResult = Success | Failure
     deriving ( Show, Eq )
@@ -65,13 +63,14 @@ class ( Data p
       , CstrSiteNode (NodeOf p)
       , Parseable p
       , Ord (ParseErrorOf p)
+      , PrettyPrint p
       ) => Editable p
 
 deriving instance (Ord (Megaparsec.Token s), Ord e)
     => Ord (Megaparsec.ParseError s e)
 
 -- Updates model, optionally introduces side effects
-updateModel :: (AnnotatedPretty p, Editable p, DisplayProjection p)
+updateModel :: (Editable p, DisplayProjection p)
     => Action
     -> Model p
     -> Effect Action (Model p)
@@ -148,25 +147,17 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
     programText
-        = renderString . layoutSmart defaultLayoutOptions . renderDoc
+        = renderString . layoutPretty defaultLayoutOptions . renderDoc
         $ view #program model
 
--- Leaves everything as construction site, because parsing nested construction sites is not implemented yet
-prettyPrint :: (AnnotatedPretty p, Editable p) => Model p -> Model p
-prettyPrint model = case attemptEdit (Right . prettyPrinted) model of
-    (Success, newModel) -> newModel
-    (Failure, newModel) -> newModel
-        & #errors %~ cons (InternalError ParseFailedAfterPrettyPrint)
+prettyPrint :: forall p. Editable p => Model p -> Model p
+prettyPrint model@Model{..}
+    = model & #program .~ newProgram & #errors .~ map ParseError newErrors
   where
-    prettyPrinted program
-        = flip setCstrSite program
-        . renderSimplyDecorated (fromList . map Left . toString) (const id)
-        . treeForm
-        . layoutSmart defaultLayoutOptions
-        $ annPretty program
+    (newProgram, newErrors) = PrettyPrinting.prettyPrint program
 
 attemptEdit :: forall p.
-    (Editable p)
+    Editable p
     => (p -> Either (InternalError p) p)
     -> Model p
     -> (EditResult, Model p)
@@ -182,37 +173,18 @@ attemptEdit
         )
   where
     reparse :: forall n.
-        (Data n, Decomposable n, NodeOf p ~ NodeOf n)
+        (NodeOf p ~ NodeOf n, Data n, Decomposable n)
         => (ParserOf p) n
         -> n
         -> (n, Set (ParseErrorOf p))
     reparse parser node
-        = uncurry reparseNestedCstrSites
+        = uncurry (reparseNestedCstrSites @p reparse)
         . first (fromMaybe (decompose node, node))
         . findSuccessfulParse
         . groupSortOn cstrSiteCount
         . inliningVariations
         $ decompose node
       where
-        reparseNestedCstrSites (cstrSite, newNode) errors
-            = runWriter
-            $ tell errors
-            >> Lens.itraverseOf (Lens.indexing $ template @n @(NodeOf n))
-                                (\i -> writer
-                                 . second (increaseErrorOffsets i cstrSite)
-                                 . reparse (anyNodeParser @p))
-                                newNode
-        increaseErrorOffsets i cstrSite
-            = setmapped % errorOffset @p
-            +~ fst (Seq.filter (isRight . snd)
-                               (leadingCumulativeTextLengths cstrSite)
-                    `Seq.index` i)
-        -- not exactly a prefix sum; first element of pair is text length of construction materials before the item in the right element
-        leadingCumulativeTextLengths (CstrSite materials)
-            = snd
-            $ mapAccumL (\l item ->
-                         let itemLength = either (const 1) textLength item
-                         in (l + itemLength, (l, item))) 0 materials
         findSuccessfulParse = foldl' collectResults (Nothing, mempty)
         collectResults firstSuccessfulParse@(Just _, _) _
             = firstSuccessfulParse
