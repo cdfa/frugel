@@ -35,8 +35,6 @@ import Numeric.Optics
 
 import Optics.Extra
 
-import Relude.Unsafe                ( (!!) )
-
 import Scout.Internal.Meta          ( ExprMeta(standardMeta) )
 import qualified Scout.Internal.Meta
 import Scout.Meta
@@ -395,16 +393,17 @@ instance Validity Expr where
         = mconcat
             [ genericValidate
             , validateInterstitialWhitespace validInterstitialWhitespace
-            , declare "has non-empty middle whitespace"
+            , declare "has non-empty center whitespace fragment"
               . fromMaybe True
-              . preview (_Application
-                         % _1
-                         % #standardMeta
-                         % #interstitialWhitespace
-                         % to (not
-                               . Text.null
-                               . (\whitespaceFragments -> whitespaceFragments
-                                  !! (length whitespaceFragments `div` 2 + 1))))
+              . preview
+                  (_Application
+                   % _1
+                   % #standardMeta
+                   % #interstitialWhitespace
+                   % to (maybe False (not . Text.null) . \whitespaceFragments ->
+                         guard (odd $ length whitespaceFragments)
+                         *> whitespaceFragments
+                         !!? (length whitespaceFragments `div` 2)))
             ]
 
 instance Validity Decl where
