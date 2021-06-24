@@ -7,6 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -50,12 +51,17 @@ makeFieldLabelsWith noPrefixFieldLabels ''Meta
 
 instance Validity ExprMeta where
     validate
-        = mconcat [ genericValidate
-                  , decorate "parenthesisLevels"
-                    . declare "the number is greater than or equal to 0"
-                    . (>= 0)
-                    . parenthesisLevels
-                  ]
+        = mconcat
+            [ genericValidate
+            , decorate "parenthesisLevels"
+              . declare "the number is greater than or equal to 0"
+              . (>= 0)
+              . parenthesisLevels
+            , decorate "standardMeta"
+              . declare "the number of whitespace fragments is greater or equal then parenthesisLevels * 2"
+              . \ExprMeta{..} -> length (interstitialWhitespace standardMeta)
+              >= parenthesisLevels
+            ]
 
 instance Validity ProgramMeta where
     validate
@@ -98,10 +104,20 @@ instance GenValid Meta where
         $ interstitialWhitespace !! i
 
 enumerateValidExprMeta :: (Typeable f, Sized f) => Int -> Shareable f ExprMeta
-enumerateValidExprMeta n
+enumerateValidExprMeta minimumWhitespaceFragments
     = pay
-    $ aconcat
-        [ ExprMeta <$> enumerateValidMeta n <*> inflation (2 ^) 0 (pure succ) ]
+    $ (\meta' parenthesisWhitespace ->
+       ExprMeta { parenthesisLevels = length parenthesisWhitespace
+                , standardMeta      = meta'
+                      & #interstitialWhitespace
+                      %~ (\whitespaceFragments ->
+                          toWhitespaceFragment fst parenthesisWhitespace
+                          ++ whitespaceFragments
+                          ++ toWhitespaceFragment snd parenthesisWhitespace)
+                }) <$> enumerateValidMeta minimumWhitespaceFragments
+    <*> inflation (2 ^) [] ((:) <$> accessValid)
+  where
+    toWhitespaceFragment project = map (toText . map unWhitespace . project)
 
 enumerateValidProgramMeta
     :: (Typeable f, Sized f) => Int -> Shareable f ProgramMeta

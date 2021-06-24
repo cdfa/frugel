@@ -448,41 +448,24 @@ instance ValidEnumerable Identifier where
 instance ValidEnumerable Expr where
     enumerateValid
         = datatype
-            [ addExprMeta 0 Variable
-            , addExprMeta 3 (uncurry . Abstraction)
-            , addExprMeta
-                  1
-                  (uncurry
-                   . Application
-                   -- Use " " as the middle whitespace fragment if the generated one is empty
-                   . (#standardMeta % #interstitialWhitespace
-                      %~ \whitespaceFragments -> whitespaceFragments
-                      & ix (length whitespaceFragments `div` 2 + 1)
-                      %~ \whitespaceFragment -> if Text.null whitespaceFragment
-                          then " "
-                          else whitespaceFragment))
-            , addExprMeta 2 (uncurry . Sum)
-            , addExprMeta 0 ExprCstrSite
+            [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
+            , Abstraction <$> enumerateValidExprMeta 3
+              <*> accessValid
+              <*> accessValid
+            , Application . nonEmptyCenterWhitespace
+              <$> enumerateValidExprMeta 1
+              <*> accessValid
+              <*> accessValid
+            , Sum <$> enumerateValidExprMeta 2 <*> accessValid <*> accessValid
+            , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
             ]
       where
-        addExprMeta minimumWhitespaceFragments c
-            = (\meta' parenthesisWhitespace args ->
-               c ExprMeta { parenthesisLevels = length parenthesisWhitespace
-                          , standardMeta      = meta'
-                                & #interstitialWhitespace
-                                %~ (\whitespaceFragments -> toWhitespaceFragment
-                                        fst
-                                        parenthesisWhitespace
-                                    ++ whitespaceFragments
-                                    ++ toWhitespaceFragment
-                                        snd
-                                        parenthesisWhitespace)
-                          }
-                 args) <$> enumerateValidMeta minimumWhitespaceFragments
-            <*> accessValid
-            <*> accessValid
-        toWhitespaceFragment project
-            = map (toText . map unWhitespace . project)
+        -- Use " " as the middle whitespace fragment if the generated one is empty
+        nonEmptyCenterWhitespace
+            = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
+            whitespaceFragments
+            & ix (length whitespaceFragments `div` 2) %~ \whitespaceFragment ->
+            if Text.null whitespaceFragment then " " else whitespaceFragment
 
 instance ValidEnumerable Decl where
     enumerateValid
