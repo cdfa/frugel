@@ -99,4 +99,5 @@
         "vue"
     ],
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+    "haskell.plugin.haddockComments.globalOn": false,
 }
