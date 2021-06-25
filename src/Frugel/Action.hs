@@ -12,6 +12,7 @@
 module Frugel.Action where
 
 import Control.Lens.Plated
+import Control.ValidEnumerable
 import Control.Zipper.Seq    hiding ( insert )
 import qualified Control.Zipper.Seq as SeqZipper
 
@@ -29,12 +30,14 @@ import Frugel.Parsing
 import Frugel.PrettyPrinting hiding ( prettyPrint )
 import qualified Frugel.PrettyPrinting as PrettyPrinting
 
-import Miso                  hiding ( focus, model, node, view )
-import qualified Miso
+import Miso                  hiding ( focus, model, node, set, view )
+import qualified Miso        hiding ( set )
 
 import Optics.Extra
 
 import Prettyprinter.Render.String
+
+import Test.QuickCheck.Gen
 
 import qualified Text.Megaparsec as Megaparsec
 
@@ -44,16 +47,16 @@ data EditResult = Success | Failure
 data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
-data Action
-    = NoOp
-    | Load
+data Action p
+    = Load
+    | GenerateRandom
+    | NewModel (Model p)
     | Log String
     | Insert Char
     | Delete
     | Backspace
     | Move Direction
     | PrettyPrint
-    deriving ( Show, Eq )
 
 class ( Data p
       , Data (NodeOf p)
@@ -70,15 +73,18 @@ deriving instance (Ord (Megaparsec.Token s), Ord e)
     => Ord (Megaparsec.ParseError s e)
 
 -- Updates model, optionally introduces side effects
-updateModel :: (Editable p, DisplayProjection p)
-    => Action
+updateModel :: (Editable p, DisplayProjection p, ValidEnumerable p)
+    => Action p
     -> Model p
-    -> Effect Action (Model p)
-updateModel NoOp model = noEff model
-updateModel Load model = model <# do
-    Miso.focus "code-root" >> pure NoOp
-updateModel (Log msg) model = model <# do
-    consoleLog (show msg) >> pure NoOp
+    -> Effect (Action p) (Model p)
+updateModel Load model
+    = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
+updateModel GenerateRandom model = model <# do
+    NewModel . flip (set #program) model
+        <$> (liftIO . generate $ uniformValid 1000)
+updateModel (NewModel model) _ = noEff model
+updateModel (Log msg) model
+    = fromTransition (scheduleIO_ . consoleLog $ show msg) model
 updateModel (Insert c) model = noEff $ insert c model
 updateModel Delete model = noEff $ delete model
 updateModel Backspace model = noEff $ backspace model

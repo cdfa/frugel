@@ -1,13 +1,9 @@
 {-# LANGUAGE DataKinds #-}
-
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
-
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -28,7 +24,7 @@ data KeyInfo
 
 makeFieldLabelsWith noPrefixFieldLabels ''KeyInfo
 
-keyDownHandler :: Attribute Action
+keyDownHandler :: Attribute (Action p)
 keyDownHandler = onKeyDownWithInfo handleKeyDown
   where
     handleKeyDown keyInfo@KeyInfo{..}
