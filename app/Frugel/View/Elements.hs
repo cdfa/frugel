@@ -37,7 +37,9 @@ paddingStyle
 inConstructionStyles :: [Attribute action]
 inConstructionStyles
     = [ style_
-        $ "background-color" =: "hsl(48, 100%, 85%)" <> "min-width" =: "0.6em"
+        $ "background-color" =: "hsl(48, 100%, 85%)"
+        <> "min-width" =: "0.6em"
+        <> "min-height" =: "2em"
       , paddingStyle
       ]
 
