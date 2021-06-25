@@ -135,7 +135,7 @@ parensTest
 whereClauseTest :: CstrSite
 whereClauseTest
     = toCstrSite [ Left "x where\n  y = "
-                 , Right . ExprNode . exprCstrSite' $ toCstrSite [ Left "z+" ]
+                 , Right . ExprNode . exprCstrSite' $ toCstrSite [ Left "z" ]
                  , Left "\n  u = w"
                  ]
 

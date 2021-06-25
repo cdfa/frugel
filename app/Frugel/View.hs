@@ -95,6 +95,8 @@ renderTrees = map (Elements.line [] . map renderTree . view _Line)
 renderTree :: AnnotationTree -> View Action
 renderTree = \case
     Leaf t -> text $ Miso.String.ms t
+    Node annotation@(CompletionAnnotation InConstruction) [] ->
+        renderTree $ Node annotation [ Leaf " " ] -- Ghost space instead of messing with CSS
     Node annotation subTrees ->
         encloseInTagFor annotation $ map renderTree subTrees
 
