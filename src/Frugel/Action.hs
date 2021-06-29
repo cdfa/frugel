@@ -102,13 +102,13 @@ insert c model
 -- This only works as long as there is always characters (or nothing) after nodes in construction sites
 -- and idem for backspace
 delete :: (Editable p) => Model p -> Model p
-delete model
+delete model@Model{..}
     = case attemptEdit
         (zipperAtCursor (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
-         $ view #cursorOffset model)
+                        cursorOffset)
         model of
         (Success, newModel) -> newModel
-        (Failure, newModel) -> newModel & #errors .~ []
+        (Failure, newModel) -> newModel & #errors .~ errors
 
 backspace :: (Editable p) => Model p -> Model p
 
