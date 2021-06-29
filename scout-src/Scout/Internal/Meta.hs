@@ -53,12 +53,13 @@ instance Validity ExprMeta where
     validate
         = mconcat
             [ genericValidate
-            , decorate "parenthesisLevels"
-              . declare "the number is greater than or equal to 0"
+            , decorate
+                  "The number of surrounding parentheses (parenthesisLevels)"
+              . declare "is greater than or equal to 0"
               . (>= 0)
               . parenthesisLevels
-            , decorate "standardMeta"
-              . declare "the number of whitespace fragments is greater or equal then parenthesisLevels * 2"
+            , decorate "The standardMeta"
+              . declare "The number of whitespace fragments is greater or equal then twice the number of surrounding parentheses (parenthesisLevels * 2)"
               . \ExprMeta{..} -> length (interstitialWhitespace standardMeta)
               >= parenthesisLevels
             ]
@@ -66,16 +67,15 @@ instance Validity ExprMeta where
 instance Validity ProgramMeta where
     validate
         = mconcat [ genericValidate
-                  , decorate "trailingWhitespace"
+                  , decorate "The trailing whitespace"
                     . validateWhitespace
-                    --   . traceShowId
                     . trailingWhitespace
                   ]
 
 instance Validity Meta where
     validate
         = mconcat [ genericValidate
-                  , decorate "interstitialWhitespace"
+                  , decorate "The interstitial whitespace"
                     . flip decorateList validateWhitespace
                     . interstitialWhitespace
                   ]

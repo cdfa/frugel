@@ -18,10 +18,13 @@
 module Scout.Internal.Program where
 
 import Control.ValidEnumerable
+import Control.ValidEnumerable.Whitespace
 
+import Data.Composition
 import Data.Data
 import Data.GenValidity
 import Data.Has
+import qualified Data.Text               as Text
 import Data.Text.Optics
 
 import Frugel
@@ -104,6 +107,12 @@ instance Parseable Program where
       where
         setProgramWhitespace :: WithWhitespace Program -> Program
         setProgramWhitespace
+            ( "" : [trailingWhitespace] -- whitespace fragments are reversed
+            , p@Program{whereClause = Nothing}
+            )
+            = set (#meta % #trailingWhitespace) trailingWhitespace
+            $ setWhitespace ([], p)
+        setProgramWhitespace
             ( trailingWhitespace : whitespaceFragments -- whitespace fragments are reversed
             , p
             )
@@ -175,11 +184,17 @@ instance Validity Program where
     validate
         = mconcat [ genericValidate
                   , validateInterstitialWhitespace validInterstitialWhitespace
+                  , maybe valid hasNonEmptyInterstitialWhitespace
+                    . guarded (is $ #whereClause % _Just)
+                  , maybe valid
+                          (validateInterstitialWhitespaceWith
+                               (declare "is empty" . Text.null))
+                    . guarded (is $ #whereClause % _Nothing)
                   ]
 
 instance ValidInterstitialWhitespace Program where
     validInterstitialWhitespace = \case
-        Program{} -> 1
+        Program{..} -> if isJust whereClause then 1 else 0
         ProgramCstrSite{} -> 0
 
 instance GenValid Program where
@@ -189,11 +204,18 @@ instance GenValid Program where
 instance ValidEnumerable Program where
     enumerateValid
         = datatype
-            [ Program <$> enumerateValidProgramMeta 1
+            [ Program <$> enumerateValidProgramMeta 0
               <*> accessValid
               <*> splurge 150 (pure Nothing) -- appropriate cost is dependent on total size
-            , Program <$> enumerateValidProgramMeta 1
+            , Program .: setInterstitialWhitespace <$> accessValid
+              <*> enumerateValidProgramMeta 0
               <*> accessValid
               <*> (Just <$> accessValid)
             , addMetaWith enumerateValidProgramMeta ProgramCstrSite
             ]
+      where
+        setInterstitialWhitespace
+            :: NonEmpty Whitespace -> ProgramMeta -> ProgramMeta
+        setInterstitialWhitespace interstitialWhitespace
+            = #standardMeta % #interstitialWhitespace
+            .~ [ toText . map unWhitespace $ toList interstitialWhitespace ]

@@ -12,6 +12,7 @@ module Scout.Meta
 
 import Data.GenValidity
 import Data.Has
+import qualified Data.Text as Text
 import Data.Validity.Text ()
 
 import Scout.Internal.Meta
@@ -27,7 +28,7 @@ defaultProgramMeta n
 defaultMeta :: Int -> Meta
 defaultMeta n = Meta { interstitialWhitespace = replicate n "" }
 
-validateInterstitialWhitespace :: Has Meta b => (b -> Int) -> b -> Validation
+validateInterstitialWhitespace :: Has Meta a => (a -> Int) -> a -> Validation
 validateInterstitialWhitespace expectedWhitespaceFragmentCount n
     = mconcat [ genericValidate
               , declare "has the correct number of whitespace fragments"
@@ -36,3 +37,17 @@ validateInterstitialWhitespace expectedWhitespaceFragmentCount n
                 . interstitialWhitespace
               ]
     $ getter n
+
+hasNonEmptyInterstitialWhitespace :: Has Meta a => a -> Validation
+hasNonEmptyInterstitialWhitespace
+    = validateInterstitialWhitespaceWith
+        (declare "is not empty" . not . Text.null)
+
+validateInterstitialWhitespaceWith
+    :: Has Meta b => (Text -> Validation) -> b -> Validation
+validateInterstitialWhitespaceWith validateWhitespace
+    = decorate "Meta"
+    . decorate "The interstitial whitespace"
+    . flip decorateList validateWhitespace
+    . interstitialWhitespace
+    . getter

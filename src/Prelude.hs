@@ -110,3 +110,21 @@ groupSortOn f
     . groupBy ((==) `on` fst)
     . sortBy (compare `on` fst)
     . map (f &&& id)
+
+-- Copied from https://hackage.haskell.org/package/ilist-0.4.0.1/docs/src/Data.List.Index.html#insertAt
+{- |
+'insertAt' inserts an element at the given position:
+
+@
+(insertAt i x xs) !! i == x
+@
+
+If the index is negative or exceeds list length, the original list will be returned. (If the index is equal to the list length, the insertion can be carried out.)
+-}
+insertAt :: Int -> a -> [a] -> [a]
+insertAt i a ls | i < 0 = ls
+                | otherwise = go i ls
+  where
+    go 0 xs = a : xs
+    go n (x : xs) = x : go (n - 1) xs
+    go _ [] = []

@@ -379,6 +379,7 @@ instance Validity WhereClause where
     validate
         = mconcat [ genericValidate
                   , validateInterstitialWhitespace validInterstitialWhitespace
+                  , hasNonEmptyInterstitialWhitespace
                   ]
 
 instance GenValid Node where
@@ -418,20 +419,20 @@ instance ValidEnumerable Expr where
               $ Abstraction <$> enumerateValidExprMeta 3
               <*> accessValid
               <*> accessValid
-            , Application . nonEmptyCenterWhitespace
-              <$> enumerateValidExprMeta 1
+            , Application .: setCenterWhitespace <$> accessValid
+              <*> enumerateValidExprMeta 0
               <*> accessValid
               <*> accessValid
             , Sum <$> enumerateValidExprMeta 2 <*> accessValid <*> accessValid
             , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
             ]
       where
-        -- Use " " as the middle whitespace fragment if the generated one is empty
-        nonEmptyCenterWhitespace
+        setCenterWhitespace nonEmptyWhitespace
             = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
-            whitespaceFragments
-            & ix (length whitespaceFragments `div` 2) %~ \whitespaceFragment ->
-            if Text.null whitespaceFragment then " " else whitespaceFragment
+            insertAt (length whitespaceFragments `div` 2)
+                     (toText . map unWhitespace
+                      $ toList @(NonEmpty _) nonEmptyWhitespace)
+                     whitespaceFragments
 
 instance ValidEnumerable Decl where
     enumerateValid
@@ -441,9 +442,11 @@ instance ValidEnumerable WhereClause where
     enumerateValid
         = datatype
             [ (\decls -> WhereClause
-                   Meta { interstitialWhitespace = map
-                              (toText . map unWhitespace . fst)
-                              (toList decls)
+                   Meta { interstitialWhitespace = map (toText
+                                                        . map unWhitespace
+                                                        . toList @(NonEmpty _)
+                                                        . fst)
+                              $ toList decls
                         }
                $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
 
