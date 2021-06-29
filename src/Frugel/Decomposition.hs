@@ -48,8 +48,7 @@ decompose n
     conses f x = x <$ modify (f x :)
 
 textLength :: (Decomposable n, Decomposable (NodeOf n)) => n -> Int
-textLength
-    = sum . fmap (either (const 1) textLength) . view _CstrSite . decompose
+textLength = sum . either (const 1) textLength <.> view _CstrSite . decompose
 
 step :: MonadState DecompositionState m => m ()
 step = do

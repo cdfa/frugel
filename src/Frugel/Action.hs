@@ -152,13 +152,17 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
     (leadingLines, trailingLines)
         = splitAt currentOffset programText & both %~ splitOn '\n'
     currentOffset = view #cursorOffset model
+    -- uses layoutPretty for consistency with view
     programText
         = renderString . layoutPretty defaultLayoutOptions . renderDoc
         $ view #program model
 
 prettyPrint :: forall p. Editable p => Model p -> Model p
 prettyPrint model@Model{..}
-    = model & #program .~ newProgram & #errors .~ map ParseError newErrors
+    = model
+    & #program .~ newProgram
+    & #errors .~ map ParseError newErrors
+    & #cursorOffset .~ min cursorOffset (textLength newProgram)
   where
     (newProgram, newErrors) = PrettyPrinting.prettyPrint program
 
