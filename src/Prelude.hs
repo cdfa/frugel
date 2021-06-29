@@ -101,13 +101,6 @@ interleave = concat . transpose
 fromFoldable :: (Foldable f, IsList a) => f (Item a) -> a
 fromFoldable = fromList . Foldable.toList
 
--- Copied from https://hackage.haskell.org/package/monad-loops-0.4.3/docs/src/Control-Monad-Loops.html#concatM
--- | Compose a list of monadic actions into one action.  Composes using
--- ('>=>') - that is, the output of each action is fed to the input of
--- the one after it in the list.
-chain :: (Monad m, Foldable t) => t (a -> m a) -> a -> m a
-chain = foldr (>=>) return
-
 -- foldAlt :: (Foldable t, Alternative f) => t a -> f a
 -- foldAlt = getAlt . foldMap (Alt . pure)
 -- Copied from https://hackage.haskell.org/package/extra-1.7.9/docs/src/Data.List.Extra.html#groupSort

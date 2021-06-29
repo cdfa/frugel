@@ -13,11 +13,11 @@
 
 module Scout.Internal.Node where
 
-import Control.Enumerable.Combinators ()
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 
 import Data.Alphanumeric
+import Data.Composition
 import Data.Data
 import Data.GenValidity
 import Data.GenValidity.Sequence    ()
@@ -405,13 +405,17 @@ instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
 
 instance ValidEnumerable Identifier where
-    enumerateValid = datatype [ c1 Identifier ]
+    enumerateValid
+        = datatype [ Identifier .: (:|) <$> accessValid
+                     <*> inflation ((2 ^) . (`div` 5)) [] ((:) <$> accessValid)
+                   ]
 
 instance ValidEnumerable Expr where
     enumerateValid
         = datatype
             [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
-            , Abstraction <$> enumerateValidExprMeta 3
+            , splurge 2
+              $ Abstraction <$> enumerateValidExprMeta 3
               <*> accessValid
               <*> accessValid
             , Application . nonEmptyCenterWhitespace

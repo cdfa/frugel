@@ -8,12 +8,10 @@ module Control.ValidEnumerable.Class
     , module Control.Sized
     ) where
 
-import Control.Enumerable ( access, datatype )
+import Control.Enumerable ( datatype )
 import Control.Sized
 
 import Data.ClassSharing
-
-import Test.Feat.Modifiers hiding ( NonEmpty(..) )
 
 class Typeable a => ValidEnumerable a where
     enumerateValid :: (Typeable f, Sized f) => Shared f a
@@ -91,12 +89,6 @@ c7 :: ( ValidEnumerable a
    => (a -> b -> c -> d -> e -> g -> h -> x)
    -> Shareable f x
 c7 f = c6 (uncurry f)
-
--- Size of characters is determined by number of significant bits (see also Control.Enumerable docs)
--- because it would otherwise explode the number of possible values of any constructor taking it as an argument
--- and thus reduce the likelihood of generating other constructors to near 0.
-instance ValidEnumerable Char where
-    enumerateValid = share (unicode <$> access)
 
 -- instance ValidEnumerable Int where
 --     enumerateValid = share enumerateBounded

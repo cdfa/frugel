@@ -1,6 +1,11 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Control.ValidEnumerable.Access ( uniformValid, uniformWith ) where
+module Control.ValidEnumerable.Access
+    ( uniformValid
+    , uniformWith
+    , values
+    , valuesWith
+    ) where
 
 import Control.ValidEnumerable.Class
 
@@ -8,7 +13,7 @@ import Data.ClassSharing
 
 import Prelude                 hiding ( local )
 
-import Test.Feat
+import Test.Feat               hiding ( values )
 import qualified Test.Feat.Access as Feat
 import Test.QuickCheck.Gen
 
@@ -17,6 +22,13 @@ uniformValid = uniformWith accessValid
 
 uniformWith :: Shareable Enumerate a -> Int -> Gen a
 uniformWith = Feat.uniformWith . global
+
+values :: ValidEnumerable a => [(Integer, [a])]
+values = valuesWith accessValid
+
+-- | Non class version of 'values'.
+valuesWith :: Shareable Enumerate a -> [(Integer, [a])]
+valuesWith = Feat.valuesWith . global
 
 {-# NOINLINE gref #-}
 gref :: Ref

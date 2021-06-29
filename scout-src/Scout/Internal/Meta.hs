@@ -14,10 +14,10 @@
 
 module Scout.Internal.Meta where
 
-import Control.Enumerable.Combinators
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 
+import Data.Composition
 import Data.Data
 import Data.GenValidity
 import Data.GenValidity.Text        ()
@@ -110,14 +110,13 @@ enumerateValidExprMeta minimumWhitespaceFragments
        ExprMeta { parenthesisLevels = length parenthesisWhitespace
                 , standardMeta      = meta'
                       & #interstitialWhitespace
-                      %~ (\whitespaceFragments ->
-                          toWhitespaceFragment fst parenthesisWhitespace
+                      %~ (\whitespaceFragments -> map fst parenthesisWhitespace
                           ++ whitespaceFragments
-                          ++ toWhitespaceFragment snd parenthesisWhitespace)
+                          ++ map snd parenthesisWhitespace)
                 }) <$> enumerateValidMeta minimumWhitespaceFragments
-    <*> inflation (2 ^) [] ((:) <$> accessValid)
-  where
-    toWhitespaceFragment project = map (toText . map unWhitespace . project)
+    <*> inflation (2 ^)
+                  []
+                  ((:) .: (,) <$> enumerateWhitespace <*> enumerateWhitespace)
 
 enumerateValidProgramMeta
     :: (Typeable f, Sized f) => Int -> Shareable f ProgramMeta

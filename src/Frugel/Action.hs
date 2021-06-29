@@ -81,7 +81,7 @@ updateModel Load model
     = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
 updateModel GenerateRandom model = model <# do
     NewModel . flip (set #program) model
-        <$> (liftIO . generate $ uniformValid 1000)
+        <$> (liftIO . generate $ uniformValid 500)
 updateModel (NewModel model) _ = noEff model
 updateModel (Log msg) model
     = fromTransition (scheduleIO_ . consoleLog $ show msg) model

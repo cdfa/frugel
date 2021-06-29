@@ -16,6 +16,7 @@ import qualified Control.Lens as Lens
 import Control.Lens.Plated
 import Control.ValidEnumerable
 
+import Data.Composition
 import Data.Data
 import Data.Data.Lens
 import Data.GenValidity
@@ -61,7 +62,10 @@ instance (ValidEnumerable n, GenValid n) => GenValid (ACstrSite n) where
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
 
 instance ValidEnumerable n => ValidEnumerable (ACstrSite n) where
-    enumerateValid = datatype [ c1 CstrSite ]
+    enumerateValid
+        = datatype [ splurge 6 $ pure $ fromList []
+                   , fromList .: (<|) <$> accessValid <*> accessValid
+                   ]
 
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)

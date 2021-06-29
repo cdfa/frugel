@@ -188,6 +188,12 @@ instance GenValid Program where
 
 instance ValidEnumerable Program where
     enumerateValid
-        = datatype [ addMetaWith enumerateValidProgramMeta (uncurry . Program)
-                   , addMetaWith enumerateValidProgramMeta ProgramCstrSite
-                   ]
+        = datatype
+            [ Program <$> enumerateValidProgramMeta 1
+              <*> accessValid
+              <*> splurge 150 (pure Nothing) -- appropriate cost is dependent on total size
+            , Program <$> enumerateValidProgramMeta 1
+              <*> accessValid
+              <*> (Just <$> accessValid)
+            , addMetaWith enumerateValidProgramMeta ProgramCstrSite
+            ]
