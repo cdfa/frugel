@@ -63,9 +63,6 @@ instance AnnotatedPretty Decl where
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
     annPretty (WhereClause _ decls)
-        = nest 2
-               (line'
-                <> "where"
-                <> nest 2 (line <> vsep (map annPretty $ toList decls)))
+        = "where" <> nest 2 (line <> vsep (map annPretty $ toList decls))
     annPretty whereClause@(WhereCstrSite _ contents)
         = prettyCstrSite (WhereNode whereClause) annPretty contents

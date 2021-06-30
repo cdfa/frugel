@@ -176,7 +176,8 @@ instance PrettyPrint Program where
 unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
     = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed
-unsafePrettyProgram Program{..} = annPretty expr <> annPretty whereClause
+unsafePrettyProgram Program{..}
+    = annPretty expr <> nest 2 (line' <> annPretty whereClause)
 
 instance DisplayProjection Program
 
