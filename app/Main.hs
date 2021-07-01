@@ -32,7 +32,7 @@ runApp app = app
 main :: IO ()
 main = runApp $ startApp App { .. }
   where
-    initialAction = Load  -- initial action to be executed on application load
+    initialAction = Init  -- initial action to be executed on application load
     model = initialModel $ programCstrSite' whereClauseTest  -- initial model
     update = updateModel -- update function
     view = viewModel -- view function

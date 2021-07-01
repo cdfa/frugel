@@ -48,7 +48,7 @@ data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
 data Action p
-    = Load
+    = Init
     | GenerateRandom
     | NewModel (Model p)
     | Log String
@@ -77,7 +77,7 @@ updateModel :: (Editable p, DisplayProjection p, ValidEnumerable p)
     => Action p
     -> Model p
     -> Effect (Action p) (Model p)
-updateModel Load model
+updateModel Init model
     = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
 updateModel GenerateRandom model = model <# do
     NewModel . flip (set #program) model
