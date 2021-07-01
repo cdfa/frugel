@@ -1,3 +1,4 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiWayIf #-}
@@ -24,9 +25,16 @@ import Frugel.Internal.DecompositionState
 import Optics.Extra
 
 class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
-    -- Preserves node when cursor is at start or end. Only useful for nodes starting or ending with a character (e.g. lambda and parenthesis).
+    -- Preserves node when cursor is at start or end. Primarily useful for nodes starting or ending with a character (e.g. lambda and parenthesis).
     conservativelyDecompose :: Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
-    conservativelyDecompose _ _ = Nothing
+    default conservativelyDecompose
+        :: NodePrism n => Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
+    conservativelyDecompose cstrSiteOffset n = case cstrSiteOffset of
+        0 -> Just (0, singletonCstrSite)
+        l | l == length (toList $ decompose n) -> Just (1, singletonCstrSite)
+        _ -> Nothing
+      where
+        singletonCstrSite = fromList [ Right $ review nodePrism n ]
     -- It would make sense for this function to have a mapKeyword :: Text -> f () and mapWhitespace :: Char -> f Char as well, but it's not yet needed
     -- traverseComponents could be generalised to a Bitraversal which might make implementation easier, but at the moment there is no library to work with them so I'm not sure
     traverseComponents :: Applicative f
@@ -37,6 +45,12 @@ class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
             -> f n')
         -> n
         -> f n
+
+instance (Decomposable n, IsNode n, n ~ NodeOf n)
+    => Decomposable (ACstrSite n) where
+    conservativelyDecompose _ _ = Nothing
+    traverseComponents mapChar mapNode
+        = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
 
 decompose :: Decomposable n => n -> ACstrSite (NodeOf n)
 decompose n
@@ -111,26 +125,5 @@ modifyNodeAt f cursorOffset program
                 (f cstrSiteOffset' cstrSite)
                 $ const (f cstrSiteOffset $ decompose n)
             _ -> f cstrSiteOffset $ decompose n
-
-conservativelyDecomposeNode
-    :: (Is k A_Review, Is l An_AffineFold, Decomposable n)
-    => Optic' k is (NodeOf n) n
-    -> Optic' l is n (ACstrSite (NodeOf n))
-    -> Int
-    -> n
-    -> Maybe (Int, ACstrSite (NodeOf n))
-conservativelyDecomposeNode nodeReview cstrSiteFold cstrSiteOffset n
-    = case cstrSiteOffset of
-        0 | isn't cstrSiteFold n -> Just (0, singletonCstrSite)
-        l | isn't cstrSiteFold n && l == length (toList $ decompose n) ->
-              Just (1, singletonCstrSite)
-        _ -> Nothing
-  where
-    singletonCstrSite = fromList [ Right $ review nodeReview n ]
-
-instance (Decomposable n, IsNode n, n ~ NodeOf n)
-    => Decomposable (ACstrSite n) where
-    traverseComponents mapChar mapNode
-        = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
 
 

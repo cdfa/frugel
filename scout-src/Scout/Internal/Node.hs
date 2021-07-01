@@ -176,11 +176,6 @@ instance DisplayProjection Decl
 instance DisplayProjection WhereClause
 
 instance Decomposable Node where
-    conservativelyDecompose cstrSiteOffset = \case
-        ExprNode expr -> conservativelyDecompose cstrSiteOffset expr
-        DeclNode decl -> conservativelyDecompose cstrSiteOffset decl
-        WhereNode whereClause ->
-            conservativelyDecompose cstrSiteOffset whereClause
     traverseComponents mapChar mapNode = \case
         ExprNode expr -> ExprNode <$> traverseComponents mapChar mapNode expr
         DeclNode decl -> DeclNode <$> traverseComponents mapChar mapNode decl
@@ -188,14 +183,13 @@ instance Decomposable Node where
             WhereNode <$> traverseComponents mapChar mapNode whereClause
 
 instance Decomposable Identifier where
+    conservativelyDecompose _ _ = Nothing
     traverseComponents mapChar _ identifier@(Identifier _)
         = traverseOf (_Identifier % traversed % #unAlphanumeric)
                      mapChar
                      identifier
 
 instance Decomposable Expr where
-    conservativelyDecompose
-        = conservativelyDecomposeNode _ExprNode (_ExprCstrSite % _2)
     traverseComponents mapChar mapNode e
         | e ^. exprMeta % #parenthesisLevels > 0
             = chainDisJoint e
@@ -239,8 +233,6 @@ instance Decomposable Expr where
                               ]
 
 instance Decomposable Decl where
-    conservativelyDecompose
-        = conservativelyDecomposeNode _DeclNode (_DeclCstrSite % _2)
     traverseComponents mapChar mapNode decl@Decl{}
         = chainDisJoint decl . Disjoint
         $ intersperseWhitespaceTraversers
@@ -254,8 +246,6 @@ instance Decomposable Decl where
         = DeclCstrSite meta <$> traverseComponents mapChar mapNode materials
 
 instance Decomposable WhereClause where
-    conservativelyDecompose
-        = conservativelyDecomposeNode _WhereNode (_WhereCstrSite % _2)
     traverseComponents mapChar mapNode whereClause@(WhereClause _ decls)
         = chainDisJoint whereClause . Disjoint
         $ intersperseWhitespaceTraversers

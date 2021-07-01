@@ -125,20 +125,6 @@ instance Parseable Program where
         $ Megaparsec.runParser (parser <* eof) "document" cstrSite
     errorOffset = Parsing.errorOffset
 
-instance Decomposable Program where
-    traverseComponents mapChar mapNode program@Program{}
-        = chainDisJoint program
-        $ Disjoint (intersperseWhitespaceTraversers
-                        mapChar
-                        program
-                        [ Traverser' #expr mapNode
-                        , Traverser' (#whereClause % _Just) mapNode
-                        ]
-                    :> Traverser' (#meta % #trailingWhitespace)
-                                  (unpacked % traversed %%~ mapChar))
-    traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
-        = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
-
 instance PrettyPrint Program where
     prettyPrint program
         = second toList
@@ -178,6 +164,21 @@ unsafePrettyProgram (ProgramCstrSite _ contents)
     = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed
 unsafePrettyProgram Program{..}
     = annPretty expr <> nest 2 (line' <> annPretty whereClause)
+
+instance Decomposable Program where
+    conservativelyDecompose _ _ = Nothing
+    traverseComponents mapChar mapNode program@Program{}
+        = chainDisJoint program
+        $ Disjoint (intersperseWhitespaceTraversers
+                        mapChar
+                        program
+                        [ Traverser' #expr mapNode
+                        , Traverser' (#whereClause % _Just) mapNode
+                        ]
+                    :> Traverser' (#meta % #trailingWhitespace)
+                                  (unpacked % traversed %%~ mapChar))
+    traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
+        = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
 
 instance DisplayProjection Program
 
