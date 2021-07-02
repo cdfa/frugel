@@ -19,7 +19,7 @@ import Frugel.Decomposition
 
 import Optics.Extra
 
-class Parseable p where
+class Ord (ParseErrorOf p) => Parseable p where
     type ParserOf p :: * -> *
     type ParseErrorOf p :: *
     programParser :: (ParserOf p) p
@@ -44,7 +44,6 @@ reparseNestedCstrSites :: forall p n.
     , Decomposable n
     , Decomposable (NodeOf n)
     , NodeOf p ~ NodeOf n
-    , Ord (ParseErrorOf p)
     , Parseable p
     )
     => (ParserOf p (NodeOf n) -> NodeOf n -> (NodeOf n, Set (ParseErrorOf p)))

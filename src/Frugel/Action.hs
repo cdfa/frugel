@@ -65,7 +65,6 @@ class ( Data p
       , CstrSiteNode p
       , CstrSiteNode (NodeOf p)
       , Parseable p
-      , Ord (ParseErrorOf p)
       , PrettyPrint p
       ) => Editable p
 
