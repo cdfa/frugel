@@ -197,12 +197,13 @@ attemptEdit
         findSuccessfulParse = foldl' collectResults (Nothing, mempty)
         collectResults firstSuccessfulParse@(Just _, _) _
             = firstSuccessfulParse
-        collectResults (Nothing, errors) cstrSiteBucket
-            = ( head <.> nonEmpty $ rights parses -- It would be possible to do some ambiguity checking by keeping track of ambiguously resolved construction sites across construction sites buckets, but as long as there is no way of parsing a nested construction site without considering the parent, these cases are so rare the checking is not worth the added complexity
-              , Set.union errors . Set.unions . fmap fromFoldable
-                $ lefts parses
-              )
+        collectResults (Nothing, errors) cstrSiteBucket = case rights parses of
+            [n] -> (Just n, newErrors) -- Only count success if it's the only one to be conservative in the presence of ambiguity
+            _ -> (Nothing, newErrors)
           where
+            newErrors
+                = Set.union errors . Set.unions . fmap fromFoldable
+                $ lefts parses
             parses
                 = map (\cstrSite ->
                        second (cstrSite, ) $ runParser @p parser cstrSite)
