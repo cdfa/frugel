@@ -12,6 +12,7 @@
 module Data.Alphanumeric where
 
 import Control.Enumerable.Combinators as Enumerable
+import Control.Sized
 import Control.ValidEnumerable.Access
 import Control.ValidEnumerable.Class
 

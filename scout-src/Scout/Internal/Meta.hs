@@ -14,6 +14,7 @@
 
 module Scout.Internal.Meta where
 
+import Control.Sized
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 

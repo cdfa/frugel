@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,6 +20,7 @@ import qualified Control.Zipper.Seq as SeqZipper
 import Data.Data
 import Data.Data.Lens
 import qualified Data.Set    as Set
+import Data.Sized
 
 import Frugel.CstrSite
 import Frugel.Decomposition  hiding ( ModificationStatus(..) )
@@ -72,7 +74,8 @@ deriving instance (Ord (Megaparsec.Token s), Ord e)
     => Ord (Megaparsec.ParseError s e)
 
 -- Updates model, optionally introduces side effects
-updateModel :: (Editable p, DisplayProjection p, ValidEnumerable p)
+updateModel :: forall p.
+    (Editable p, DisplayProjection p, ValidEnumerable (Sized 500 p))
     => Action p
     -> Model p
     -> Effect (Action p) (Model p)
@@ -80,7 +83,7 @@ updateModel Init model
     = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
 updateModel GenerateRandom model = model <# do
     NewModel . flip (set #program) model
-        <$> (liftIO . generate $ uniformValid 500)
+        <$> (liftIO . unSized <.> generate @(Sized 500 p) $ uniformValid 500)
 updateModel (NewModel model) _ = noEff model
 updateModel (Log msg) model
     = fromTransition (scheduleIO_ . consoleLog $ show msg) model

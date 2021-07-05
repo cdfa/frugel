@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -17,6 +18,8 @@
 
 module Scout.Internal.Program where
 
+import qualified Control.Sized
+import Control.Sized                     ( aconcat )
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 
@@ -24,6 +27,7 @@ import Data.Composition
 import Data.Data
 import Data.GenValidity
 import Data.Has
+import Data.Sized
 import qualified Data.Text               as Text
 import Data.Text.Optics
 
@@ -199,25 +203,34 @@ instance ValidInterstitialWhitespace Program where
         Program{..} -> if isJust whereClause then 1 else 0
         ProgramCstrSite{} -> 0
 
-instance GenValid Program where
+instance KnownNat s => GenValid (Sized s Program) where
     genValid = sized uniformValid
-    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+    shrinkValid Sized{..}
+        = Sized size <$> shrinkValidStructurallyWithoutExtraFiltering unSized -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
 
-instance ValidEnumerable Program where
+enumerateValidProgram
+    :: (Typeable f, Control.Sized.Sized f) => Int -> Shareable f Program
+enumerateValidProgram size
+    = aconcat
+        [ Program <$> enumerateValidProgramMeta 0
+          <*> accessValid
+          <*> splurge (size `div` 3) (pure Nothing) -- appropriate cost is dependent on total size
+        , Program .: setInterstitialWhitespace <$> accessValid
+          <*> enumerateValidProgramMeta 0
+          <*> accessValid
+          <*> (Just <$> accessValid)
+        , addMetaWith enumerateValidProgramMeta ProgramCstrSite
+        ]
+  where
+    setInterstitialWhitespace
+        :: NonEmpty Whitespace -> ProgramMeta -> ProgramMeta
+    setInterstitialWhitespace interstitialWhitespace
+        = #standardMeta % #interstitialWhitespace
+        .~ [ toText . map unWhitespace $ toList interstitialWhitespace ]
+
+instance KnownNat s => ValidEnumerable (Sized s Program) where
     enumerateValid
         = datatype
-            [ Program <$> enumerateValidProgramMeta 0
-              <*> accessValid
-              <*> splurge 150 (pure Nothing) -- appropriate cost is dependent on total size
-            , Program .: setInterstitialWhitespace <$> accessValid
-              <*> enumerateValidProgramMeta 0
-              <*> accessValid
-              <*> (Just <$> accessValid)
-            , addMetaWith enumerateValidProgramMeta ProgramCstrSite
-            ]
+            [ Sized size <$> enumerateValidProgram (fromEnum $ natVal size) ]
       where
-        setInterstitialWhitespace
-            :: NonEmpty Whitespace -> ProgramMeta -> ProgramMeta
-        setInterstitialWhitespace interstitialWhitespace
-            = #standardMeta % #interstitialWhitespace
-            .~ [ toText . map unWhitespace $ toList interstitialWhitespace ]
+        size = Proxy :: Proxy s

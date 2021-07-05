@@ -13,6 +13,7 @@
 
 module Scout.Internal.Node where
 
+import Control.Sized
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
 

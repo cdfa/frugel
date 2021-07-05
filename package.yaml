@@ -95,6 +95,7 @@ internal-libraries:
       - genvalidity-text
       - genvalidity-containers
       - QuickCheck
+      - size-based
 
 executables:
   frugel-exe:

@@ -1,6 +1,7 @@
 module Control.ValidEnumerable.Whitespace where
 
 import Control.Enumerable.Combinators
+import Control.Sized
 import Control.ValidEnumerable.Class
 
 newtype Whitespace = Whitespace { unWhitespace :: Char }

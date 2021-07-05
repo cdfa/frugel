@@ -5,7 +5,6 @@ module Control.ValidEnumerable.Class
     , Shared
     , Shareable
     , Typeable
-    , module Control.Sized
     ) where
 
 import Control.Enumerable ( datatype )
