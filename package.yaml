@@ -57,6 +57,7 @@ library:
     - optics-vl >= 0.2.1
     - lens
     - mtl
+    - multiset
     - genvalidity
     - validity-text
     - validity-containers
@@ -89,6 +90,7 @@ internal-libraries:
       - optics >= 0.3
       - lens
       - mtl
+      - multiset
       - genvalidity
       - validity-text
       - validity-containers
