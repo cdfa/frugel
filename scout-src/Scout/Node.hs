@@ -15,6 +15,7 @@ module Scout.Node
     , Decl(Decl, DeclCstrSite)
     , Node(..)
     , WhereClause(..)
+    , AbstractionMeta(AbstractionMeta)
     , _Identifier
     , _Abstraction
     , _Application
@@ -28,6 +29,10 @@ module Scout.Node
     , _WhereClause
     , _WhereCstrSite
     , _WhereNode
+    , ScopedEvaluation
+    , EvaluationError(..)
+    , TypeError(..)
+    , ExpectedType(..)
     , exprMeta
     , declMeta
     , exprCstrSite'
@@ -84,7 +89,7 @@ unsafeVariable :: String -> Expr
 unsafeVariable = variable' . fromJust . Node.fromString
 
 abstraction' :: Identifier -> Expr -> Expr
-abstraction' = Abstraction $ defaultExprMeta 3
+abstraction' = Abstraction $ defaultAbstractionMeta 3
 
 unsafeAbstraction :: String -> Expr -> Expr
 unsafeAbstraction = abstraction' . fromJust . Node.fromString
@@ -103,6 +108,10 @@ unsafeDecl = decl' . fromJust . Node.fromString
 
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' decls = WhereClause (defaultMeta $ length decls) decls
+
+defaultAbstractionMeta :: Int -> AbstractionMeta
+defaultAbstractionMeta n
+    = AbstractionMeta { standardExprMeta = defaultExprMeta n, value = Nothing }
 
 type CstrSite' = [Either String Node]
 

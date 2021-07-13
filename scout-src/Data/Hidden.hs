@@ -7,6 +7,9 @@ import Data.GenValidity
 
 import Text.Show
 
+-- | A type that is not interacted with in any other way than through the constructor.
+-- | The defined instances break laws, but are well-defined (no undefined should show up).
+-- | Instances of types that include this type are only legal for values that do not include a Hidden value
 newtype Hidden a = Hidden a
     deriving ( Typeable )
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -13,6 +14,8 @@
 
 module Scout.Internal.Node where
 
+-- todo move to prelude
+import Control.Monad.Writer         ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
@@ -23,6 +26,8 @@ import Data.Data
 import Data.GenValidity
 import Data.GenValidity.Sequence    ()
 import Data.Has
+import Data.Hidden
+import Data.MultiSet                ( MultiSet )
 import qualified Data.Text          as Text
 import Data.Text.Optics
 import Data.Validity.Sequence       ()
@@ -51,11 +56,11 @@ newtype Identifier = Identifier (NonEmpty Alphanumeric)
 
 data Expr
     = Variable ExprMeta Identifier
-    | Abstraction ExprMeta Identifier Expr
+    | Abstraction AbstractionMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
     | ExprCstrSite ExprMeta CstrSite
-    deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
+    deriving ( Eq, Ord, Show, Generic, Data )
 
 data Decl
     = Decl { meta :: Meta, name :: Identifier, value :: Expr }
@@ -67,6 +72,13 @@ data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
+data AbstractionMeta
+    = AbstractionMeta { standardExprMeta :: ExprMeta
+                      , value :: Maybe (Hidden (ScopedEvaluation Expr
+                                                -> ScopedEvaluation Expr))
+                      }
+    deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
+
 type instance NodeOf Node = Node
 
 type instance NodeOf Identifier = Node
@@ -77,7 +89,22 @@ type instance NodeOf Decl = Node
 
 type instance NodeOf WhereClause = Node
 
+-- For making explicit that something should not be given a environment, but gets it from it's scope
+-- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
+type ScopedEvaluation = Writer (MultiSet EvaluationError)
+
+data EvaluationError = TypeError TypeError | UnboundVariableError Identifier
+    deriving ( Eq, Show, Ord )
+
+data TypeError = TypeMismatchError ExpectedType Expr
+    deriving ( Eq, Show, Ord )
+
+data ExpectedType = Function | Integer
+    deriving ( Eq, Show, Ord )
+
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
+
+makeFieldLabelsWith noPrefixFieldLabels ''AbstractionMeta
 
 makePrisms ''Node
 
@@ -88,6 +115,19 @@ makePrisms ''Expr
 makePrisms ''Decl
 
 makePrisms ''WhereClause
+
+instance Has ExprMeta Expr where
+    getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta
+    getter (Variable meta _) = meta
+    getter (Application meta _ _) = meta
+    getter (Sum meta _ _) = meta
+    getter (ExprCstrSite meta _) = meta
+    modifier
+        = over ((_Abstraction % _1 % #standardExprMeta)
+                `adjoin` (_Variable % _1)
+                `adjoin` (_Application % _1)
+                `adjoin` (_Sum % _1)
+                `adjoin` (_ExprCstrSite % _1))
 
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
@@ -373,6 +413,8 @@ instance Validity WhereClause where
                   , hasNonEmptyInterstitialWhitespace
                   ]
 
+instance Validity AbstractionMeta
+
 instance GenValid Node where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
@@ -393,6 +435,12 @@ instance GenValid WhereClause where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
 
+instance GenValid AbstractionMeta where
+    genValid = sized . uniformWith $ enumerateValidAbstractionMeta 0
+    shrinkValid absMeta@AbstractionMeta{..}
+        = map (flip (set #standardExprMeta) absMeta)
+        $ shrinkValidStructurallyWithoutExtraFiltering standardExprMeta -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
 
@@ -407,7 +455,7 @@ instance ValidEnumerable Expr where
         = datatype
             [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
             , splurge 2
-              $ Abstraction <$> enumerateValidExprMeta 3
+              $ Abstraction <$> enumerateValidAbstractionMeta 3
               <*> accessValid
               <*> accessValid
             , Application .: setCenterWhitespace <$> accessValid
@@ -440,6 +488,11 @@ instance ValidEnumerable WhereClause where
                               $ toList decls
                         }
                $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
+
+enumerateValidAbstractionMeta
+    :: (Typeable f, Sized f) => Int -> Shareable f AbstractionMeta
+enumerateValidAbstractionMeta n
+    = pay $ AbstractionMeta <$> enumerateValidExprMeta n ?? Nothing
 
 -- Not generally safe, see note `addMetaWith`
 addMeta

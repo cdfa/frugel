@@ -122,9 +122,7 @@ enumerateValidExprMeta minimumWhitespaceFragments
 enumerateValidProgramMeta
     :: (Typeable f, Sized f) => Int -> Shareable f ProgramMeta
 enumerateValidProgramMeta n
-    = pay
-    $ aconcat [ ProgramMeta <$> enumerateValidMeta n <*> enumerateWhitespace ]
+    = pay $ ProgramMeta <$> enumerateValidMeta n <*> enumerateWhitespace
 
 enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
-enumerateValidMeta n
-    = pay $ aconcat [ Meta <$> vectorOf n enumerateWhitespace ]
+enumerateValidMeta n = pay $ Meta <$> vectorOf n enumerateWhitespace
