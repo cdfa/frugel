@@ -1,10 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Scout.Evaluation where
 
+import Control.Lens.Plated
 -- todo move to prelude
 import Control.Monad.Writer hiding ( Sum )
 
+import Data.Data.Lens
 import Data.Hidden
 import Data.Map       as Map hiding ( filter, fromList )
 import Data.MultiSet  as MultiSet hiding ( fromList, join )
@@ -26,7 +29,7 @@ eval :: Expr -> Evaluation Expr
 eval v@(Variable _ identifier) = do
     valueBinding <- asks $ lookup identifier
     case valueBinding of
-        Nothing -> exprCstrSite' (one . Right $ ExprNode v)
+        Nothing -> singleExprNodeCstrSite v
             <$ tell (MultiSet.singleton $ UnboundVariableError identifier)
         Just Nothing -> pure v
         Just (Just value) -> lift value
@@ -39,7 +42,7 @@ eval (Application meta f x) = do
         _ -> do
             tell errors
             ex <- eval x
-            Application meta ef <$> reportAnyTypeErrors Function ex
+            Application meta <$> reportAnyTypeErrors Function ef ?? ex
 eval (Abstraction meta n e) = ask >>= \env -> Abstraction
     (meta & #value ?~ Hidden (\x -> usingReaderT (Map.insert n (Just x) env)
                               $ eval e))
@@ -61,18 +64,22 @@ eval e@(ExprCstrSite _ _)
     & _ExprCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
 
 runEval :: Expr -> (Expr, MultiSet EvaluationError)
-runEval = runWriter . usingReaderT mempty . eval
+runEval
+    = transformOnOf (template @_ @Expr)
+                    uniplate
+                    (_Abstraction % _1 % #value .~ Nothing)
+    . runWriter
+    . usingReaderT mempty
+    . eval
 
 reportAnyTypeErrors :: MonadWriter (MultiSet EvaluationError) f
     => ExpectedType
     -> Expr
     -> f Expr
 reportAnyTypeErrors expectedType e
-    = maybe (pure e)
-            ((exprCstrSite' (one . Right $ ExprNode e) <$)
-             . tell
-             . MultiSet.singleton
-             . TypeError)
+    = maybe
+        (pure e)
+        ((singleExprNodeCstrSite e <$) . tell . MultiSet.singleton . TypeError)
     $ typeCheck e expectedType
 
 typeCheck :: Expr -> ExpectedType -> Maybe TypeError
@@ -84,63 +91,3 @@ typeCheck e expectedType = case (e, expectedType) of
     -- (LitN{}, Integer) -> Nothing
     (Sum{}, Integer) -> Nothing
     _ -> Just $ TypeMismatchError expectedType e
-
-k :: Expr
-k = unsafeAbstraction "x" $ unsafeAbstraction "y" $ unsafeVariable "x"
-
-s :: Expr
-s
-    = unsafeAbstraction "f" . unsafeAbstraction "g" . unsafeAbstraction "x"
-    $ application' (application' (unsafeVariable "f") (unsafeVariable "x"))
-                   (application' (unsafeVariable "g") (unsafeVariable "x"))
-
--- Simple test
-test :: (Expr, MultiSet EvaluationError)
-test
-    = runEval (application' (application' (application' s k) k)
-                            (unsafeVariable "q"))
-
--- Evaluation is lazy
-lazinessTest :: (Expr, MultiSet EvaluationError)
-lazinessTest
-    = runEval (application' (unsafeAbstraction "_" (unsafeVariable "q"))
-                            (error "should not be evaluated"))
-
--- Evaluation gets as far as possible with partial application
-errorToleranceTest :: (Expr, MultiSet EvaluationError)
-errorToleranceTest = runEval (application' k $ unsafeVariable "q")
-
--- Call-by-need
-callByNeedTest :: (Expr, MultiSet EvaluationError)
-callByNeedTest
-    = runEval (application' (unsafeAbstraction "x"
-                             $ sum' (unsafeVariable "x") (unsafeVariable "x"))
-               $ trace "test"
-               $ unsafeVariable "y")
-
--- also tests laziness
-shadowingTest :: (Expr, MultiSet EvaluationError)
-shadowingTest
-    = runEval
-    $ application'
-        (unsafeAbstraction "x" $ unsafeAbstraction "x" $ unsafeVariable "x")
-        (error "should not be evaluated")
-
-expectedFunctionTest :: (Expr, MultiSet EvaluationError)
-expectedFunctionTest
-    = runEval
-    $ application' (sum' (unsafeVariable "q") (unsafeVariable "q"))
-                   (unsafeVariable "q")
-
-expectedIntTest :: (Expr, MultiSet EvaluationError)
-expectedIntTest = runEval $ sum' k s
-
-unBoundVariableTest :: (Expr, MultiSet EvaluationError)
-unBoundVariableTest = runEval $ unsafeVariable "x"
-
-cstrSiteTest :: (Expr, MultiSet EvaluationError)
-cstrSiteTest
-    = runEval
-    $ exprCstrSite'
-    $ fromList
-        [ Left 'c', Right $ ExprNode $ application' k $ unsafeVariable "x" ]

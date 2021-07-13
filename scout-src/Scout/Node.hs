@@ -48,6 +48,7 @@ module Scout.Node
 
 import Control.Lens.Plated
 
+import Data.Alphanumeric
 import Data.Char
 import Data.Data.Lens
 import Data.Sequence ( spanl, spanr )
@@ -82,17 +83,23 @@ liftNestedCstrSiteOuterWhitespace
                  . spanl isWhitespaceItem)
                 item
 
+identifier' :: String -> Maybe Identifier
+identifier' = Identifier <.> (nonEmpty <=< traverse fromChar)
+
+unsafeIdentifier :: String -> Identifier
+unsafeIdentifier = fromJust . identifier'
+
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
 
 unsafeVariable :: String -> Expr
-unsafeVariable = variable' . fromJust . Node.fromString
+unsafeVariable = variable' . fromJust . identifier'
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction $ defaultAbstractionMeta 3
 
 unsafeAbstraction :: String -> Expr -> Expr
-unsafeAbstraction = abstraction' . fromJust . Node.fromString
+unsafeAbstraction = abstraction' . fromJust . identifier'
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
@@ -104,7 +111,7 @@ decl' :: Identifier -> Expr -> Decl
 decl' = Decl $ defaultMeta 2
 
 unsafeDecl :: String -> Expr -> Decl
-unsafeDecl = decl' . fromJust . Node.fromString
+unsafeDecl = decl' . fromJust . identifier'
 
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' decls = WhereClause (defaultMeta $ length decls) decls
@@ -112,6 +119,9 @@ whereClause' decls = WhereClause (defaultMeta $ length decls) decls
 defaultAbstractionMeta :: Int -> AbstractionMeta
 defaultAbstractionMeta n
     = AbstractionMeta { standardExprMeta = defaultExprMeta n, value = Nothing }
+
+singleExprNodeCstrSite :: Expr -> Expr
+singleExprNodeCstrSite = exprCstrSite' . one . Right . ExprNode
 
 type CstrSite' = [Either String Node]
 

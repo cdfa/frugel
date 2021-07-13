@@ -133,6 +133,7 @@ tests:
       - frugel
       - sydtest
       - genvalidity-sydtest
+      - multiset
     when:
       - condition: "!impl(ghcjs)"
         dependencies: scout

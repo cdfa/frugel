@@ -94,13 +94,13 @@ type instance NodeOf WhereClause = Node
 type ScopedEvaluation = Writer (MultiSet EvaluationError)
 
 data EvaluationError = TypeError TypeError | UnboundVariableError Identifier
-    deriving ( Eq, Show, Ord )
+    deriving ( Eq, Show, Ord, Data )
 
 data TypeError = TypeMismatchError ExpectedType Expr
-    deriving ( Eq, Show, Ord )
+    deriving ( Eq, Show, Ord, Data )
 
 data ExpectedType = Function | Integer
-    deriving ( Eq, Show, Ord )
+    deriving ( Eq, Show, Ord, Data )
 
 makeFieldLabelsWith noPrefixFieldLabels ''Decl
 
@@ -132,9 +132,6 @@ instance Has ExprMeta Expr where
 instance Has Meta Expr where
     getter e = standardMeta $ getter e
     modifier = over (exprMeta % #standardMeta)
-
-fromString :: String -> Maybe Identifier
-fromString = Identifier <.> (nonEmpty <=< traverse fromChar)
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens

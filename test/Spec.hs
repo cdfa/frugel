@@ -3,6 +3,8 @@
 
 import Data.Sized
 
+import EvaluationSpec
+
 import Scout
 
 import Test.Syd
@@ -22,3 +24,4 @@ main = sydTest $ do
         genValidSpec @Identifier
         genValidSpec @WhereClause
         genValidSpec @Decl
+    EvaluationSpec.spec
