@@ -8,8 +8,10 @@ module Test where
 import Control.Monad.Writer
 
 import Data.Hidden
-import Data.Map       as Map hiding ( filter )
-import Data.MultiSet  as MultiSet hiding ( join )
+import Data.Map       as Map hiding ( filter, fromList )
+import Data.MultiSet  as MultiSet hiding ( fromList, join )
+
+import Frugel.CstrSite
 
 import Optics.Extra
 
@@ -21,6 +23,7 @@ data LamN
            LamN
     | LitN Integer
     | PLusN LamN LamN
+    | CstrSiteN (ACstrSite LamN)
     deriving ( Eq, Show, Ord )
 
 type Name = String
@@ -54,16 +57,15 @@ eval v@(VarN n) = do
     when (isNothing value) . tell . MultiSet.singleton $ UnboundVariableError n
     lift . fromMaybe (pure v) $ join value
 eval (AppN f x) = do
-    (ef, errors) <- mapReaderT (pure . runWriter)
-        $ eval f -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
+    -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
+    (ef, errors) <- mapReaderT (pure . runWriter) $ eval f
     case ef of
         AbsN (Just (Hidden liftedFunction)) _ _ ->
             mapReaderT liftedFunction $ eval x
         _ -> do
             tell errors
-            traverse_ (tell . MultiSet.singleton . TypeError)
-                $ typeCheck ef Function
-            AppN ef <$> eval x
+            ex <- eval x
+            AppN ef <$> reportAnyTypeErrors Function ex
 eval (AbsN _ n e) = ask >>= \env ->
     AbsN (Just . Hidden $ \x -> usingReaderT (Map.insert n (Just x) env)
           $ eval e) n <$> local (Map.insert n Nothing) (eval e) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
@@ -73,18 +75,28 @@ eval (PLusN x y) = do
     ey <- eval y
     case (ex, ey) of
         (LitN a, LitN b) -> pure $ LitN (a + b)
-        _ -> forM_ [ ex, ey ]
-                   (traverse (tell . MultiSet.singleton . TypeError)
-                    . flip typeCheck Integer)
-            $> PLusN ex ey
+        _ -> uncurry PLusN
+            <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
+eval e@(CstrSiteN _) = e & _CstrSiteN % _CstrSite % traversed % _Right %%~ eval
 
 runEval :: LamN -> (LamN, MultiSet EvaluationError)
 runEval = runWriter . usingReaderT mempty . eval
+
+reportAnyTypeErrors :: MonadWriter (MultiSet EvaluationError) f
+    => ExpectedType
+    -> LamN
+    -> f LamN
+reportAnyTypeErrors expectedType e
+    = maybe
+        (pure e)
+        ((CstrSiteN (one $ Right e) <$) . tell . MultiSet.singleton . TypeError)
+    $ typeCheck e expectedType
 
 typeCheck :: LamN -> ExpectedType -> Maybe TypeError
 typeCheck e expectedType = case (e, expectedType) of
     (VarN{}, _) -> Nothing
     (AppN{}, _) -> Nothing
+    (CstrSiteN{}, _) -> Nothing
     (AbsN{}, Function) -> Nothing
     (LitN{}, Integer) -> Nothing
     (PLusN{}, Integer) -> Nothing
@@ -134,3 +146,9 @@ expectedIntTest = runEval $ PLusN k s
 
 unBoundVariableTest :: (LamN, MultiSet EvaluationError)
 unBoundVariableTest = runEval $ VarN "x"
+
+cstrSiteTest :: (LamN, MultiSet EvaluationError)
+cstrSiteTest
+    = runEval
+    $ CstrSiteN
+    $ fromList [ Left 'c', Right $ PLusN (LitN 2) (LitN 3) ]
