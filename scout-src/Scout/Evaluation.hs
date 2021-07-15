@@ -24,10 +24,12 @@ eval :: Expr -> Evaluation Expr
 
 -- Just returning v in case it's not in the environment is cool because it kills 2 powerful birds with 1 stone: it adds tolerance for binding errors and it makes it possible to print partially applied functions
 eval v@(Variable _ identifier) = do
-    value <- asks $ lookup identifier
-    when (isNothing value) . tell . MultiSet.singleton
-        $ UnboundVariableError identifier
-    lift . fromMaybe (pure v) $ join value
+    valueBinding <- asks $ lookup identifier
+    case valueBinding of
+        Nothing -> exprCstrSite' (one . Right $ ExprNode v)
+            <$ tell (MultiSet.singleton $ UnboundVariableError identifier)
+        Just Nothing -> pure v
+        Just (Just value) -> lift value
 eval (Application meta f x) = do
     -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
     (ef, errors) <- mapReaderT (pure . runWriter) $ eval f
