@@ -13,14 +13,12 @@
 module Frugel.Action where
 
 import Control.Lens.Plated
-import Control.ValidEnumerable
 import Control.Zipper.Seq    hiding ( insert )
 import qualified Control.Zipper.Seq as SeqZipper
 
 import Data.Data
 import Data.Data.Lens
 import qualified Data.Set    as Set
-import Data.Sized
 
 import Frugel.CstrSite
 import Frugel.Decomposition  hiding ( ModificationStatus(..) )
@@ -32,14 +30,9 @@ import Frugel.Parsing
 import Frugel.PrettyPrinting hiding ( prettyPrint )
 import qualified Frugel.PrettyPrinting as PrettyPrinting
 
-import Miso                  hiding ( focus, model, node, set, view )
-import qualified Miso        hiding ( set )
-
 import Optics.Extra
 
 import Prettyprinter.Render.String
-
-import Test.QuickCheck.Gen
 
 import qualified Text.Megaparsec as Megaparsec
 
@@ -49,16 +42,7 @@ data EditResult = Success | Failure
 data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
-data Action p
-    = Init
-    | GenerateRandom
-    | NewModel (Model p)
-    | Log String
-    | Insert Char
-    | Delete
-    | Backspace
-    | Move Direction
-    | PrettyPrint
+data GenericAction = Insert Char | Delete | Backspace | Move Direction
 
 class ( Data p
       , Data (NodeOf p)
@@ -67,7 +51,6 @@ class ( Data p
       , CstrSiteNode p
       , CstrSiteNode (NodeOf p)
       , Parseable p
-      , PrettyPrint p
       ) => Editable p
 
 deriving instance (Ord (Megaparsec.Token s), Ord e)
@@ -75,23 +58,14 @@ deriving instance (Ord (Megaparsec.Token s), Ord e)
 
 -- Updates model, optionally introduces side effects
 updateModel :: forall p.
-    (Editable p, DisplayProjection p, ValidEnumerable (Sized 500 p))
-    => Action p
+    (Editable p, DisplayProjection p)
+    => GenericAction
     -> Model p
-    -> Effect (Action p) (Model p)
-updateModel Init model
-    = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
-updateModel GenerateRandom model = model <# do
-    NewModel . flip (set #program) model
-        <$> (liftIO . unSized <.> generate @(Sized 500 p) $ uniformValid 500)
-updateModel (NewModel model) _ = noEff model
-updateModel (Log msg) model
-    = fromTransition (scheduleIO_ . consoleLog $ show msg) model
-updateModel (Insert c) model = noEff $ insert c model
-updateModel Delete model = noEff $ delete model
-updateModel Backspace model = noEff $ backspace model
-updateModel (Move direction) model = noEff $ moveCursor direction model
-updateModel PrettyPrint model = noEff $ prettyPrint model
+    -> Model p
+updateModel (Insert c) model = insert c model
+updateModel Delete model = delete model
+updateModel Backspace model = backspace model
+updateModel (Move direction) model = moveCursor direction model
 
 insert :: (Editable p) => Char -> Model p -> Model p
 insert c model
@@ -101,8 +75,6 @@ insert c model
         (Success, newModel) -> newModel & #cursorOffset +~ 1
         (Failure, newModel) -> newModel
 
--- This only works as long as there is always characters (or nothing) after nodes in construction sites
--- and idem for backspace
 delete :: (Editable p) => Model p -> Model p
 delete model@Model{..}
     = case attemptEdit
@@ -159,7 +131,7 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
         = renderString . layoutPretty defaultLayoutOptions . renderDoc
         $ view #program model
 
-prettyPrint :: forall p. Editable p => Model p -> Model p
+prettyPrint :: forall p. (Editable p, PrettyPrint p) => Model p -> Model p
 prettyPrint model@Model{..}
     = model
     & #program .~ newProgram

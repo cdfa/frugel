@@ -36,7 +36,7 @@ isEmptyTree = \case
     Annotated _ trees -> all isEmptyTree trees
     _ -> False
 
-renderSmart :: SimpleDocStream Annotation -> [View (Action p)]
+renderSmart :: SimpleDocStream Annotation -> [View action]
 renderSmart
     = renderTrees
     . annotationTreeForm
@@ -88,10 +88,10 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         LineLeaf -> error "unexpected LineLeaf"
         Annotated ann trees -> Node ann $ map transform trees
 
-renderTrees :: [Line] -> [View (Action p)]
+renderTrees :: [Line] -> [View action]
 renderTrees = map (Elements.line [] . map renderTree . view _Line)
 
-renderTree :: AnnotationTree -> View (Action p)
+renderTree :: AnnotationTree -> View action
 renderTree = \case
     Leaf t -> text $ Miso.String.ms t
     Node annotation@(CompletionAnnotation InConstruction) [] ->
@@ -99,7 +99,7 @@ renderTree = \case
     Node annotation subTrees ->
         encloseInTagFor annotation $ map renderTree subTrees
 
-encloseInTagFor :: Annotation -> [View (Action p)] -> View (Action p)
+encloseInTagFor :: Annotation -> [View action] -> View action
 encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views

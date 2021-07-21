@@ -8,11 +8,12 @@ import Miso            hiding ( model )
 import qualified Miso.String
 
 import Scout
+import Scout.Action
 
 import Text.Show.Pretty ( ppShow )
 
 -- Constructs a virtual DOM from a model
-viewModel :: Model Program -> View (Action Program)
+viewModel :: Model Program -> View Action
 viewModel model
     = div_ [ codeStyle, class_ "has-background-white-bis" ]
            [ bulmaStyleSheet
@@ -29,7 +30,7 @@ bulmaStyleSheet
             , href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
             ]
 
-instructionsView :: View (Action p)
+instructionsView :: View Action
 instructionsView
     = div_ [ class_ "box" ]
            [ text "Type as usual, use arrow keys to move"
@@ -41,7 +42,7 @@ instructionsView
                   ]
            ]
 
-editorView :: DisplayProjection a => Model a -> View (Action p)
+editorView :: Model Program -> View Action
 editorView model
     = codeRoot []
     . renderSmart
@@ -50,7 +51,7 @@ editorView model
     . renderDoc
     $ program model
 
-errorsView :: Model Program -> View (Action p)
+errorsView :: Model Program -> View action
 errorsView model
     = div_ []
     $ conditionalViews (not . null $ errors model)
@@ -60,7 +61,7 @@ errorsView model
            . renderDoc)
     $ errors model
 
-evaluatedView :: Model Program -> View (Action p)
+evaluatedView :: Model Program -> View Action
 evaluatedView model = div_ [] [ text "TBD" ]
 
     -- . renderSmart
@@ -69,7 +70,7 @@ evaluatedView model = div_ [] [ text "TBD" ]
     -- . fst
     -- . runEval
     -- . program
-webPrint :: Miso.String.ToMisoString a => a -> View (Action p)
+webPrint :: Miso.String.ToMisoString a => a -> View action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
 
 insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation

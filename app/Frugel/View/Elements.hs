@@ -1,10 +1,11 @@
 module Frugel.View.Elements where
 
-import Frugel
 import Frugel.Event
 
 import Miso
 import qualified Miso.String
+
+import Scout.Action
 
 noButtonStyle :: Attribute action
 noButtonStyle
@@ -64,7 +65,7 @@ caretStyle
 caret :: [Attribute action] -> [View action] -> View action
 caret = span . (caretStyle :)
 
-codeRoot :: [Attribute (Action p)] -> [View (Action p)] -> View (Action p)
+codeRoot :: [Attribute Action] -> [View Action] -> View Action
 codeRoot
     = button_ -- Using a button, because only (some) elements generate events
     . (++ [ keyDownHandler

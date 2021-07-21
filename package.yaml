@@ -45,7 +45,6 @@ library:
       exposed-modules: Scout
   # Note: you may need to stack build before changes are reflected in the editor, because we use a cabal cradle for this component, because stack does not support internal libraries https://github.com/commercialhaskell/stack/issues/4564
   dependencies:
-    - miso
     - megaparsec >= 9.0.1
     - parser-combinators
     - containers
@@ -113,6 +112,7 @@ executables:
       - pretty-show
       - prettyprinter >= 1.7.0
       - aeson
+      - QuickCheck
     when:
       - condition: "!impl(ghcjs)"
         dependencies:

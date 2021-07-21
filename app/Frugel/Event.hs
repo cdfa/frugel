@@ -18,40 +18,44 @@ import Miso.Event.Decoder hiding ( keyInfoDecoder )
 
 import Optics.Extra
 
+import Scout.Action
+
 data KeyInfo
     = KeyInfo { key :: !String, shiftKey, metaKey, ctrlKey, altKey :: !Bool }
     deriving ( Show, Eq )
 
 makeFieldLabelsWith noPrefixFieldLabels ''KeyInfo
 
-keyDownHandler :: Attribute (Action p)
+keyDownHandler :: Attribute Action
 keyDownHandler = onKeyDownWithInfo handleKeyDown
   where
     handleKeyDown keyInfo@KeyInfo{..}
         = if noModifiers keyInfo
           then (case key of
-                    [c] -> Insert c
-                    "Enter" -> Insert '\n'
-                    "Tab" -> Insert '\t'
-                    "Delete" -> Delete
-                    "Backspace" -> Backspace
-                    "ArrowLeft" -> Move Leftward
-                    "ArrowRight" -> Move Rightward
-                    "ArrowUp" -> Move Upward
-                    "ArrowDown" -> Move Downward
+                    [c] -> GenericAction $ Insert c
+                    "Enter" -> GenericAction $ Insert '\n'
+                    "Tab" -> GenericAction $ Insert '\t'
+                    "Delete" -> GenericAction Delete
+                    "Backspace" -> GenericAction Backspace
+                    "ArrowLeft" -> GenericAction $ Move Leftward
+                    "ArrowRight" -> GenericAction $ Move Rightward
+                    "ArrowUp" -> GenericAction $ Move Upward
+                    "ArrowDown" -> GenericAction $ Move Downward
                     _ -> Log key)
           else (case key of
-                    [c] | singleModifier #shiftKey keyInfo -> Insert c
+                    [c] | singleModifier #shiftKey keyInfo ->
+                            GenericAction $ Insert c
                     "Enter" | singleModifier #ctrlKey keyInfo -> PrettyPrint
                     -- Up and down also available with Alt to prevent window scrolling until https://github.com/dmjio/miso/issues/652 is fixed
-                    "ArrowUp" | singleModifier #altKey keyInfo -> Move Upward
-                    "ArrowDown"
-                        | singleModifier #altKey keyInfo -> Move Downward
+                    "ArrowUp" | singleModifier #altKey keyInfo ->
+                                  GenericAction $ Move Upward
+                    "ArrowDown" | singleModifier #altKey keyInfo ->
+                                    GenericAction $ Move Downward
                     -- Left and right also allowed with Alt, because pressing/releasing Alt repeatedly while navigating is annoying
-                    "ArrowLeft"
-                        | singleModifier #altKey keyInfo -> Move Leftward
-                    "ArrowRight"
-                        | singleModifier #altKey keyInfo -> Move Rightward
+                    "ArrowLeft" | singleModifier #altKey keyInfo ->
+                                    GenericAction $ Move Leftward
+                    "ArrowRight" | singleModifier #altKey keyInfo ->
+                                     GenericAction $ Move Rightward
                     _ -> Log key)
 
 noModifiers :: KeyInfo -> Bool
