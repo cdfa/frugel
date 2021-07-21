@@ -1,13 +1,10 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
 import Frugel
 import Frugel.View
-import Frugel.View.Elements
 
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -16,8 +13,6 @@ import Language.Javascript.JSaddle.Warp as JSaddle
 import Miso
 
 import Scout
-
-import Text.Show.Pretty
 
 #ifndef __GHCJS__
 runApp :: JSM () -> IO ()
@@ -40,44 +35,3 @@ main = runApp $ startApp App { .. }
     subs = [] -- empty subscription list
     mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
     logLevel = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
-
--- Constructs a virtual DOM from a model
-viewModel :: Model Program -> View (Action Program)
-viewModel model
-    = div_
-        [ codeStyle, class_ "has-background-white-bis" ]
-        [ link_
-              [ rel_ "stylesheet"
-              , href_
-                    "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
-              ]
-        , div_ [ class_ "columns" ]
-          $ map
-              (div_ [ class_ "column" ])
-              [ [ div_
-                      [ class_ "box" ]
-                      [ text "Type as usual, use arrow keys to move"
-                      , div_ [ class_ "buttons" ]
-                             [ button_ [ onClick PrettyPrint, class_ "button" ]
-                                       [ text "Format" ]
-                             , button_
-                                   [ onClick GenerateRandom, class_ "button" ]
-                                   [ text "Generate Random" ]
-                             ]
-                      ]
-                , codeRoot []
-                  . renderSmart
-                  . insertCursor (cursorOffset model)
-                  . layoutPretty defaultLayoutOptions
-                  . renderDoc
-                  $ program model
-                ]
-              , conditionalViews (not . null $ errors model)
-                $ map (pre_ [ class_ "box has-background-danger-light" ]
-                       . renderSmart
-                       . layoutSmart defaultLayoutOptions
-                       . renderDoc)
-                $ errors model
-              ]
-        , webPrint $ ppShow model
-        ]

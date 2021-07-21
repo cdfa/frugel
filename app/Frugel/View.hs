@@ -1,31 +1,76 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Frugel.View where
 
 import Frugel
-import Frugel.View.Elements              as Elements
-import Frugel.View.ViewModel             as ViewModel
+import Frugel.View.Elements
+import Frugel.View.Rendering
 
-import Miso                              hiding ( node, view )
+import Miso            hiding ( model )
 import qualified Miso.String
 
-import Optics.Extra                      hiding ( views )
+import Scout
 
-import Prelude                           hiding ( lines )
+import Text.Show.Pretty ( ppShow )
 
-import Prettyprinter.Render.Util.SimpleDocTree
+-- Constructs a virtual DOM from a model
+viewModel :: Model Program -> View (Action Program)
+viewModel model
+    = div_ [ codeStyle, class_ "has-background-white-bis" ]
+           [ bulmaStyleSheet
+           , div_ [ class_ "columns" ]
+             $ map (div_ [ class_ "column" ])
+                   [ [ instructionsView, editorView model, errorsView model ]
+                   , [ evaluatedView model, webPrint $ ppShow model ]
+                   ]
+           ]
 
+bulmaStyleSheet :: View action
+bulmaStyleSheet
+    = link_ [ rel_ "stylesheet"
+            , href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
+            ]
+
+instructionsView :: View (Action p)
+instructionsView
+    = div_ [ class_ "box" ]
+           [ text "Type as usual, use arrow keys to move"
+           , div_ [ class_ "buttons" ]
+                  [ button_ [ onClick PrettyPrint, class_ "button" ]
+                            [ text "Format" ]
+                  , button_ [ onClick GenerateRandom, class_ "button" ]
+                            [ text "Generate Random" ]
+                  ]
+           ]
+
+editorView :: DisplayProjection a => Model a -> View (Action p)
+editorView model
+    = codeRoot []
+    . renderSmart
+    . insertCursor (cursorOffset model)
+    . layoutPretty defaultLayoutOptions
+    . renderDoc
+    $ program model
+
+errorsView :: Model Program -> View (Action p)
+errorsView model
+    = div_ []
+    $ conditionalViews (not . null $ errors model)
+    $ map (pre_ [ class_ "box has-background-danger-light" ]
+           . renderSmart
+           . layoutSmart defaultLayoutOptions
+           . renderDoc)
+    $ errors model
+
+evaluatedView :: Model Program -> View (Action p)
+evaluatedView model = div_ [] [ text "TBD" ]
+
+    -- . renderSmart
+    -- . layoutPretty defaultLayoutOptions
+    -- . renderDoc
+    -- . fst
+    -- . runEval
+    -- . program
 webPrint :: Miso.String.ToMisoString a => a -> View (Action p)
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
-
-renderSmart :: SimpleDocStream Annotation -> [View (Action p)]
-renderSmart
-    = renderTrees
-    . annotationTreeForm
-    . splitMultiLineAnnotations
-    . textLeavesConcat
-    . textTreeForm
-    . treeForm
 
 insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation
 insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
@@ -45,63 +90,3 @@ insertCursor offset s = case s of
         $ SText nextLineIndent (toText $ replicate nextLineIndent ' ') s'
     (SAnnPush ann s') -> SAnnPush ann $ insertCursor offset s'
     (SAnnPop s') -> SAnnPop $ insertCursor offset s'
-
-textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
-textTreeForm = \case
-    STEmpty -> one $ TextLeaf ""
-    STChar c -> one . TextLeaf $ one c
-    STText _ t -> one $ TextLeaf t
-    STLine w -> LineLeaf : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]
-    STAnn ann content -> one . Annotated ann $ textTreeForm content
-    STConcat contents -> concatMap textTreeForm contents
-
-textLeavesConcat :: [DocTextTree ann] -> [DocTextTree ann]
-textLeavesConcat
-    = over (mapped % _Annotated % _2)
-           (textLeavesConcat . concatByPrism _TextLeaf)
-
-splitMultiLineAnnotations
-    :: [DocTextTree Annotation] -> [DocTextTree Annotation]
-splitMultiLineAnnotations = foldMap $ \case
-    TextLeaf t -> [ TextLeaf t ]
-    LineLeaf -> [ LineLeaf ]
-    Annotated Cursor _ -> [ Annotated Cursor [] ]
-    Annotated (Frugel.CompletionAnnotation completionStatus) trees -> filter
-        (not . isEmptyTree)
-        . intersperse LineLeaf
-        . reAnnotateTrees completionStatus
-        . splitOn LineLeaf
-        $ splitMultiLineAnnotations trees
-  where
-    reAnnotateTrees completionStatus ((firstLine :< middleLines) :> lastLine)
-        = reannotate firstLine
-        <| (map reannotate middleLines |> reannotate lastLine)
-      where
-        reannotate = Annotated $ CompletionAnnotation completionStatus
-    reAnnotateTrees completionStatus treeLines
-        = map (Annotated $ CompletionAnnotation completionStatus) treeLines -- length treeLines <= 1
-
-annotationTreeForm :: [DocTextTree Annotation] -> [Line]
-annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
-  where
-    transform = \case
-        TextLeaf t -> Leaf t
-        LineLeaf -> error "unexpected LineLeaf"
-        Annotated ann trees -> Node ann $ map transform trees
-
-renderTrees :: [Line] -> [View (Action p)]
-renderTrees = map (Elements.line [] . map renderTree . view _Line)
-
-renderTree :: AnnotationTree -> View (Action p)
-renderTree = \case
-    Leaf t -> text $ Miso.String.ms t
-    Node annotation@(CompletionAnnotation InConstruction) [] ->
-        renderTree $ Node annotation [ Leaf " " ] -- Ghost space instead of messing with CSS
-    Node annotation subTrees ->
-        encloseInTagFor annotation $ map renderTree subTrees
-
-encloseInTagFor :: Annotation -> [View (Action p)] -> View (Action p)
-encloseInTagFor ann views = case ann of
-    CompletionAnnotation InConstruction -> inConstruction [] views
-    CompletionAnnotation Complete -> complete [] views
-    Cursor -> caret [] []
