@@ -8,22 +8,20 @@ import Frugel.DisplayProjection
 import qualified Scout.Internal.Node
 import Scout.Node
 
-data PrettyCompletionStatus = InConstruction' Node | Complete'
-
-type PrettyAnnotation = Annotation' PrettyCompletionStatus
+type PrettyAnnotation = (Node, CompletionStatus)
 
 prettyCstrSite :: Node
-    -> (n -> Doc PrettyAnnotation)
-    -> ACstrSite n
+    -> (Node -> Doc PrettyAnnotation)
+    -> CstrSite
     -> Doc PrettyAnnotation
 prettyCstrSite n
     = renderCstrSite' (annotateInConstruction' n) annotateComplete'
 
 annotateInConstruction' :: Node -> Doc PrettyAnnotation -> Doc PrettyAnnotation
-annotateInConstruction' = annotate . CompletionAnnotation . InConstruction'
+annotateInConstruction' n = annotate (n, InConstruction)
 
-annotateComplete' :: Doc PrettyAnnotation -> Doc PrettyAnnotation
-annotateComplete' = annotate $ CompletionAnnotation Complete'
+annotateComplete' :: Node -> Doc PrettyAnnotation -> Doc PrettyAnnotation
+annotateComplete' n = annotate (n, Complete)
 
 class AnnotatedPretty a where
     annPretty :: a -> Doc PrettyAnnotation

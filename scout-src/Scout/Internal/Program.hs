@@ -137,19 +137,17 @@ instance PrettyPrint Program where
         . liftNestedCstrSiteOuterWhitespace
         . renderSimplyDecorated (fromList . map Left . toString)
                                 renderAnnotation
+        . (\x -> trace (take 28 $ show x) x)
         . removeRootCstrSiteAnnotation -- remove root construction site annotation, because a ExprNode won't be accepted as a program
+        . (\x -> trace (take 5 $ show x) x)
         . treeForm
         . layoutSmart defaultLayoutOptions
         $ unsafePrettyProgram program
       where
-        removeRootCstrSiteAnnotation
-            (STAnn (CompletionAnnotation (InConstruction' _)) subTree)
+        removeRootCstrSiteAnnotation (STAnn (_, InConstruction) subTree)
             | ProgramCstrSite{} <- program = subTree
-        removeRootCstrSiteAnnotation ann = ann
-        renderAnnotation (CompletionAnnotation (InConstruction' n)) cstrSite
-            = one . Right $ setCstrSite cstrSite n
-        renderAnnotation _ cstrSite
-            = one . Right . ExprNode $ exprCstrSite' cstrSite -- Wrapping all construction sites in ExprNodes is okay, because we use anyNode as parser (in reparseNestedCstrSites)
+        removeRootCstrSiteAnnotation docTree = docTree
+        renderAnnotation (n, _) cstrSite = one . Right $ setCstrSite cstrSite n
         reparse :: forall n.
             (Node ~ NodeOf n, Data n, Decomposable n)
             => Parser n
@@ -165,7 +163,7 @@ instance PrettyPrint Program where
 
 unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
-    = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed
+    = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed later
 unsafePrettyProgram Program{..}
     = annPretty expr
     <> nest 2 (foldMap (mappend line' . annPretty) whereClause)
