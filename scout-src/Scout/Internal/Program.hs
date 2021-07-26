@@ -167,7 +167,8 @@ unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
     = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed
 unsafePrettyProgram Program{..}
-    = annPretty expr <> nest 2 (line' <> annPretty whereClause)
+    = annPretty expr
+    <> nest 2 (foldMap (mappend line' . annPretty) whereClause)
 
 instance Decomposable Program where
     conservativelyDecompose _ _ = Nothing

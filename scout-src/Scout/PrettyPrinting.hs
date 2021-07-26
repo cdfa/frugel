@@ -28,9 +28,6 @@ annotateComplete' = annotate $ CompletionAnnotation Complete'
 class AnnotatedPretty a where
     annPretty :: a -> Doc PrettyAnnotation
 
-instance AnnotatedPretty a => AnnotatedPretty (Maybe a) where
-    annPretty = maybe mempty annPretty
-
 instance AnnotatedPretty Node where
     annPretty (ExprNode expr) = annPretty expr
     annPretty (DeclNode decl) = annPretty decl
@@ -43,7 +40,6 @@ instance AnnotatedPretty Expr where
     annPretty = parenthesizeExpr parens annPretty'
       where
         annPretty' (Variable _ n) = annPretty n
-
         annPretty' (Abstraction _ arg expr)
             = (backslash <> annPretty arg) `nestingLine` equals
             <+> annPretty expr
