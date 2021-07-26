@@ -19,6 +19,7 @@ import Frugel.Error.InternalError
 import Optics.Extra
 
 import Prettyprinter
+import Prettyprinter.Internal.Type ( Doc(Char) )
 
 data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq, Data )
@@ -83,10 +84,11 @@ renderCstrSite' :: (Doc a -> Doc a)
     -> ACstrSite n
     -> Doc a
 renderCstrSite' inConstruction complete prettyNode (CstrSite contents)
-    = inConstruction
-    . foldMap (either pretty (foldMap (complete . prettyNode)))
-    . groupByEither
+    = inConstruction . foldMap (either prettyChar (complete . prettyNode))
     $ toList contents
+  where
+    prettyChar '\n' = Char '\n' -- explicitly insert newlines as Char to to prevent insertion of extra whitespace when pretty printing construction sites which are `nest`ed
+    prettyChar c = pretty c
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
 nestingLine x y = x <> nest 4 (softline <> y)

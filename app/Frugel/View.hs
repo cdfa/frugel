@@ -49,6 +49,7 @@ insertCursor offset s = case s of
 textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
 textTreeForm = \case
     STEmpty -> one $ TextLeaf ""
+    STChar '\n' -> one LineLeaf -- Normally, there would be no newlines in STChar, but these are explicitly inserted by renderCstrSite' to prevent insertion of extra whitespace when pretty printing construction sites which are `nest`ed
     STChar c -> one . TextLeaf $ one c
     STText _ t -> one $ TextLeaf t
     STLine w -> LineLeaf : [ TextLeaf . toText $ replicate w ' ' | w > 0 ]

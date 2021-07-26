@@ -36,26 +36,6 @@ lift2 :: forall (s :: (* -> *)
     -> s (t m) a
 lift2 = lift . lift
 
--- Copied from the Agda package
-listCase :: b -> (a -> [a] -> b) -> [a] -> b
-listCase n _ [] = n
-listCase _ c (x : xs) = c x xs
-
--- Copied from the Agda package
--- | Groups a list into alternating chunks of 'Left' and 'Right' values
-groupByEither :: [Either a b] -> [Either [a] [b]]
-groupByEither = listCase [] (go . initial)
-  where
-    go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
-    go acc [] = [ adjust acc ]
-    -- match: next value can be tacked onto the accumulator
-    go (Left acc) (Left a : abs) = go (Left $ a : acc) abs
-    go (Right acc) (Right b : abs) = go (Right $ b : acc) abs
-    -- mismatch: switch the accumulator to the other mode
-    go acc (ab : abs) = adjust acc : go (initial ab) abs
-    adjust = bimap reverse reverse
-    initial = bimap pure pure
-
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
 concatBy :: Monoid b => (a -> Maybe b) -> (b -> a) -> [a] -> [a]
