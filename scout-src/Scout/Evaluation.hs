@@ -110,7 +110,6 @@ evalWhereClause whereClause = case whereClause of
                   )
         evaluatedDecls <- traverse lift newDecls
         pure (whereClause & _WhereClause % _2 .~ evaluatedDecls, newEnv)
-        -- set (_WhereClause % _2) <$> traverse lift newDecls ?? whereClause
     WhereCstrSite{} -> (,)
         <$> (whereClause
              & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
@@ -121,11 +120,21 @@ instance Evaluatable Program where
     eval program = case program of
         Program{..} -> do
             env <- ask
-            (newWhereClause, newEnv) <- maybe (pure (Nothing, env))
-                                              (first Just <.> evalWhereClause)
-                                              whereClause
+            let newEnv
+                    = maybe env
+                            (snd
+                             . fst
+                             . runWriter
+                             . usingReaderT env
+                             . evalWhereClause)
+                            whereClause -- discard new whereClause and errors because otherwise definitions would be eagerly evaluated
             newExpr <- local (const newEnv) $ eval expr
-            pure $ program & #expr .~ newExpr & #whereClause .~ newWhereClause
+            pure
+                $ program
+                & #expr .~ newExpr
+                & #whereClause .~ Nothing
+                & programMeta % #standardMeta % #interstitialWhitespace
+                .~ [ "" ]
         ProgramCstrSite{} -> program
             & _ProgramCstrSite
             % _2
