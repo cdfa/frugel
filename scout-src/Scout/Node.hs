@@ -41,7 +41,6 @@ module Scout.Node
     , addMeta
     , addMetaWith
     , parenthesizeExpr
-    , unwrapParentheses
     , intersperseWhitespaceTraversers
     , whitespaceFragmentTraverser
     ) where

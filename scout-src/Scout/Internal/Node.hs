@@ -184,7 +184,11 @@ instance CstrSiteNode Node where
 
 instance CstrSiteNode Expr where
     setCstrSite = const . exprCstrSite'
-    _NodeCstrSite = _ExprCstrSite % _2
+    _NodeCstrSite
+        = _ExprCstrSite
+        % unsafeFiltered
+            ((== 0) . view (_1 % #parenthesisLevels)) -- safe, because value with predicate is disjoint from focus
+        % _2
 
 instance CstrSiteNode Decl where
     setCstrSite = const . declCstrSite'
@@ -195,19 +199,12 @@ instance CstrSiteNode WhereClause where
     _NodeCstrSite = _WhereCstrSite % _2
 
 instance DisplayProjection Node where
-    -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions
+    -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
     renderDoc (ExprNode expr) = renderDoc expr
     renderDoc (DeclNode decl) = renderDoc decl
     renderDoc (WhereNode w) = renderDoc w
 
-instance DisplayProjection Expr where
-    -- Parentheses are handled here (instead of relying on decompose), because the information would be removed when the expression is a construction site
-    renderDoc = either defaultRenderDoc parenthesize . unwrapParentheses
-      where
-        parenthesize (leadingFragment, e, trailingFragment)
-            = parens (pretty leadingFragment
-                      <> renderDoc e
-                      <> pretty trailingFragment)
+instance DisplayProjection Expr
 
 instance DisplayProjection Decl
 
@@ -329,29 +326,6 @@ parenthesizeExpr parenthesize prettyExpr x
                            prettyExpr
                            (x & exprMeta % #parenthesisLevels -~ 1)
 parenthesizeExpr _ prettyExpr x = prettyExpr x
-
-unwrapParentheses :: Expr -> Either Expr (Text, Expr, Text)
-unwrapParentheses e
-    | e ^. exprMeta % #parenthesisLevels > 0
-        = Right ( leadingFragment
-                , e
-                  & exprMeta % #parenthesisLevels -~ 1
-                  & exprMeta % #standardMeta % #interstitialWhitespace
-                  .~ middleWhitespaceFragments
-                , trailingFragment
-                )
-  where
-    (leadingFragment, (middleWhitespaceFragments, trailingFragment))
-        = fromMaybe
-            (error ("Encountered incorrect number of whitespace fragments in "
-                    <> show e))
-        $ preview (exprMeta
-                   % #standardMeta
-                   % #interstitialWhitespace
-                   % _Cons
-                   % ((,) <$^> _1 <*^> _2 % _Snoc))
-                  e
-unwrapParentheses e = Left e
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int
