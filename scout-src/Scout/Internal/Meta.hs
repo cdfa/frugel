@@ -29,7 +29,7 @@ import Data.Validity.Text           ()
 
 import Optics.Extra
 
-import Relude.Unsafe                ( (!!) )
+import qualified Relude.Unsafe      as Unsafe
 
 import qualified Test.QuickCheck.Gen as QuickCheck
 
@@ -102,14 +102,14 @@ instance GenValid Meta where
         -- ensure only characters from previous whitespace fragments are used
         & mapped % #interstitialWhitespace % imapped
         %@~ \i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
-        $ interstitialWhitespace !! i
+        $ interstitialWhitespace Unsafe.!! i
 
 enumerateValidExprMeta :: (Typeable f, Sized f) => Int -> Shareable f ExprMeta
 enumerateValidExprMeta minimumWhitespaceFragments
     = pay
     $ (\meta' parenthesisWhitespace ->
        ExprMeta { parenthesisLevels = length parenthesisWhitespace
-                , standardMeta      = meta'
+                , standardMeta = meta'
                       & #interstitialWhitespace
                       %~ (\whitespaceFragments -> map fst parenthesisWhitespace
                           ++ whitespaceFragments

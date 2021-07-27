@@ -162,7 +162,7 @@
             "import-module": false,
             "import-spec": true,
             "class": false,
-            "record-fields": true
+            "record-fields": false
         },
         "options": {
             "sort-pragmas": true,

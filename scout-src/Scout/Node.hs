@@ -56,7 +56,7 @@ import Frugel.CstrSite
 
 import Optics.Extra
 
-import Relude.Unsafe ( fromJust )
+import qualified Relude.Unsafe as Unsafe
 
 import Scout.Internal.Node as Node
 import Scout.Meta
@@ -86,19 +86,19 @@ identifier' :: String -> Maybe Identifier
 identifier' = Identifier <.> (nonEmpty <=< traverse fromChar)
 
 unsafeIdentifier :: String -> Identifier
-unsafeIdentifier = fromJust . identifier'
+unsafeIdentifier = Unsafe.fromJust . identifier'
 
 variable' :: Identifier -> Expr
 variable' = Variable $ defaultExprMeta 0
 
 unsafeVariable :: String -> Expr
-unsafeVariable = variable' . fromJust . identifier'
+unsafeVariable = variable' . Unsafe.fromJust . identifier'
 
 abstraction' :: Identifier -> Expr -> Expr
 abstraction' = Abstraction $ defaultAbstractionMeta 3
 
 unsafeAbstraction :: String -> Expr -> Expr
-unsafeAbstraction = abstraction' . fromJust . identifier'
+unsafeAbstraction = abstraction' . Unsafe.fromJust . identifier'
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
@@ -110,7 +110,7 @@ decl' :: Identifier -> Expr -> Decl
 decl' = Decl $ defaultMeta 2
 
 unsafeDecl :: String -> Expr -> Decl
-unsafeDecl = decl' . fromJust . identifier'
+unsafeDecl = decl' . Unsafe.fromJust . identifier'
 
 whereClause' :: NonEmpty Decl -> WhereClause
 whereClause' decls = WhereClause (defaultMeta $ length decls) decls
@@ -167,4 +167,7 @@ declNodeTest
 sumTest :: CstrSite
 sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
-
+evalTest :: CstrSite
+evalTest
+    = toCstrSite [ Left "1+2 where i = \\x = x k = \\x = \\y = x s = \\f = \\g = \\x = f x (g x) o = \\x = x x"
+                 ]

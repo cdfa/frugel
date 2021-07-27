@@ -32,7 +32,7 @@ spec = describe "Evaluation" $ do
 -- Simple test
 simpleEvalSpec :: Spec
 simpleEvalSpec
-    = it "evaluates `s k k q` to `[`q`]` and reports in a single UnboundVariableError for `q`"
+    = it "evaluates `s k k q` to `[`q`]` and reports a single UnboundVariableError for `q`"
     $ runEval
         (application' (application' (application' s k) k) (unsafeVariable "q"))
     `shouldBe` ( singleExprNodeCstrSite $ unsafeVariable "q"
@@ -43,7 +43,7 @@ simpleEvalSpec
 -- Evaluation is lazy
 lazinessSpec :: Spec
 lazinessSpec
-    = it "lazily evaluates `(\\u = q) ⊥ to `[`q`]` and reports in a single UnboundVariableError for `q`"
+    = it "lazily evaluates `(\\u = q) ⊥ to `[`q`]` and reports a single UnboundVariableError for `q`"
     $ runEval (application' (unsafeAbstraction "u" (unsafeVariable "q"))
                             (error "should not be evaluated"))
     `shouldBe` ( singleExprNodeCstrSite $ unsafeVariable "q"

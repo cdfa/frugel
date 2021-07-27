@@ -56,35 +56,39 @@ class ( Data p
 deriving instance (Ord (Megaparsec.Token s), Ord e)
     => Ord (Megaparsec.ParseError s e)
 
--- Updates model, optionally introduces side effects
 updateModel :: forall p.
     (Editable p, DisplayProjection p)
     => GenericAction
     -> Model p
-    -> Model p
+    -> (EditResult, Model p)
 updateModel (Insert c) model = insert c model
 updateModel Delete model = delete model
 updateModel Backspace model = backspace model
 updateModel (Move direction) model = moveCursor direction model
 
-insert :: (Editable p) => Char -> Model p -> Model p
-insert c model
-    = case attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
-                        $ view #cursorOffset model)
-                       model of
-        (Success, newModel) -> newModel & #cursorOffset +~ 1
-        (Failure, newModel) -> newModel
+insert :: Editable p => Char -> Model p -> (EditResult, Model p)
+insert c model = case editResult of
+    Success -> edited & _2 % #cursorOffset +~ 1
+    Failure -> edited
+  where
+    edited@(editResult, _)
+        = attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
+                       $ view #cursorOffset model)
+                      model
 
-delete :: (Editable p) => Model p -> Model p
-delete model@Model{..}
-    = case attemptEdit
-        (zipperAtCursor (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
-                        cursorOffset)
-        model of
-        (Success, newModel) -> newModel
-        (Failure, newModel) -> newModel & #errors .~ errors
+delete :: Editable p => Model p -> (EditResult, Model p)
+delete model@Model{..} = case editResult of
+    Success -> edited
+    Failure -> edited & _2 % #errors .~ errors
+  where
+    edited@(editResult, _)
+        = attemptEdit
+            (zipperAtCursor
+                 (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
+                 cursorOffset)
+            model
 
-backspace :: (Editable p) => Model p -> Model p
+backspace :: Editable p => Model p -> (EditResult, Model p)
 
 -- when the bad default of "exiting" after a node when transformation failed is fixed
 -- backspace model
@@ -95,17 +99,21 @@ backspace :: (Editable p) => Model p -> Model p
 --         (Failure, newModel) -> newModel & #errors .~ []
 backspace model
     | view #cursorOffset model > 0
-        = snd
-        . attemptEdit
+        = attemptEdit
             (zipperAtCursor
                  (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
                  (view #cursorOffset model - 1))
         $ over #cursorOffset (subtract 1) model
-backspace model = model
+backspace model = (Failure, model)
 
-moveCursor :: DisplayProjection p => Direction -> Model p -> Model p
-moveCursor direction model = model & #cursorOffset %~ updateOffset
+moveCursor
+    :: DisplayProjection p => Direction -> Model p -> (EditResult, Model p)
+moveCursor direction model@Model{..}
+    = ( if cursorOffset == newOffset then Failure else Success
+      , model & #cursorOffset .~ newOffset
+      )
   where
+    newOffset = updateOffset cursorOffset
     updateOffset = case direction of
         Leftward -> max 0 . subtract 1
         Rightward -> min (length programText) . (+ 1)
@@ -128,10 +136,9 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
     currentOffset = view #cursorOffset model
     -- uses layoutPretty for consistency with view
     programText
-        = renderString . layoutPretty defaultLayoutOptions . renderDoc
-        $ view #program model
+        = renderString . layoutPretty defaultLayoutOptions $ renderDoc program
 
-prettyPrint :: forall p. (Editable p, PrettyPrint p) => Model p -> Model p
+prettyPrint :: (Editable p, PrettyPrint p) => Model p -> Model p
 prettyPrint model@Model{..}
     = model
     & #program .~ newProgram

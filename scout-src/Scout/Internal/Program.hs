@@ -52,8 +52,8 @@ import Text.Megaparsec
 import qualified Text.Megaparsec         as Megaparsec
 
 data Program
-    = Program { meta        :: ProgramMeta
-              , expr        :: Expr
+    = Program { meta :: ProgramMeta
+              , expr :: Expr
               , whereClause :: Maybe WhereClause
               }
     | ProgramCstrSite ProgramMeta CstrSite

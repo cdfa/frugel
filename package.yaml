@@ -114,6 +114,7 @@ executables:
       - prettyprinter >= 1.7.0
       - aeson
       - QuickCheck
+      - multiset
     when:
       - condition: "!impl(ghcjs)"
         dependencies:

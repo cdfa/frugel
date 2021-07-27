@@ -1,27 +1,32 @@
+
+{-# LANGUAGE RecordWildCards #-}
+
 module Frugel.View where
 
-import Frugel
+import Frugel          hiding ( Model(..) )
 import Frugel.View.Elements
 import Frugel.View.Rendering
 
 import Miso            hiding ( model )
 import qualified Miso.String
 
-import Scout
 import Scout.Action
+import qualified Scout.Internal.Model
+import Scout.Model
 
 import Text.Show.Pretty ( ppShow )
 
 -- Constructs a virtual DOM from a model
-viewModel :: Model Program -> View Action
+viewModel :: Model -> View Action
 viewModel model
     = div_ [ codeStyle, class_ "has-background-white-bis" ]
            [ bulmaStyleSheet
            , div_ [ class_ "columns" ]
              $ map (div_ [ class_ "column" ])
                    [ [ instructionsView, editorView model, errorsView model ]
-                   , [ evaluatedView model, webPrint $ ppShow model ]
+                   , [ evaluatedView model ]
                    ]
+           , webPrint $ ppShow model
            ]
 
 bulmaStyleSheet :: View action
@@ -42,34 +47,40 @@ instructionsView
                   ]
            ]
 
-editorView :: Model Program -> View Action
-editorView model
-    = codeRoot []
+editorView :: Model -> View Action
+editorView Model{..}
+    = codeRoot [ class_ "block" ]
     . renderSmart
-    . insertCursor (cursorOffset model)
+    . insertCursor cursorOffset
     . layoutPretty defaultLayoutOptions
-    . renderDoc
-    $ program model
+    $ renderDoc program
 
-errorsView :: Model Program -> View action
-errorsView model
-    = div_ []
-    $ conditionalViews (not . null $ errors model)
+errorsView :: Model -> View action
+errorsView Model{..}
+    = div_ [] . conditionalViews (not $ null errors)
     $ map (pre_ [ class_ "box has-background-danger-light" ]
            . renderSmart
            . layoutSmart defaultLayoutOptions
            . renderDoc)
-    $ errors model
+          errors
 
-evaluatedView :: Model Program -> View Action
-evaluatedView model = div_ [] [ text "TBD" ]
+evaluatedView :: Model -> View Action
+evaluatedView Model{..}
+    = div_
+        [ class_ "card" ]
+        [ div_ [ class_ "card-header" ]
+               [ p_ [ class_ "card-header-title" ]
+                    [ if isJust evalThreadId then "Evaluating..." else "Result"
+                    ]
+               ]
+        , div_ [ class_ "card-content" ]
+               [ div_ [ class_ "content" ]
+                 . renderSmart
+                 . layoutPretty defaultLayoutOptions
+                 $ renderDoc evaluated
+               ]
+        ]
 
-    -- . renderSmart
-    -- . layoutPretty defaultLayoutOptions
-    -- . renderDoc
-    -- . fst
-    -- . runEval
-    -- . program
 webPrint :: Miso.String.ToMisoString a => a -> View action
 webPrint x = pre_ [] [ text $ Miso.String.ms x ]
 

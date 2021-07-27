@@ -14,8 +14,7 @@
 
 module Scout.Internal.Node where
 
--- todo move to prelude
-import Control.Monad.Writer         ( Writer )
+import Control.Monad.Writer.Strict  ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
@@ -198,6 +197,12 @@ instance CstrSiteNode WhereClause where
     setCstrSite = const . whereCstrSite'
     _NodeCstrSite = _WhereCstrSite % _2
 
+instance ToString Identifier where
+    toString (Identifier name) = map unAlphanumeric $ toList name
+
+instance Pretty Identifier where
+    pretty = pretty . toString
+
 instance DisplayProjection Node where
     -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
     renderDoc (ExprNode expr) = renderDoc expr
@@ -209,6 +214,20 @@ instance DisplayProjection Expr
 instance DisplayProjection Decl
 
 instance DisplayProjection WhereClause
+
+instance DisplayProjection EvaluationError where
+    renderDoc = \case
+        TypeError e -> "Type error:" <+> renderDoc e
+        UnboundVariableError name -> pretty name <+> "was not defined"
+
+instance DisplayProjection TypeError where
+    renderDoc (TypeMismatchError expected expr)
+        = "Expected type"
+        <+> pretty expected <> line <> "does not match"
+        <+> renderDoc expr
+
+instance Pretty ExpectedType where
+    pretty = viaShow
 
 instance Decomposable Node where
     traverseComponents mapChar mapNode = \case

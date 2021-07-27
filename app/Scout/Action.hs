@@ -1,13 +1,13 @@
 module Scout.Action where
 
-import Frugel
+import Frugel ( GenericAction )
 
-import Scout
+import Scout.Model
 
 data Action
     = Init
     | GenerateRandom
-    | NewModel (Model Program)
+    | ModifyModel (Model -> Model)
     | Log String
     | PrettyPrint
     | GenericAction GenericAction

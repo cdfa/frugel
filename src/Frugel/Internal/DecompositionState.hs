@@ -26,8 +26,8 @@ data ModificationStatus = Todo | Success
 -- A text offset of -1 is used for representing that we are done with parsing
 -- because 0 could also mean we are at the start of a node that still needs to be decomposed
 data DecompositionState
-    = DecompositionState { textOffset         :: Int
-                         , cstrSiteOffset     :: Int
+    = DecompositionState { textOffset :: Int
+                         , cstrSiteOffset :: Int
                          , modificationStatus :: ModificationStatus
                          }
     deriving ( Show )

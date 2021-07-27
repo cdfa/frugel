@@ -1,14 +1,16 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
 
+import Control.Concurrent
 import Control.ValidEnumerable
 
 import Data.Sized
 
-import Frugel                     hiding ( updateModel )
+import Frugel                     hiding ( Model, initialModel, updateModel )
 import qualified Frugel
 import Frugel.View
 
@@ -23,6 +25,8 @@ import Optics.Extra
 
 import Scout
 import Scout.Action
+import qualified Scout.Internal.Model
+import Scout.Model
 
 import Test.QuickCheck.Gen
 
@@ -41,24 +45,63 @@ main
     = runApp
     $ startApp
         App { initialAction = Init  -- initial action to be executed on application load
-            , model         = initialModel $ programCstrSite' whereClauseTest  -- initial model
-            , update        = updateModel -- update function
-            , view          = viewModel -- view function
-            , events        = defaultEvents -- default delegated events
-            , subs          = [] -- empty subscription list
-            , mountPoint    = Nothing -- mount point for application (Nothing defaults to 'body')
-            , logLevel      = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
+            , model = initialModel $ programCstrSite' evalTest  -- initial model
+            , update = updateModel -- update function
+            , view = viewModel -- view function
+            , events = defaultEvents -- default delegated events
+            , subs = [] -- empty subscription list
+            , mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
+            , logLevel = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
             }
 
-updateModel :: Action -> Model Program -> Effect Action (Model Program)
+updateModel :: Action -> Model -> Effect Action Model
 updateModel Init model = fromTransition (scheduleIO_ $ focus "code-root") model
-updateModel GenerateRandom model = model <# do
-    NewModel . flip (set #program) model
-        <$> (liftIO . unSized <.> generate @(Sized 500 Program)
-             $ uniformValid 500)
-updateModel (NewModel model) _ = noEff model
+-- updateModel GenerateRandom model = model <# do
+--     liftIO $ threadDelay (5 * 10 ^ 6)
+--     pure . ModifyModel $ const model
+-- updateModel GenerateRandom model = effectSub model $ \sink -> do
+--     void . liftIO . forkIO
+--         $ (threadDelay (5 * 10 ^ 6) >> sink (NewModel model))
+updateModel GenerateRandom model = effectSub model $ \sink -> liftIO $ do
+    newProgram <- unSized @500 <.> generate $ uniformValid 500
+    let (preEvaluationModel, sub)
+            = reEvaluate
+                (set #cursorOffset 0
+                 . snd
+                 . attemptEdit (const $ Right newProgram)) -- reparse the new program for parse errors
+                model
+    sink . ModifyModel $ const preEvaluationModel
+    sub sink
+updateModel (ModifyModel f) model = noEff $ f model
 updateModel (Log msg) model
     = fromTransition (scheduleIO_ . consoleLog $ show msg) model
-updateModel PrettyPrint model = noEff $ prettyPrint model
-updateModel (GenericAction action) model
-    = noEff $ Frugel.updateModel action model
+updateModel PrettyPrint model
+    = uncurry effectSub . over _2 (liftIO .) $ reEvaluate prettyPrint model
+updateModel (GenericAction action@(Move _)) model
+    = noEff $ over frugelModel (snd . Frugel.updateModel action) model
+updateModel (GenericAction action) model = case editResult of
+    Success -> uncurry effectSub . over _2 (liftIO .)
+        $ reEvaluate (const newFrugelModel) model
+    Failure -> noEff $ updateWithFrugelModel model newFrugelModel
+  where
+    (editResult, newFrugelModel)
+        = Frugel.updateModel action $ toFrugelModel model
+
+reEvaluate :: (Frugel.Model Program -> Frugel.Model Program)
+    -> Model
+    -> ( Model
+       , Sink Action
+         -> IO ()
+       )
+reEvaluate f model@Model{evalThreadId}
+    = ( set #evalThreadId Nothing . set frugelModel newFrugelModel
+        $ set #errors [] model
+      , \sink -> do
+            traverse_ killThread evalThreadId
+            threadId <- myThreadId
+            sink . ModifyModel $ set #evalThreadId (Just threadId)
+            let newModel@Model{errors} = unsafeFromFrugelModel newFrugelModel
+            seq (length errors) . sink . ModifyModel $ const newModel -- force errors to force all expressions
+      )
+  where
+    newFrugelModel = f $ toFrugelModel model
