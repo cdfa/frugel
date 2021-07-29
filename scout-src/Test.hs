@@ -23,7 +23,7 @@ eval :: EvaluationEnv -> LamN -> LamN
 eval env e@(VarN n) = fromMaybe e $ lookup n env
 eval env (AppN f x) = let ex = eval env x in case eval env f of
     AbsN (Just (Hidden liftedFunction)) _ _ -> liftedFunction ex
-    ef -> AppN ef ex
+    ef -> AppN ef ex -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
 eval env (AbsN _ n e)
     = AbsN (Just . Hidden $ \x -> eval (insert n x env) e) n
     $ eval (delete n env) e -- delete n from environment, because otherwise a shadowed variable may be used
