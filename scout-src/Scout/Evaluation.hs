@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Scout.Evaluation where
@@ -11,14 +10,13 @@ import Control.Monad.Writer.Strict hiding ( Sum )
 import Data.Data
 import Data.Data.Lens
 import Data.Hidden
-import Data.Map              as Map
-    hiding ( filter, fromList, map, mapMaybe, toList )
-import Data.MultiSet         as MultiSet
-    hiding ( fromList, join, map, mapMaybe, toList )
+import qualified Data.Map    as Map
+import Data.MultiSet         ( MultiSet )
+import qualified Data.MultiSet as MultiSet
 
 import Optics.Extra
 
-import qualified Relude.Unsafe as Unsafe
+import Relude                ( group )
 
 import qualified Scout.Internal.Node
 import qualified Scout.Internal.Program
@@ -37,7 +35,7 @@ class Evaluatable a where
 instance Evaluatable Expr where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     eval v@(Variable _ identifier) = do
-        valueBinding <- asks $ lookup identifier
+        valueBinding <- asks $ Map.lookup identifier
         case valueBinding of
             Nothing -> singleExprNodeCstrSite v
                 <$ tell (MultiSet.singleton $ UnboundVariableError identifier)
@@ -75,59 +73,45 @@ instance Evaluatable Expr where
         & _ExprCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
         %%~ eval
 
-instance Evaluatable Decl where
-    eval decl = case decl of
-        Decl{..} -> do
-            env <- ask
-            let newValue
-                    = usingReaderT (Map.insert name (Just newValue) env)
-                    $ eval value
-            set #value <$> lift newValue ?? decl
-        DeclCstrSite{} -> decl
-            & _DeclCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
-            %%~ eval
+evalDecl :: Decl -> Evaluation (Either EvaluationEnv Decl)
+evalDecl Decl{..}
+    = asks (\env ->
+            let newEnv
+                    = Map.insert name
+                                 (Just $ usingReaderT newEnv $ eval value)
+                                 env
+            in Left newEnv)
+evalDecl decl@DeclCstrSite{}
+    = decl
+    & _DeclCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
+    <&> Right
 
-instance Evaluatable WhereClause where
-    eval = fst <.> evalWhereClause
+evalWhereClause :: WhereClause -> Evaluation (Either EvaluationEnv WhereClause)
+evalWhereClause (WhereClause _ decls) = do
+    tell . MultiSet.fromList $ map ConflictingDefinitionsError repeated
+    env <- ask
+    let newEnv
+            = env
+            <> fromList (decls ^.. folded
+                         % ((,) <$^> #name <*^> #value
+                            % to (Just . usingReaderT newEnv . eval)))
 
-evalWhereClause :: WhereClause -> Evaluation (WhereClause, EvaluationEnv)
-evalWhereClause whereClause = case whereClause of
-    WhereClause _ decls -> do
-        env <- ask
-        -- todo: check no duplicates
-        let (newEnv, newDecls)
-                = ( env
-                    <> fromList
-                        (mapMaybe
-                             (\(decl, newDecl) ->
-                              (
-                              , Just . fmap (Unsafe.fromJust . preview #value)
-                                $ newDecl
-                              )
-                              <$> preview #name decl)
-                         $ zip (toList decls) (toList newDecls))
-                  , fmap (usingReaderT newEnv . eval) decls
-                  )
-        evaluatedDecls <- traverse lift newDecls
-        pure (whereClause & _WhereClause % _2 .~ evaluatedDecls, newEnv)
-    WhereCstrSite{} -> (,)
-        <$> (whereClause
-             & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
-             %%~ eval)
-        <*> ask
+    pure $ Left newEnv
+  where
+    repeated
+        = mapMaybe (preview $ _tail % _head) . group . sort
+        $ toListOf (folded % #name) decls
+evalWhereClause whereClause@WhereCstrSite{}
+    = whereClause
+    & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
+    <&> Right
 
 instance Evaluatable Program where
     eval program = case program of
         Program{..} -> do
             env <- ask
-            let newEnv
-                    = maybe env
-                            (snd
-                             . fst
-                             . runWriter
-                             . usingReaderT env
-                             . evalWhereClause)
-                            whereClause -- discard new whereClause and errors because otherwise definitions would be eagerly evaluated
+            evaluatedWhereClause <- traverse evalWhereClause whereClause
+            let newEnv = fromMaybe env (evaluatedWhereClause >>= leftToMaybe)
             newExpr <- local (const newEnv) $ eval expr
             pure
                 $ program

@@ -92,7 +92,10 @@ type instance NodeOf WhereClause = Node
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
 type ScopedEvaluation = Writer (MultiSet EvaluationError)
 
-data EvaluationError = TypeError TypeError | UnboundVariableError Identifier
+data EvaluationError
+    = TypeError TypeError
+    | UnboundVariableError Identifier
+    | ConflictingDefinitionsError Identifier
     deriving ( Eq, Show, Ord, Data )
 
 data TypeError = TypeMismatchError ExpectedType Expr
@@ -219,6 +222,8 @@ instance DisplayProjection EvaluationError where
     renderDoc = \case
         TypeError e -> "Type error:" <+> renderDoc e
         UnboundVariableError name -> pretty name <+> "was not defined"
+        ConflictingDefinitionsError name ->
+            pretty name <+> "was defined multiple times in a where clause"
 
 instance DisplayProjection TypeError where
     renderDoc (TypeMismatchError expected expr)
