@@ -52,7 +52,7 @@ instance Evaluatable Expr where
                         _ -> mapReaderT liftedFunction $ eval x
             _ -> do
                 tell errors
-                ex <- eval x
+                ex <- eval x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
                 Application meta <$> reportAnyTypeErrors Function ef ?? ex
     eval (Abstraction meta n e) = ask >>= \env -> Abstraction
         (meta & #value ?~ Hidden (\x -> usingReaderT (Map.insert n (Just x) env)
