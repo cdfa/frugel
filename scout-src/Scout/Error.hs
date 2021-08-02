@@ -20,7 +20,9 @@ data Error
 instance DisplayProjection Error where
     renderDoc = \case
         EvaluationError count e -> "Evaluation error"
-            <> plural mempty (" (occurring" <+> pretty count <+> "times") count
+            <> plural mempty
+                      (" (occurring" <+> pretty count <+> "times)")
+                      count
             <> ":"
             <+> renderDoc e
         ParseError e -> parseErrorPretty e

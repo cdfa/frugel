@@ -14,7 +14,7 @@
 
 module Scout.Internal.Node where
 
-import Control.Monad.Writer.Strict  ( Writer )
+import Control.Monad.Writer         ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
 import Control.ValidEnumerable.Whitespace
@@ -73,8 +73,7 @@ data WhereClause
 
 data AbstractionMeta
     = AbstractionMeta { standardExprMeta :: ExprMeta
-                      , value :: Maybe (Hidden (ScopedEvaluation Expr
-                                                -> ScopedEvaluation Expr))
+                      , value :: Maybe (Hidden ReifiedFunction)
                       }
     deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
 
@@ -87,6 +86,8 @@ type instance NodeOf Expr = Node
 type instance NodeOf Decl = Node
 
 type instance NodeOf WhereClause = Node
+
+type ReifiedFunction = ScopedEvaluation Expr -> ScopedEvaluation Expr
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)

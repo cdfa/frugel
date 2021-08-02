@@ -5,29 +5,31 @@
 module Scout.Evaluation where
 
 import Control.Lens.Plated
-import Control.Monad.Writer.Strict hiding ( Sum )
+import Control.Monad.Writer hiding ( Sum )
 
 import Data.Data
 import Data.Data.Lens
 import Data.Hidden
-import qualified Data.Map    as Map
-import Data.MultiSet         ( MultiSet )
+import qualified Data.Map as Map
+import Data.MultiSet    ( MultiSet )
 import qualified Data.MultiSet as MultiSet
+
+import Frugel           hiding ( group )
 
 import Optics.Extra
 
-import Relude                ( group )
+import Relude           ( group )
 
 import qualified Scout.Internal.Node
 import qualified Scout.Internal.Program
 import Scout.Node
 import Scout.Program
 
--- Carries Evaluation to be preserve laziness of evaluation
-type EvaluationEnv = Map Identifier (Maybe (ScopedEvaluation Expr))
-
 -- The reader being on top is important, because this allows for working over the result and errors without evaluating something (I think). This is exactly what liftedFunction does
 type Evaluation a = ReaderT EvaluationEnv ScopedEvaluation a
+
+-- Carries Evaluation to be preserve laziness of evaluation
+type EvaluationEnv = Map Identifier (Maybe (ScopedEvaluation Expr))
 
 class Evaluatable a where
     eval :: a -> Evaluation a
@@ -45,9 +47,9 @@ instance Evaluatable Expr where
         -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
         (ef, errors) <- mapReaderT (pure . runWriter) $ eval f
         case ef of
-            Abstraction AbstractionMeta{value = Just (Hidden liftedFunction)}
+            Abstraction AbstractionMeta{value = Just (Hidden reifiedFunction)}
                         _
-                        _ -> mapReaderT liftedFunction $ eval x
+                        _ -> mapReaderT reifiedFunction $ eval x
             _ -> do
                 tell errors
                 ex <- eval x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
@@ -68,24 +70,22 @@ instance Evaluatable Expr where
         --     _ -> uncurry sum'
         --         <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
     -- todo: extend to all nodes
-    eval e@(ExprCstrSite _ _)
-        = e
-        & _ExprCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
-        %%~ eval
+    eval e@(ExprCstrSite _ _) = pure e
 
+        -- & _ExprCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
+        -- %%~ eval
 evalDecl :: Decl -> Evaluation (Either EvaluationEnv Decl)
 evalDecl Decl{..}
     = asks (\env ->
             let newEnv
                     = Map.insert name
-                                 (Just $ usingReaderT newEnv $ eval value)
+                                 (Just . usingReaderT newEnv $ eval value)
                                  env
             in Left newEnv)
-evalDecl decl@DeclCstrSite{}
-    = decl
-    & _DeclCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
-    <&> Right
+evalDecl decl@DeclCstrSite{} = pure $ Right decl
 
+    -- & _DeclCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
+    -- <&> Right
 evalWhereClause :: WhereClause -> Evaluation (Either EvaluationEnv WhereClause)
 evalWhereClause (WhereClause _ decls) = do
     tell . MultiSet.fromList $ map ConflictingDefinitionsError repeated
@@ -95,17 +95,15 @@ evalWhereClause (WhereClause _ decls) = do
             <> fromList (decls ^.. folded
                          % ((,) <$^> #name <*^> #value
                             % to (Just . usingReaderT newEnv . eval)))
-
     pure $ Left newEnv
   where
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
         $ toListOf (folded % #name) decls
-evalWhereClause whereClause@WhereCstrSite{}
-    = whereClause
-    & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
-    <&> Right
+evalWhereClause whereClause@WhereCstrSite{} = pure $ Right whereClause
 
+    -- & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
+    -- <&> Right
 instance Evaluatable Program where
     eval program = case program of
         Program{..} -> do

@@ -61,27 +61,6 @@ import qualified Relude.Unsafe as Unsafe
 import Scout.Internal.Node as Node
 import Scout.Meta
 
-liftNestedCstrSiteOuterWhitespace :: CstrSite -> CstrSite
-liftNestedCstrSiteOuterWhitespace
-    = transformOf uniplate
-    $ foldMapOf (_CstrSite % folded) extractOuterWhitespace
-  where
-    isWhitespaceItem (Left c) = isSpace c
-    isWhitespaceItem _ = False
-    extractOuterWhitespace :: Either Char Node -> CstrSite
-    extractOuterWhitespace item
-        = CstrSite $ leadingWhitespace <> (newItem <| trailingWhitespace)
-      where
-        ((leadingWhitespace, trailingWhitespace), newItem)
-            = first (fromMaybe mempty)
-            $ passthrough
-                (_Right % _NodeCstrSite % _CstrSite)
-                ((\(leadingWhitespace', (trailingWhitespace', newMaterials)) ->
-                  ((leadingWhitespace', trailingWhitespace'), newMaterials))
-                 . second (spanr isWhitespaceItem)
-                 . spanl isWhitespaceItem)
-                item
-
 identifier' :: String -> Maybe Identifier
 identifier' = Identifier <.> (nonEmpty <=< traverse fromChar)
 
@@ -119,8 +98,32 @@ defaultAbstractionMeta :: Int -> AbstractionMeta
 defaultAbstractionMeta n
     = AbstractionMeta { standardExprMeta = defaultExprMeta n, value = Nothing }
 
+abstractionMeta :: AffineTraversal' Expr AbstractionMeta
+abstractionMeta = _Abstraction % _1
+
 singleExprNodeCstrSite :: Expr -> Expr
 singleExprNodeCstrSite = exprCstrSite' . one . Right . ExprNode
+
+liftNestedCstrSiteOuterWhitespace :: CstrSite -> CstrSite
+liftNestedCstrSiteOuterWhitespace
+    = transformOf uniplate
+    $ foldMapOf (_CstrSite % folded) extractOuterWhitespace
+  where
+    isWhitespaceItem (Left c) = isSpace c
+    isWhitespaceItem _ = False
+    extractOuterWhitespace :: Either Char Node -> CstrSite
+    extractOuterWhitespace item
+        = CstrSite $ leadingWhitespace <> (newItem <| trailingWhitespace)
+      where
+        ((leadingWhitespace, trailingWhitespace), newItem)
+            = first (fromMaybe mempty)
+            $ passthrough
+                (_Right % _NodeCstrSite % _CstrSite)
+                ((\(leadingWhitespace', (trailingWhitespace', newMaterials)) ->
+                  ((leadingWhitespace', trailingWhitespace'), newMaterials))
+                 . second (spanr isWhitespaceItem)
+                 . spanl isWhitespaceItem)
+                item
 
 type CstrSite' = [Either String Node]
 
@@ -169,5 +172,23 @@ sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
 evalTest :: CstrSite
 evalTest
-    = toCstrSite [ Left "1+2 where i = \\x = x k = \\x = \\y = x s = \\f = \\g = \\x = f x (g x) o = \\x = x x"
+    -- = toCstrSite [ Left "(\\k = k(\\p = p(\\a = \\b = \\g = g(\\f = \\x = f(a f x))(\\f = a(b f))))(\\g = g(\\h = h)(\\h = h))(\\a = \\b = b)) 1 \n\
+
+    = toCstrSite [ Left "fact2 (succ (succ 1)) \n\
+                        \  where\n\
+                        \    i = \\x = x\n\
+                        \    k = \\x = \\y = x\n\
+                        \    s = \\f = \\g = \\x = f x (g x)\n\
+                        \    o = \\x = x x\n\
+                        \    true = \\x = \\y = x\n\
+                        \    false = \\x = \\y = y\n\
+                        \    0 = \\f = \\x = x\n\
+                        \    1 = \\f = \\x = f x\n\
+                        \    succ = \\n = \\f = \\x = f(n f x)\n\
+                        \    pred = \\n = \\f = \\x = n(\\g = \\h = h (g f)) (\\u = x) (\\u =u)\n\
+                        \    mul = \\m = \\n = \\f = m(n f)\n\
+                        \    is0 = \\n = n (\\x = false) true\n\
+                        \    Y = \\f = (\\x = f (x x))(\\x = f(x x))\n\
+                        \    fact = Y(\\f = \\n = (is0 n) 1 (mul n (f (pred n))))\n\
+                        \    fact2 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))"
                  ]
