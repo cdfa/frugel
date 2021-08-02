@@ -12,8 +12,7 @@ let
   reload-script = stablePkgs.writeShellScriptBin "reload" ''
     ${stablePkgs.ghcid}/bin/ghcid -c '\
         ${stablePkgs.stack}/bin/stack repl\
-        --ghci-options -fno-break-on-exception\
-        --ghci-options -w\
+        --ghci-options "-fdefer-type-errors -Wno-all"\
         '\
         --restart=package.yaml\
         -T 'Main.main'
