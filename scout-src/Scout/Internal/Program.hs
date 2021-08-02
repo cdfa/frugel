@@ -137,9 +137,7 @@ instance PrettyPrint Program where
         . liftNestedCstrSiteOuterWhitespace
         . renderSimplyDecorated (fromList . map Left . toString)
                                 renderAnnotation
-        . (\x -> trace (take 28 $ show x) x)
         . removeRootCstrSiteAnnotation -- remove root construction site annotation, because a ExprNode won't be accepted as a program
-        . (\x -> trace (take 5 $ show x) x)
         . treeForm
         . layoutSmart defaultLayoutOptions
         $ unsafePrettyProgram program
