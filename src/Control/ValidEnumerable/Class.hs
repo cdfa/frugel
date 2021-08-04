@@ -95,6 +95,9 @@ c7 f = c6 (uncurry f)
 --     enumerateValid = share $ c1 nat <|> c1 (\(Nat n) -> -n-1)
 -- instance Infinite integer => ValidEnumerable (Nat integer) where
 --   enumerate = share (Nat . fromInteger <$> naturals)
+instance ValidEnumerable Bool where
+    enumerateValid = datatype [ c0 False, c0 True ]
+
 instance (ValidEnumerable a, ValidEnumerable b) => ValidEnumerable (a, b) where
     enumerateValid = share $ pair accessValid accessValid
 

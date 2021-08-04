@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Scout.Evaluation where
@@ -34,6 +36,25 @@ type EvaluationEnv = Map Identifier (Maybe (ScopedEvaluation Expr))
 class Evaluatable a where
     eval :: a -> Evaluation a
 
+evalCstrSite :: CstrSite -> Evaluation (EvaluationEnv, CstrSite)
+evalCstrSite cstrSite = do
+    newEnv <- evalScope
+        $ toListOf
+            (_CstrSite
+             % folded
+             % _Right
+             % (_DeclNode `summing` _WhereNode % _WhereClause % _2 % folded))
+            cstrSite
+    newCstrSite <- local (const newEnv)
+        $ cstrSite & _CstrSite % traversed % _Right %%~ \case
+            ExprNode e -> ExprNode <$> eval e
+            DeclNode _ -> pure . DeclNode . set (declMeta % #elided) True
+                $ declCstrSite' mempty
+            WhereNode _ ->
+                pure . WhereNode . set (whereClauseMeta % #elided) True
+                $ whereCstrSite' mempty
+    pure (newEnv, newCstrSite)
+
 instance Evaluatable Expr where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     eval v@(Variable _ identifier) = do
@@ -55,8 +76,8 @@ instance Evaluatable Expr where
                 tell errors
                 Application meta <$> reportAnyTypeErrors Function ef <*> eval x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
     eval (Abstraction meta n e) = do
-        reifiedFunction <- asks
-            (\env x -> usingReaderT (Map.insert n (Just x) env) $ eval e)
+        reifiedFunction <- asks $ \env x ->
+            usingReaderT (Map.insert n (Just x) env) $ eval e
         Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
             <$> local (Map.insert n Nothing) (eval e) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
     -- eval i@(LitN _) = pure i
@@ -69,47 +90,34 @@ instance Evaluatable Expr where
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
         --     _ -> uncurry sum'
         --         <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
-    -- todo: extend to all nodes
-    eval e@(ExprCstrSite _ _) = pure e
+    eval (ExprCstrSite meta cstrSite)
+        = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
-        -- & _ExprCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode
-        -- %%~ eval
-evalDecl :: Decl -> Evaluation (Either EvaluationEnv Decl)
-evalDecl Decl{..}
-    = asks (\env ->
-            let newEnv
-                    = Map.insert name
-                                 (Just . usingReaderT newEnv $ eval value)
-                                 env
-            in Left newEnv)
-evalDecl decl@DeclCstrSite{} = pure $ Right decl
+evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, Maybe WhereClause)
+evalWhereClause (WhereClause _ decls) = (, Nothing) <$> evalScope decls
+evalWhereClause (WhereCstrSite meta cstrSite)
+    = second (Just . WhereCstrSite meta) <$> evalCstrSite cstrSite
 
-    -- & _DeclCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
-    -- <&> Right
-evalWhereClause :: WhereClause -> Evaluation (Either EvaluationEnv WhereClause)
-evalWhereClause (WhereClause _ decls) = do
+evalScope :: Foldable t => t Decl -> Evaluation EvaluationEnv
+evalScope decls = do
     tell . MultiSet.fromList $ map ConflictingDefinitionsError repeated
-    env <- ask
-    let newEnv
+    asks $ \env -> let
+        newEnv
             = env
             <> fromList (decls ^.. folded
                          % ((,) <$^> #name <*^> #value
                             % to (Just . usingReaderT newEnv . eval)))
-    pure $ Left newEnv
+        in newEnv
   where
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
         $ toListOf (folded % #name) decls
-evalWhereClause whereClause@WhereCstrSite{} = pure $ Right whereClause
 
-    -- & _WhereCstrSite % _2 % _CstrSite % traversed % _Right % _ExprNode %%~ eval
-    -- <&> Right
 instance Evaluatable Program where
     eval program = case program of
         Program{..} -> do
-            env <- ask
             evaluatedWhereClause <- traverse evalWhereClause whereClause
-            let newEnv = fromMaybe env (evaluatedWhereClause >>= leftToMaybe)
+            newEnv <- asks $ \env -> maybe env fst evaluatedWhereClause
             newExpr <- local (const newEnv) $ eval expr
             pure
                 $ program
@@ -117,14 +125,8 @@ instance Evaluatable Program where
                 & #whereClause .~ Nothing
                 & programMeta % #standardMeta % #interstitialWhitespace
                 .~ [ "" ]
-        ProgramCstrSite{} -> program
-            & _ProgramCstrSite
-            % _2
-            % _CstrSite
-            % traversed
-            % _Right
-            % _ExprNode
-            %%~ eval
+        ProgramCstrSite meta cstrSite ->
+            ProgramCstrSite meta . snd <$> evalCstrSite cstrSite
 
 runEval :: (Evaluatable a, Data a) => a -> (a, MultiSet EvaluationError)
 runEval

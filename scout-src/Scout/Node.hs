@@ -35,6 +35,7 @@ module Scout.Node
     , ExpectedType(..)
     , exprMeta
     , declMeta
+    , whereClauseMeta
     , exprCstrSite'
     , declCstrSite'
     , whereCstrSite'
@@ -192,5 +193,6 @@ evalTest
                         \    is0 = \\n = n (\\x = false) true\n\
                         \    Y = \\f = (\\x = f (x x))(\\x = f(x x))\n\
                         \    fact = Y(\\f = \\n = (is0 n) 1 (mul n (f (pred n))))\n\
-                        \    fact2 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))"
+                        \    fact2 = \\n = (is0 n) 1 (mul n (fact3 (pred n)))\n\
+                        \    fact3 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))"
                  ]

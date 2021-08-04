@@ -26,7 +26,8 @@ defaultProgramMeta n
     = ProgramMeta { standardMeta = defaultMeta n, trailingWhitespace = "" }
 
 defaultMeta :: Int -> Meta
-defaultMeta n = Meta { interstitialWhitespace = replicate n "" }
+defaultMeta n
+    = Meta { interstitialWhitespace = replicate n "", elided = False }
 
 validateInterstitialWhitespace :: Has Meta a => (a -> Int) -> a -> Validation
 validateInterstitialWhitespace expectedWhitespaceFragmentCount n

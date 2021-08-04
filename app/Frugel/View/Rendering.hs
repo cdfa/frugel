@@ -72,6 +72,7 @@ splitMultiLineAnnotations = foldMap $ \case
         . reAnnotateTrees completionStatus
         . splitOn LineLeaf
         $ splitMultiLineAnnotations trees
+    tree@(Annotated Elided _) -> [ tree ]
   where
     reAnnotateTrees completionStatus ((firstLine :< middleLines) :> lastLine)
         = reannotate firstLine
@@ -105,3 +106,4 @@ encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views
     Cursor -> caret [] []
+    Elided -> div_ [] views

@@ -31,9 +31,8 @@ import qualified Data.Text          as Text
 import Data.Text.Optics
 import Data.Validity.Sequence       ()
 
-import Frugel.CstrSite
-import Frugel.Decomposition
-import Frugel.DisplayProjection
+import Frugel
+import Frugel.DisplayProjection     as DisplayProjection
 
 import Numeric.Optics
 
@@ -211,13 +210,25 @@ instance DisplayProjection Node where
     -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
     renderDoc (ExprNode expr) = renderDoc expr
     renderDoc (DeclNode decl) = renderDoc decl
-    renderDoc (WhereNode w) = renderDoc w
+    renderDoc (WhereNode whereClause) = renderDoc whereClause
 
-instance DisplayProjection Expr
+instance DisplayProjection Expr where
+    renderDoc e
+        = if e ^. exprMeta % #standardMeta % #elided
+          then DisplayProjection.annotate Elided "<ExprNode>"
+          else defaultRenderDoc e
 
-instance DisplayProjection Decl
+instance DisplayProjection Decl where
+    renderDoc decl
+        = if decl ^. declMeta % #elided
+          then DisplayProjection.annotate Elided "<DeclNode>"
+          else defaultRenderDoc decl
 
-instance DisplayProjection WhereClause
+instance DisplayProjection WhereClause where
+    renderDoc whereClause
+        = if whereClause ^. whereClauseMeta % #elided
+          then DisplayProjection.annotate Elided "<WhereClauseNode>"
+          else defaultRenderDoc whereClause
 
 instance DisplayProjection EvaluationError where
     renderDoc = \case
@@ -482,6 +493,7 @@ instance ValidEnumerable WhereClause where
                                                         . toList @(NonEmpty _)
                                                         . fst)
                               $ toList decls
+                        , elided = False
                         }
                $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
 
