@@ -47,18 +47,18 @@ instance Evaluatable Expr where
         -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
         (ef, errors) <- mapReaderT (pure . runWriter) $ eval f
         case ef of
-            Abstraction AbstractionMeta{value = Just (Hidden reifiedFunction)}
-                        _
-                        _ -> mapReaderT reifiedFunction $ eval x
+            Abstraction
+                AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+                _
+                _ -> mapReaderT reifiedFunction $ eval x
             _ -> do
                 tell errors
-                ex <- eval x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
-                Application meta <$> reportAnyTypeErrors Function ef ?? ex
-    eval (Abstraction meta n e) = ask >>= \env -> Abstraction
-        (meta & #value ?~ Hidden (\x -> usingReaderT (Map.insert n (Just x) env)
-                                  $ eval e))
-        n
-        <$> local (Map.insert n Nothing) (eval e) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
+                Application meta <$> reportAnyTypeErrors Function ef <*> eval x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
+    eval (Abstraction meta n e) = do
+        reifiedFunction <- asks
+            (\env x -> usingReaderT (Map.insert n (Just x) env) $ eval e)
+        Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
+            <$> local (Map.insert n Nothing) (eval e) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
     -- eval i@(LitN _) = pure i
     eval (Sum meta x y) = do
         ex <- eval x
@@ -130,7 +130,7 @@ runEval :: (Evaluatable a, Data a) => a -> (a, MultiSet EvaluationError)
 runEval
     = transformOnOf (template @_ @Expr)
                     uniplate
-                    (_Abstraction % _1 % #value .~ Nothing)
+                    (_Abstraction % _1 % #reified .~ Nothing)
     . runWriter
     . usingReaderT mempty
     . eval

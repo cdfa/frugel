@@ -73,7 +73,7 @@ data WhereClause
 
 data AbstractionMeta
     = AbstractionMeta { standardExprMeta :: ExprMeta
-                      , value :: Maybe (Hidden ReifiedFunction)
+                      , reified :: Maybe (Hidden ReifiedFunction)
                       }
     deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
 

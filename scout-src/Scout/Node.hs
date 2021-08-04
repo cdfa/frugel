@@ -96,7 +96,9 @@ whereClause' decls = WhereClause (defaultMeta $ length decls) decls
 
 defaultAbstractionMeta :: Int -> AbstractionMeta
 defaultAbstractionMeta n
-    = AbstractionMeta { standardExprMeta = defaultExprMeta n, value = Nothing }
+    = AbstractionMeta { standardExprMeta = defaultExprMeta n
+                      , reified = Nothing
+                      }
 
 abstractionMeta :: AffineTraversal' Expr AbstractionMeta
 abstractionMeta = _Abstraction % _1
