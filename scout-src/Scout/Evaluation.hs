@@ -7,6 +7,7 @@
 module Scout.Evaluation where
 
 import Control.Lens.Plated
+-- Use of lazy writer is important for preserving laziness of evaluation
 import Control.Monad.Writer hiding ( Sum )
 
 import Data.Data
