@@ -75,14 +75,20 @@ updateModel GenerateRandom model = effectSub model $ \sink -> liftIO $ do
 updateModel (ModifyModel f) model = noEff $ f model
 updateModel (Log msg) model
     = fromTransition (scheduleIO_ . consoleLog $ show msg) model
+-- reEvaluate to update type error locations
 updateModel PrettyPrint model
     = uncurry effectSub . over _2 (liftIO .) $ reEvaluate prettyPrint model
 updateModel (GenericAction action@(Move _)) model
-    = noEff $ over frugelModel (snd . Frugel.updateModel action) model
+    = noEff
+    $ set #cursorOffset
+          (view #cursorOffset . snd . Frugel.updateModel action
+           $ toFrugelModel model)
+          model
 updateModel (GenericAction action) model = case editResult of
     Success -> uncurry effectSub . over _2 (liftIO .)
         $ reEvaluate (const newFrugelModel) model
-    Failure -> noEff $ updateWithFrugelModel model newFrugelModel
+    Failure -> noEff
+        $ updateWithFrugelErrors (view #errors newFrugelModel) model
   where
     (editResult, newFrugelModel)
         = Frugel.updateModel action $ toFrugelModel model
@@ -93,15 +99,18 @@ reEvaluate :: (Frugel.Model Program -> Frugel.Model Program)
        , Sink Action
          -> IO ()
        )
-reEvaluate f model@Model{evalThreadId}
-    = ( set #evalThreadId Nothing . set frugelModel newFrugelModel
-        $ set #errors [] model
+reEvaluate f model@Model{evalThreadId, fuelLimit}
+    = ( set #evalThreadId Nothing
+        $ partialFromFrugelModel (Only initialFuelLimit)
+                                 fuelLimit
+                                 newFrugelModel
       , \sink -> do
             traverse_ killThread evalThreadId
             threadId <- myThreadId
             sink . ModifyModel $ set #evalThreadId (Just threadId)
-            let newModel@Model{errors} = unsafeFromFrugelModel newFrugelModel
+            let newModel@Model{errors}
+                    = unsafeFromFrugelModel fuelLimit newFrugelModel
             seq (length errors) . sink . ModifyModel $ const newModel -- force errors to force all expressions
       )
   where
-    newFrugelModel = f $ toFrugelModel model
+    newFrugelModel = f . set #errors [] $ toFrugelModel model

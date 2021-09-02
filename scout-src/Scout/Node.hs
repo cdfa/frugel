@@ -175,8 +175,6 @@ sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
 evalTest :: CstrSite
 evalTest
-    -- = toCstrSite [ Left "(\\k = k(\\p = p(\\a = \\b = \\g = g(\\f = \\x = f(a f x))(\\f = a(b f))))(\\g = g(\\h = h)(\\h = h))(\\a = \\b = b)) 1 \n\
-
     = toCstrSite [ Left "fact2 (succ (succ 1)) \n\
                         \  where\n\
                         \    i = \\x = x\n\
@@ -194,5 +192,6 @@ evalTest
                         \    Y = \\f = (\\x = f (x x))(\\x = f(x x))\n\
                         \    fact = Y(\\f = \\n = (is0 n) 1 (mul n (f (pred n))))\n\
                         \    fact2 = \\n = (is0 n) 1 (mul n (fact3 (pred n)))\n\
-                        \    fact3 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))"
+                        \    fact3 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))\n\
+                        \    infiniteRecursion = infiniteRecursion"
                  ]

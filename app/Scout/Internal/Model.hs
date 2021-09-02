@@ -20,6 +20,7 @@ data Model
             , errors :: [Error]
             , evaluated :: Program
             , evalThreadId :: Maybe ThreadId
+            , fuelLimit :: Int
             }
     deriving ( Show, Eq )
 

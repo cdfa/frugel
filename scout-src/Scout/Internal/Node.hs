@@ -14,6 +14,7 @@
 
 module Scout.Internal.Node where
 
+import Control.Limited
 import Control.Monad.Writer         ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
@@ -86,7 +87,8 @@ type instance NodeOf Decl = Node
 
 type instance NodeOf WhereClause = Node
 
-type ReifiedFunction = ScopedEvaluation Expr -> ScopedEvaluation Expr
+type ReifiedFunction
+    = ScopedEvaluation Expr -> (LimiterT ScopedEvaluation) Expr
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
@@ -96,6 +98,7 @@ data EvaluationError
     = TypeError TypeError
     | UnboundVariableError Identifier
     | ConflictingDefinitionsError Identifier
+    | OutOfFuelError Expr
     deriving ( Eq, Show, Ord, Data )
 
 data TypeError = TypeMismatchError ExpectedType Expr
@@ -235,13 +238,15 @@ instance DisplayProjection EvaluationError where
         TypeError e -> "Type error:" <+> renderDoc e
         UnboundVariableError name -> pretty name <+> "was not defined"
         ConflictingDefinitionsError name ->
-            pretty name <+> "was defined multiple times in a where clause"
+            pretty name <+> "was defined multiple times in a the same scope"
+        OutOfFuelError expr -> "Ran out of fuel when calculating:"
+            `nestingLine` annotateComplete (renderDoc expr)
 
 instance DisplayProjection TypeError where
     renderDoc (TypeMismatchError expected expr)
         = "Expected type"
         <+> pretty expected <> line <> "does not match"
-        <+> renderDoc expr
+        <+> annotateComplete (renderDoc expr)
 
 instance Pretty ExpectedType where
     pretty = viaShow
