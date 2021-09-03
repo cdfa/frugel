@@ -14,8 +14,7 @@ import Scout.Action
 import qualified Scout.Internal.Model
 import Scout.Model
 
-import Text.Show.Pretty ( ppShow )
-
+-- import Text.Show.Pretty ( ppShow )
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
 viewModel model
@@ -26,9 +25,9 @@ viewModel model
                    [ [ instructionsView, editorView model, errorsView model ]
                    , [ evaluatedView model ]
                    ]
-           , webPrint $ ppShow model
            ]
 
+        --    , webPrint $ ppShow model
 bulmaStyleSheet :: View action
 bulmaStyleSheet
     = link_ [ rel_ "stylesheet"
