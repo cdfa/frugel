@@ -22,7 +22,7 @@ import Control.ValidEnumerable.Whitespace
 
 import Data.Alphanumeric
 import Data.Composition
-import Data.Data
+import Data.Data                    ( Data )
 import Data.GenValidity
 import Data.GenValidity.Sequence    ()
 import Data.Has
@@ -33,11 +33,12 @@ import Data.Text.Optics
 import Data.Validity.Sequence       ()
 
 import Frugel
-import Frugel.DisplayProjection     as DisplayProjection
 
 import Numeric.Optics
 
 import Optics.Extra
+
+import PrettyPrinting.Expr
 
 import Scout.Internal.Meta          ( ExprMeta(standardMeta) )
 import qualified Scout.Internal.Meta
@@ -215,23 +216,13 @@ instance DisplayProjection Node where
     renderDoc (DeclNode decl) = renderDoc decl
     renderDoc (WhereNode whereClause) = renderDoc whereClause
 
-instance DisplayProjection Expr where
-    renderDoc e
-        = if e ^. exprMeta % #standardMeta % #elided
-          then DisplayProjection.annotate Elided "<ExprNode>"
-          else defaultRenderDoc e
+-- At the moment, `renderDoc e` will not place additional parentheses to ensure the rendered program reflects the AST according to the grammar and associativity/fixity of the operators
+-- This functionality could be copied from the pretty printing definition if needed
+instance DisplayProjection Expr
 
-instance DisplayProjection Decl where
-    renderDoc decl
-        = if decl ^. declMeta % #elided
-          then DisplayProjection.annotate Elided "<DeclNode>"
-          else defaultRenderDoc decl
+instance DisplayProjection Decl
 
-instance DisplayProjection WhereClause where
-    renderDoc whereClause
-        = if whereClause ^. whereClauseMeta % #elided
-          then DisplayProjection.annotate Elided "<WhereClauseNode>"
-          else defaultRenderDoc whereClause
+instance DisplayProjection WhereClause
 
 instance DisplayProjection EvaluationError where
     renderDoc = \case
@@ -239,7 +230,7 @@ instance DisplayProjection EvaluationError where
         UnboundVariableError name -> pretty name <+> "was not defined"
         ConflictingDefinitionsError name ->
             pretty name <+> "was defined multiple times in a the same scope"
-        OutOfFuelError expr -> "Ran out of fuel when calculating:"
+        OutOfFuelError expr -> "Ran out of fuel when evaluating:"
             `nestingLine` annotateComplete (renderDoc expr)
 
 instance DisplayProjection TypeError where
@@ -359,14 +350,27 @@ whitespaceFragmentTraverser selector mapChar
                   % castOptic @An_AffineTraversal selector)
                  (unpacked % traversed %%~ mapChar)
 
-parenthesizeExpr :: (a -> a) -> (Expr -> a) -> Expr -> a
-parenthesizeExpr parenthesize prettyExpr x
-    | x ^. exprMeta % #parenthesisLevels > 0
-        = parenthesize
-        $ parenthesizeExpr parenthesize
-                           prettyExpr
-                           (x & exprMeta % #parenthesisLevels -~ 1)
-parenthesizeExpr _ prettyExpr x = prettyExpr x
+-- Note that expressions may have the precedence of literals when parenthesized
+instance Expression Expr where
+    precedence Abstraction{} = 3
+    precedence Application{} = 2
+    precedence Sum{} = 1
+    precedence Variable{} = 0
+    precedence ExprCstrSite{} = 0
+    fixity Abstraction{} = Just Prefix
+    fixity Application{} = Just Infix
+    fixity Sum{} = Just Infix
+    fixity Variable{} = Nothing
+    fixity ExprCstrSite{} = Nothing
+
+parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
+parenthesizeExprFromMeta parenthesize prettyExpr x
+    | parenthesisLevels > 0
+        = nTimes parenthesisLevels parenthesize
+        $ prettyExpr (x & exprMeta % #parenthesisLevels .~ 0)
+  where
+    parenthesisLevels = x ^. exprMeta % #parenthesisLevels
+parenthesizeExprFromMeta _ prettyExpr x = prettyExpr x
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int

@@ -5,6 +5,7 @@ module Scout.Program
     , program'
     , programMeta
     , programCstrSite'
+    , unsafePrettyProgram
     ) where
 
 import Scout.Internal.Program

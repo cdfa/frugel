@@ -36,8 +36,8 @@ isEmptyTree = \case
     Annotated _ trees -> all isEmptyTree trees
     _ -> False
 
-renderSmart :: SimpleDocStream Annotation -> [View action]
-renderSmart
+renderDocStream :: SimpleDocStream Annotation -> [View action]
+renderDocStream
     = renderTrees
     . annotationTreeForm
     . splitMultiLineAnnotations

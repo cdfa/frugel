@@ -44,7 +44,7 @@ data Meta
     = Meta { interstitialWhitespace :: [Text] -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
              -- If elided == True, the node with this metadata may not have been processed by a previous operation and a dummy result should be used
              -- The various node type should really be made parametric using hypertypes (https://github.com/lamdu/hypertypes), but there are higher priority tasks atm.
-             -- ATM this is only set to true by evaluation
+             -- ATM this is only set to true by evaluation and obeyed by pretty printing (not standard rendering)
            , elided :: Bool
            }
     deriving ( Eq, Ord, Show, Generic, Data )

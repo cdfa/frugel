@@ -2,10 +2,9 @@
 
 module Scout.Model ( module Scout.Model, Model(Model) ) where
 
-import Data.MultiSet   hiding ( map )
+import Data.MultiSet  hiding ( map )
 
 import qualified Frugel
-import Frugel.PrettyPrinting
 
 import Optics.Extra
 
@@ -38,9 +37,7 @@ partialFromFrugelModel fuel fuelLimit Frugel.Model{..}
             , ..
             }
   where
-    (evaluated, evalErrors)
-        = first (fst . Frugel.PrettyPrinting.prettyPrint) . runEval fuel
-        $ evalProgram program
+    (evaluated, evalErrors) = runEval fuel $ evalProgram program
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
 updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->

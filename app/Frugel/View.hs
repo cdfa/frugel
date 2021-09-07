@@ -10,6 +10,7 @@ import Frugel.View.Rendering
 import Miso            hiding ( model )
 import qualified Miso.String
 
+import Scout
 import Scout.Action
 import qualified Scout.Internal.Model
 import Scout.Model
@@ -49,7 +50,7 @@ instructionsView
 editorView :: Model -> View Action
 editorView Model{..}
     = codeRoot [ class_ "block" ]
-    . renderSmart
+    . renderDocStream
     . insertCursor cursorOffset
     . layoutPretty defaultLayoutOptions
     $ renderDoc program
@@ -58,7 +59,7 @@ errorsView :: Model -> View action
 errorsView Model{..}
     = div_ [] . conditionalViews (not $ null errors)
     $ map (pre_ [ class_ "box has-background-danger-light" ]
-           . renderSmart
+           . renderDocStream
            . layoutSmart defaultLayoutOptions
            . renderDoc)
           errors
@@ -74,9 +75,10 @@ evaluatedView Model{..}
                ]
         , div_ [ class_ "card-content" ]
                [ div_ [ class_ "content" ]
-                 . renderSmart
+                 . renderDocStream
+                 . reAnnotateS toStandardAnnotation
                  . layoutPretty defaultLayoutOptions
-                 $ renderDoc evaluated
+                 $ unsafePrettyProgram evaluated -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
                ]
         ]
 

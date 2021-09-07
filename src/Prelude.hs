@@ -51,6 +51,12 @@ lift2 = lift . lift
 writer' :: MonadWriter w m => a -> w -> m a
 writer' = curry writer
 
+-- From https://hackage.haskell.org/package/utility-ht-0.0.16/docs/src/Data.Function.HT.Private.html#nest
+{-# INLINE nTimes #-}
+nTimes :: Int -> (a -> a) -> a -> a
+nTimes 0 _ x = x
+nTimes n f x = f (nTimes (n - 1) f x)
+
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
 concatBy :: Monoid b => (a -> Maybe b) -> (b -> a) -> [a] -> [a]

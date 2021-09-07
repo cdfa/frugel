@@ -142,10 +142,14 @@ instance PrettyPrint Program where
         . layoutSmart defaultLayoutOptions
         $ unsafePrettyProgram program
       where
-        removeRootCstrSiteAnnotation (STAnn (_, InConstruction) subTree)
+        removeRootCstrSiteAnnotation
+            (STAnn (CompletionAnnotation' _ InConstruction) subTree)
             | ProgramCstrSite{} <- program = subTree
         removeRootCstrSiteAnnotation docTree = docTree
-        renderAnnotation (n, _) cstrSite = one . Right $ setCstrSite cstrSite n
+        renderAnnotation (CompletionAnnotation' n _) cstrSite
+            = one . Right $ setCstrSite cstrSite n
+        renderAnnotation Elided' _
+            = error "Encountered elided node when attempting to render a pretty printed program for reparsing"
         reparse :: forall n.
             (Node ~ NodeOf n, Data n, Decomposable n)
             => Parser n
