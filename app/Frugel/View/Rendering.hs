@@ -15,8 +15,8 @@ import Prelude                           hiding ( lines )
 
 import Prettyprinter.Render.Util.SimpleDocTree
 
-data DocTextTree ann
-    = TextLeaf Text | LineLeaf | Annotated ann [DocTextTree ann]
+data DocTextTree
+    = TextLeaf Text | LineLeaf | Annotated Annotation [DocTextTree]
     deriving ( Show, Eq )
 
 data AnnotationTree = Leaf Text | Node Annotation [AnnotationTree]
@@ -27,7 +27,7 @@ makePrisms ''DocTextTree
 
 makePrisms ''Line
 
-isEmptyTree :: DocTextTree Annotation -> Bool
+isEmptyTree :: DocTextTree -> Bool
 isEmptyTree = \case
     TextLeaf "" -> True
     Annotated Cursor _ -> False
@@ -36,6 +36,8 @@ isEmptyTree = \case
     Annotated _ trees -> all isEmptyTree trees
     _ -> False
 
+-- instead of rendering to a SimpleDocStream and converting back to a tree with `treeForm`, `renderDoc` could be made to produce DocTextTree's directly, which would speed up rendering a bit
+-- it would also be simpler (and probably faster) to intersperse additional SAnnPop's and SAnnPush's around SLine's using a renderFunction which counts annotation levels instead of what `splitMultiLineAnnotations` does
 renderDocStream :: SimpleDocStream Annotation -> [View action]
 renderDocStream
     = renderTrees
@@ -45,7 +47,7 @@ renderDocStream
     . textTreeForm
     . treeForm
 
-textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
+textTreeForm :: SimpleDocTree Annotation -> [DocTextTree]
 textTreeForm = \case
     STEmpty -> one $ TextLeaf ""
     STChar '\n' -> one LineLeaf -- Normally, there would be no newlines in STChar, but these are explicitly inserted by renderCstrSite' to prevent insertion of extra whitespace when pretty printing construction sites which are `nest`ed
@@ -55,13 +57,12 @@ textTreeForm = \case
     STAnn ann content -> one . Annotated ann $ textTreeForm content
     STConcat contents -> concatMap textTreeForm contents
 
-textLeavesConcat :: [DocTextTree ann] -> [DocTextTree ann]
+textLeavesConcat :: [DocTextTree] -> [DocTextTree]
 textLeavesConcat
     = over (mapped % _Annotated % _2)
            (textLeavesConcat . concatByPrism _TextLeaf)
 
-splitMultiLineAnnotations
-    :: [DocTextTree Annotation] -> [DocTextTree Annotation]
+splitMultiLineAnnotations :: [DocTextTree] -> [DocTextTree]
 splitMultiLineAnnotations = foldMap $ \case
     TextLeaf t -> [ TextLeaf t ]
     LineLeaf -> [ LineLeaf ]
@@ -82,7 +83,7 @@ splitMultiLineAnnotations = foldMap $ \case
     reAnnotateTrees completionStatus treeLines
         = map (Annotated $ CompletionAnnotation completionStatus) treeLines -- length treeLines <= 1
 
-annotationTreeForm :: [DocTextTree Annotation] -> [Line]
+annotationTreeForm :: [DocTextTree] -> [Line]
 annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
   where
     transform = \case
