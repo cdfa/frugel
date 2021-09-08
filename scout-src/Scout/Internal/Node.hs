@@ -224,24 +224,6 @@ instance DisplayProjection Decl
 
 instance DisplayProjection WhereClause
 
-instance DisplayProjection EvaluationError where
-    renderDoc = \case
-        TypeError e -> "Type error:" <+> renderDoc e
-        UnboundVariableError name -> pretty name <+> "was not defined"
-        ConflictingDefinitionsError name ->
-            pretty name <+> "was defined multiple times in a the same scope"
-        OutOfFuelError expr -> "Ran out of fuel when evaluating:"
-            `nestingLine` annotateComplete (renderDoc expr)
-
-instance DisplayProjection TypeError where
-    renderDoc (TypeMismatchError expected expr)
-        = "Expected type"
-        <+> pretty expected <> line <> "does not match"
-        <+> annotateComplete (renderDoc expr)
-
-instance Pretty ExpectedType where
-    pretty = viaShow
-
 instance Decomposable Node where
     traverseComponents mapChar mapNode = \case
         ExprNode expr -> ExprNode <$> traverseComponents mapChar mapNode expr

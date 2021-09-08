@@ -9,3 +9,4 @@ module Scout.Program
     ) where
 
 import Scout.Internal.Program
+import Scout.Orphans.DisplayProjection ()
