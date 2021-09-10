@@ -31,6 +31,7 @@ ghc-options:
   - -Wredundant-constraints
   - -fhide-source-paths
   - -fno-show-valid-hole-fits # Until https://gitlab.haskell.org/ghc/ghc/-/issues/16875 is resolved
+  - -j
 
 default-extensions:
   - OverloadedStrings
