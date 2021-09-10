@@ -106,9 +106,7 @@ executables:
     ghc-options:
       - -threaded
       - -rtsopts
-      - +RTS
-      - -N
-      - -RTS
+      - -with-rtsopts=-N
       - -feager-blackholing
     dependencies:
       - frugel
