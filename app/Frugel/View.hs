@@ -1,5 +1,5 @@
-
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Frugel.View where
 
@@ -7,8 +7,10 @@ import Frugel          hiding ( Model(..) )
 import Frugel.View.Elements
 import Frugel.View.Rendering
 
-import Miso            hiding ( model )
-import qualified Miso.String
+import Miso            hiding ( model, set, view )
+import qualified Miso.String as Miso
+
+import Optics.Extra
 
 import Scout
 import Scout.Action
@@ -19,14 +21,16 @@ import Scout.Model
 -- Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
 viewModel model
-    = div_ [ codeStyle, class_ "has-background-white-bis" ]
-           [ bulmaStyleSheet
-           , div_ [ class_ "columns" ]
-             $ map (div_ [ class_ "column" ])
-                   [ [ instructionsView, editorView model, errorsView model ]
-                   , [ evaluatedView model ]
-                   ]
-           ]
+    = div_
+        [ codeStyle, class_ "has-background-white-bis" ]
+        [ bulmaStyleSheet
+        , div_ [ class_ "columns" ]
+          $ map
+              (div_ [ class_ "column" ])
+              [ [ instructionsView model, editorView model, errorsView model ]
+              , [ evaluatedView model ]
+              ]
+        ]
 
         --    , webPrint $ ppShow model
 bulmaStyleSheet :: View action
@@ -35,10 +39,18 @@ bulmaStyleSheet
             , href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
             ]
 
-instructionsView :: View Action
-instructionsView
+instructionsView :: Model -> View Action
+instructionsView Model{..}
     = div_ [ class_ "box" ]
            [ text "Type as usual, use arrow keys to move"
+           , br_ []
+           , text "Fuel limit for evaluation following each keystroke "
+           , input_ [ type_ "number"
+                    , value_ $ Miso.ms $ show @String fuelLimit
+                    , onChange (\value -> ModifyModel
+                                    (maybe id (set #fuelLimit) . readMaybe
+                                     $ Miso.fromMisoString value))
+                    ]
            , div_ [ class_ "buttons" ]
                   [ button_ [ onClick PrettyPrint, class_ "button" ]
                             [ text "Format" ]
@@ -82,8 +94,8 @@ evaluatedView Model{..}
                ]
         ]
 
-webPrint :: Miso.String.ToMisoString a => a -> View action
-webPrint x = pre_ [] [ text $ Miso.String.ms x ]
+webPrint :: Miso.ToMisoString a => a -> View action
+webPrint x = pre_ [] [ text $ Miso.ms x ]
 
 insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation
 insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
