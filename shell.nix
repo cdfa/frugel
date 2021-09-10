@@ -12,10 +12,10 @@ let
   reload-script = stablePkgs.writeShellScriptBin "reload" ''
     ${stablePkgs.ghcid}/bin/ghcid -c '\
         ${stablePkgs.stack}/bin/stack repl\
-        --ghci-options "-fdefer-type-errors -Wno-all +RTS -N -RTS"\
+        --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
         '\
         --restart=package.yaml\
-        -T 'Main.main'
+        -r -W
   '';
 
   floskell = stablePkgs.haskellPackages.floskell;
