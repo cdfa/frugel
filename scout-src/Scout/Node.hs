@@ -30,6 +30,7 @@ module Scout.Node
     , _WhereCstrSite
     , _WhereNode
     , ScopedEvaluation
+    , EvaluationOutput(EvaluationOutput)
     , EvaluationError(..)
     , TypeError(..)
     , ExpectedType(..)
@@ -55,7 +56,7 @@ import Data.Sequence ( spanl, spanr )
 
 import Frugel.CstrSite
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import qualified Relude.Unsafe as Unsafe
 

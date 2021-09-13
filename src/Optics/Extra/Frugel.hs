@@ -1,15 +1,12 @@
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Optics.Extra
+module Optics.Extra.Frugel
     ( module Optics
-    , module Optics.Extra
+    , module Optics.Extra.Frugel
     , module Optics.State.Operators
     , module Optics.Applicative
     ) where
@@ -25,28 +22,6 @@ infixr 4 %%~, +~, -~, %@~
 infix 4 +=, -=
 
 infixl 4 <$^>
-
--- Can't use tuple directly, because GHC can't do impredicative types yet
--- data instead of newtype because of existential quantification
-data Traverser' f k is s = forall a. Traverser' (Optic' k is s a) (a -> f a)
-
-newtype Disjoint a = Disjoint { unDisjoint :: [a] }
-
-chainDisJoint :: (Applicative f, Is k A_Setter, Is k An_AffineFold)
-    => n
-    -> Disjoint (Traverser' f k is n)
-    -> f n
-chainDisJoint s = foldr foldOp (pure s) . unDisjoint
-  where
-    foldOp (Traverser' optic f) s' = maybe s' setComponent $ preview optic s
-      where
-        setComponent component = set optic <$> f component <*> s'
-
-concatByPrism :: (Is k An_AffineFold, Is k A_Review, Monoid a)
-    => Optic' k is s a
-    -> [s]
-    -> [s]
-concatByPrism p = concatBy (preview p) (review p)
 
 (+~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l +~ n = over l (+ n)

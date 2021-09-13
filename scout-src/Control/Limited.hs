@@ -31,7 +31,7 @@ data Limit = Infinity | Only Int
     deriving ( Show, Eq )
 
 newtype LimiterT m a = LimiterT { unLimiterT :: ReaderT Limit m a }
-    deriving ( Functor, Applicative, Monad, MonadTrans )
+    deriving ( Functor, Applicative, Monad, MonadTrans, MonadFix )
 
 type Limiter = LimiterT Identity
 

@@ -10,7 +10,7 @@ import Frugel.View.Rendering
 import Miso            hiding ( model, set, view )
 import qualified Miso.String as Miso
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout
 import Scout.Action

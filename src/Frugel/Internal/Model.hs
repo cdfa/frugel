@@ -11,7 +11,7 @@ module Frugel.Internal.Model where
 
 import Frugel.Error
 
-import Optics.Extra
+import Optics
 
 data Model p = Model { cursorOffset :: Int, program :: p, errors :: [Error p] }
 

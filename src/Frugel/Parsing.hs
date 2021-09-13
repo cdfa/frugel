@@ -17,7 +17,7 @@ import Data.Set.Optics
 import Frugel.CstrSite
 import Frugel.Decomposition
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 class Ord (ParseErrorOf p) => Parseable p where
     type ParserOf p :: * -> *

@@ -6,7 +6,7 @@ import Data.MultiSet  hiding ( map )
 
 import qualified Frugel
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout
 import Scout.Internal.Model

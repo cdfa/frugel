@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -12,7 +10,7 @@ import Data.Char
 import Data.Has
 import qualified Data.Set as Set
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout.Node
 

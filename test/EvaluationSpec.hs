@@ -3,6 +3,8 @@ module EvaluationSpec ( spec ) where
 import Data.Data
 import Data.MultiSet hiding ( fromList )
 
+import Prelude hiding ( one )
+
 import Scout
 
 import Test.Syd
@@ -32,6 +34,7 @@ spec = describe "Evaluation" $ do
     expectedIntSpec
     unBoundVariableSpec
     cstrSiteSpec
+    substitutionCaptureAvoidanceSpec
 
 -- Simple test
 simpleEvalSpec :: Spec
@@ -143,3 +146,13 @@ cstrSiteSpec
                , fromOccurList
                      [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
                )
+
+substitutionCaptureAvoidanceSpec :: Spec
+substitutionCaptureAvoidanceSpec
+    = it "renames variables to prevent them being incorrectly captured when substituted into an abstraction normal form"
+    $ runEval' (evalExpr $ application' (one "f") (one "f"))
+    `shouldBe` (one "x1", mempty)
+  where
+    one fName
+        = unsafeAbstraction fName . unsafeAbstraction "x"
+        $ application' (unsafeVariable fName) (unsafeVariable "x")

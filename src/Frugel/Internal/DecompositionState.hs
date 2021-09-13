@@ -18,7 +18,7 @@ module Frugel.Internal.DecompositionState
     , _Success
     ) where
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 data ModificationStatus = Todo | Success
     deriving ( Show )

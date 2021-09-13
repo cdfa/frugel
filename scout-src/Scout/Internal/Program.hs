@@ -35,7 +35,7 @@ import Frugel
 import Frugel.Decomposition
 import Frugel.PrettyPrinting
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Prettyprinter.Render.Util.SimpleDocTree
 

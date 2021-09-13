@@ -27,7 +27,7 @@ import qualified Data.Text          as Text
 import Data.Validity.Extra
 import Data.Validity.Text           ()
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import qualified Relude.Unsafe      as Unsafe
 

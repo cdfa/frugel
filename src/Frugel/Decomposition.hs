@@ -22,7 +22,7 @@ import Frugel.CstrSite
 import Frugel.Error.InternalError
 import Frugel.Internal.DecompositionState
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
     -- Preserves node when cursor is at start or end. Primarily useful for nodes starting or ending with a character (e.g. lambda and parenthesis).

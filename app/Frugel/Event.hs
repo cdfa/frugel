@@ -16,7 +16,7 @@ import Frugel
 import Miso         ( Attribute, Options(..), defaultOptions, onWithOptions )
 import Miso.Event.Decoder hiding ( keyInfoDecoder )
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout.Action
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -15,14 +16,17 @@ import Data.Data
 import Data.Data.Lens
 import Data.Hidden
 import qualified Data.Map as Map
+import qualified Data.Map.Monoidal as Map.Monoidal
 import Data.MultiSet    ( MultiSet )
 import qualified Data.MultiSet as MultiSet
+import Data.Semigroup   ( Max(..) )
 
 import Frugel           hiding ( group )
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Relude           ( group )
+import qualified Relude.Unsafe as Unsafe
 
 import qualified Scout.Internal.Node
 import qualified Scout.Internal.Program
@@ -34,7 +38,8 @@ import Scout.Program
 type Evaluation = ReaderT EvaluationEnv (LimiterT ScopedEvaluation)
 
 -- Carries Evaluation to be preserve laziness of evaluation
-type EvaluationEnv = Map Identifier (Maybe (ScopedEvaluation Expr))
+-- Map also stores number of times an argument is shadowed for normalising (\f x -> f x)(\f x -> f x) to \x1 x -> x1 x
+type EvaluationEnv = Map Identifier (Either (ScopedEvaluation Expr) Int)
 
 evalCstrSite :: CstrSite -> Evaluation (EvaluationEnv, CstrSite)
 evalCstrSite cstrSite = do
@@ -57,13 +62,16 @@ evalCstrSite cstrSite = do
 
 -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
 evalExpr :: Expr -> Evaluation Expr
-evalExpr v@(Variable _ identifier) = do
+evalExpr v@(Variable meta identifier) = do
     valueBinding <- asks $ Map.lookup identifier
     case valueBinding of
-        Nothing -> writer' (singleExprNodeCstrSite v) . MultiSet.singleton
+        Nothing -> writerFragment' #errors (singleExprNodeCstrSite v)
+            . MultiSet.singleton
             $ UnboundVariableError identifier
-        Just Nothing -> pure v
-        Just (Just value) -> lift2 value
+        -- It's important that `i` is not yet inspected until after `pure`, because it's dependent on any binders that might be reported and evaluation will diverge (also due to mdo at Abstraction case)
+        Just (Right i) ->
+            pure . Variable meta $ numberedIdentifier identifier i
+        Just (Left value) -> lift2 value
 evalExpr (Application meta f x) = do
     -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
     (ef, errors) <- mapReaderT (mapLimiterT (pure . runWriter)) $ evalExpr f
@@ -74,7 +82,9 @@ evalExpr (Application meta f x) = do
             _ -> draw successfulApplication >>= maybe applicationStub pure
           where
             applicationStub
-                = writer' placeholder . MultiSet.singleton . OutOfFuelError
+                = writerFragment' #errors placeholder
+                . MultiSet.singleton
+                . OutOfFuelError
                 $ Application meta ef x
             placeholder
                 = exprCstrSite'
@@ -86,11 +96,17 @@ evalExpr (Application meta f x) = do
         _ -> do
             tell errors
             Application meta <$> reportAnyTypeErrors Function ef <*> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
-evalExpr (Abstraction meta n e) = do
-    reifiedFunction <- asks $ \env x -> usingReaderT (Map.insert n (Just x) env)
+evalExpr (Abstraction meta n e) = mdo
+    reifiedFunction <- asks $ \env x -> usingReaderT (Map.insert n (Left x) env)
         $ evalExpr e
-    Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
-        <$> local (Map.insert n Nothing) (evalExpr e) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
+    (ex, Max i) <- listening (#binders % at n % to (fromMaybe 0))
+        . local (Map.insert n $ Right i) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
+        $ evalExpr e
+    tellFragment #binders . Map.Monoidal.singleton n . Max $ succ i
+    pure
+        $ Abstraction (meta & #reified ?~ Hidden reifiedFunction)
+                      (numberedIdentifier n i)
+                      ex
 -- evalExpr i@(LitN _) = pure i
 evalExpr (Sum meta x y) = do
     ex <- evalExpr x
@@ -111,7 +127,8 @@ evalWhereClause (WhereCstrSite meta cstrSite)
 
 evalScope :: Foldable t => t Decl -> Evaluation EvaluationEnv
 evalScope decls = do
-    tell . MultiSet.fromList $ map ConflictingDefinitionsError repeated
+    tellFragment #errors . MultiSet.fromList
+        $ map ConflictingDefinitionsError repeated
     newEnv <- asks computeNewEnv
     fuel <- askLimit
     pure $ usingLimiter fuel newEnv
@@ -127,19 +144,21 @@ evalScope decls = do
                 evalExpr'
                 (fromList (decls ^.. folded % ((,) <$^> #name <*^> #value)))
         evalExpr' e
-            = fromMaybe (Just evaluationStub) <$> draw successfulEvaluation
+            = fromMaybe (Left evaluationStub) <$> draw successfulEvaluation
           where
             successfulEvaluation = do
                 iteratedEnv <- newEnv
                 fuel <- askLimit
                 pure
                     . Limited
-                    . Just
+                    . Left
                     . usingLimiterT fuel
                     . usingReaderT iteratedEnv
                     $ evalExpr e
             evaluationStub
-                = writer' (exprCstrSite' $ fromList [ Right $ ExprNode e ])
+                = writerFragment'
+                    #errors
+                    (exprCstrSite' $ fromList [ Right $ ExprNode e ])
                 . MultiSet.singleton
                 $ OutOfFuelError e
 
@@ -160,21 +179,21 @@ evalProgram program = case program of
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
 runEval :: Data a => Limit -> Evaluation a -> (a, MultiSet EvaluationError)
 runEval fuel
-    = transformOnOf (template @_ @Expr)
+    = second (view #errors)
+    . transformOnOf (template @_ @Expr)
                     uniplate
                     (_Abstraction % _1 % #reified .~ Nothing)
     . runWriter
     . usingLimiterT fuel
     . usingReaderT mempty
 
-reportAnyTypeErrors :: MonadWriter (MultiSet EvaluationError) f
-    => ExpectedType
-    -> Expr
-    -> f Expr
+reportAnyTypeErrors
+    :: MonadWriter EvaluationOutput f => ExpectedType -> Expr -> f Expr
 reportAnyTypeErrors expectedType e
-    = maybe
-        (pure e)
-        (writer' (singleExprNodeCstrSite e) . MultiSet.singleton . TypeError)
+    = maybe (pure e)
+            (writerFragment' #errors (singleExprNodeCstrSite e)
+             . MultiSet.singleton
+             . TypeError)
     $ typeCheck e expectedType
 
 typeCheck :: Expr -> ExpectedType -> Maybe TypeError
@@ -186,3 +205,8 @@ typeCheck e expectedType = case (e, expectedType) of
     -- (LitN{}, Integer) -> Nothing
     (Sum{}, Integer) -> Nothing
     _ -> Just $ TypeMismatchError expectedType e
+
+numberedIdentifier :: Identifier -> Int -> Identifier
+numberedIdentifier identifier 0 = identifier
+numberedIdentifier identifier i
+    = identifier <> Unsafe.fromJust (identifier' $ show i) -- safe because i is integer

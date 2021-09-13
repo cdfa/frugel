@@ -16,7 +16,7 @@ import Frugel.CstrSite
 import Frugel.Decomposition
 import Frugel.Error.InternalError
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 import Prettyprinter
 import Prettyprinter.Internal.Type ( Doc(Char) )

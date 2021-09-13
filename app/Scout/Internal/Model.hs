@@ -10,7 +10,7 @@ module Scout.Internal.Model where
 
 import Control.Concurrent
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout
 

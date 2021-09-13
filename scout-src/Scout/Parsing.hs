@@ -12,7 +12,7 @@ module Scout.Parsing
 import Control.Monad.Combinators.Expr
 import Control.Monad.Combinators.NonEmpty
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Prelude                      hiding ( some )
 

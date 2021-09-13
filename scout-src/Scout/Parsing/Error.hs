@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 
 import Frugel.DisplayProjection
 
-import Optics.Extra
+import Optics
 
 import Scout.Node
 

@@ -12,7 +12,7 @@ module Control.Zipper.Seq where
 
 import qualified Data.Sequence as Seq
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 data SeqZipper a = SeqZipper { reversedPrefix :: Seq a, suffix :: Seq a }
     deriving ( Eq )

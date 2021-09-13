@@ -21,7 +21,7 @@ import Language.Javascript.JSaddle.Warp as JSaddle
 import Miso                       hiding ( model, node, set, view )
 import qualified Miso
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout
 import Scout.Action

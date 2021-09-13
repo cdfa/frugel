@@ -68,6 +68,8 @@ library:
     - testing-feat
     - size-based
     - dictionary-sharing
+    - generic-data
+    - monoidal-containers
 
 
 internal-libraries:
@@ -78,7 +80,9 @@ internal-libraries:
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
     source-dirs: scout-src
-    exposed-modules: Scout
+    exposed-modules:
+      - Scout
+      - Optics.Extra.Scout
     dependencies:
       - frugel
       - megaparsec >= 9.0.1
@@ -99,6 +103,8 @@ internal-libraries:
       - genvalidity-containers
       - QuickCheck
       - size-based
+      - generic-data
+      - monoidal-containers
 
 executables:
   frugel-exe:

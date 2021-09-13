@@ -22,7 +22,7 @@ import Data.Data.Lens
 import Data.GenValidity
 import Data.GenValidity.Sequence ()
 
-import Optics.Extra
+import Optics
 
 import Test.QuickCheck.Gen
 

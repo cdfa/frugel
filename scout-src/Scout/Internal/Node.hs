@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -27,16 +29,20 @@ import Data.GenValidity
 import Data.GenValidity.Sequence    ()
 import Data.Has
 import Data.Hidden
+import Data.Map.Monoidal            ( MonoidalMap )
 import Data.MultiSet                ( MultiSet )
+import Data.Semigroup               ( Max )
 import qualified Data.Text          as Text
 import Data.Text.Optics
 import Data.Validity.Sequence       ()
 
 import Frugel
 
+import Generic.Data
+
 import Numeric.Optics
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import PrettyPrinting.Expr
 
@@ -53,6 +59,7 @@ data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
 
 newtype Identifier = Identifier (NonEmpty Alphanumeric)
     deriving ( Eq, Ord, Show, Generic, Data )
+    deriving newtype ( Semigroup )
 
 data Expr
     = Variable ExprMeta Identifier
@@ -93,7 +100,19 @@ type ReifiedFunction
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
-type ScopedEvaluation = Writer (MultiSet EvaluationError)
+type ScopedEvaluation = Writer EvaluationOutput
+
+data EvaluationOutput
+    = EvaluationOutput { errors :: MultiSet EvaluationError
+                       , binders :: MonoidalMap Identifier (Max Int)
+                       }
+    deriving ( Generic, Data )
+
+instance Semigroup EvaluationOutput where
+    (<>) = gmappend
+
+instance Monoid EvaluationOutput where
+    mempty = gmempty
 
 data EvaluationError
     = TypeError TypeError
@@ -121,6 +140,8 @@ makePrisms ''Expr
 makePrisms ''Decl
 
 makePrisms ''WhereClause
+
+makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput
 
 instance Has ExprMeta Expr where
     getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta

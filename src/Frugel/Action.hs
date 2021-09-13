@@ -30,7 +30,7 @@ import Frugel.Parsing
 import Frugel.PrettyPrinting hiding ( prettyPrint )
 import qualified Frugel.PrettyPrinting as PrettyPrinting
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 import Prettyprinter.Render.String
 
