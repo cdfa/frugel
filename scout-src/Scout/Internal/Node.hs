@@ -17,26 +17,27 @@
 module Scout.Internal.Node where
 
 import Control.Limited
-import Control.Monad.Writer         ( Writer )
+import Control.Monad.Writer      ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
-import Control.ValidEnumerable.Whitespace
 
 import Data.Alphanumeric
 import Data.Composition
-import Data.Data                    ( Data )
+import Data.Data                 ( Data )
 import Data.GenValidity
-import Data.GenValidity.Sequence    ()
+import Data.GenValidity.Sequence ()
 import Data.Has
 import Data.Hidden
-import Data.Map.Monoidal            ( MonoidalMap )
-import Data.MultiSet                ( MultiSet )
-import Data.Semigroup               ( Max )
-import qualified Data.Text          as Text
+import Data.Map.Monoidal         ( MonoidalMap )
+import Data.MultiSet             ( MultiSet )
+import Data.Semigroup            ( Max )
+import qualified Data.Text       as Text
 import Data.Text.Optics
-import Data.Validity.Sequence       ()
+import Data.Validity.Sequence    ()
+import Data.Whitespace
 
 import Frugel
+import Frugel.CstrSite.ValidEnumerable ()
 
 import Generic.Data
 
@@ -46,11 +47,11 @@ import Optics.Extra.Scout
 
 import PrettyPrinting.Expr
 
-import Scout.Internal.Meta          ( ExprMeta(standardMeta) )
+import Scout.Internal.Meta       ( ExprMeta(standardMeta) )
 import qualified Scout.Internal.Meta
 import Scout.Meta
 
-import Test.QuickCheck.Gen          as Gen
+import Test.QuickCheck.Gen       as Gen
 
 type CstrSite = ACstrSite Node
 

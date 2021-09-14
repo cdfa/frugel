@@ -14,17 +14,11 @@ module Frugel.CstrSite where
 
 import qualified Control.Lens as Lens
 import Control.Lens.Plated
-import Control.ValidEnumerable
 
-import Data.Composition
 import Data.Data
 import Data.Data.Lens
-import Data.GenValidity
-import Data.GenValidity.Sequence ()
 
 import Optics
-
-import Test.QuickCheck.Gen
 
 import Text.Megaparsec.Stream
 
@@ -54,18 +48,6 @@ instance Snoc (ACstrSite n) (ACstrSite n) (Either Char n) (Either Char n) where
     _Snoc = _CstrSite % _Snoc % swapped % aside (re _CstrSite) % swapped
 
 instance Eq n => AsEmpty (ACstrSite n)
-
-instance Validity n => Validity (ACstrSite n)
-
-instance (ValidEnumerable n, GenValid n) => GenValid (ACstrSite n) where
-    genValid = sized uniformValid
-    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
-
-instance ValidEnumerable n => ValidEnumerable (ACstrSite n) where
-    enumerateValid
-        = datatype [ splurge 6 $ pure $ fromList []
-                   , fromList .: (<|) <$> accessValid <*> accessValid
-                   ]
 
 -- concatCstrSite :: [CstrSite] -> CstrSite
 -- concatCstrSite = CstrSite . join . fromList . map (view _CstrSite)

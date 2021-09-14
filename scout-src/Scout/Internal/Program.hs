@@ -21,7 +21,6 @@ module Scout.Internal.Program where
 import qualified Control.Sized
 import Control.Sized                     ( aconcat )
 import Control.ValidEnumerable
-import Control.ValidEnumerable.Whitespace
 
 import Data.Composition
 import Data.Data
@@ -30,6 +29,7 @@ import Data.Has
 import Data.Sized
 import qualified Data.Text               as Text
 import Data.Text.Optics
+import Data.Whitespace
 
 import Frugel
 import Frugel.Decomposition

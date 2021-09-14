@@ -7,8 +7,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Data.Alphanumeric where
 
 import Control.Enumerable.Combinators as Enumerable
@@ -47,19 +45,6 @@ instance ValidEnumerable Alphanumeric where
     enumerateValid
         = share . pay . fmap Alphanumeric . Enumerable.elements
         $ [ '0' .. '9' ] ++ [ 'a' .. 'z' ] ++ [ 'A' .. 'Z' ]
-
--- Size of characters grows for unicode characters
--- because it would otherwise explode the number of possible values of any constructor taking it as an argument
--- and thus reduce the likelihood of generating other constructors to near 0.
-instance ValidEnumerable Char where
-    enumerateValid
-        = share
-        $ unAlphanumeric <$> accessValid
-        <|> aconcat (map (splurge 8)
-                         [ c0 ' '
-                         , c0 '\n'
-                         , inflation id (minBound :: Char) (pure succ)
-                         ])
 
 fromChar :: Char -> Maybe Alphanumeric
 fromChar = Alphanumeric <.> guarded isAlphaNum

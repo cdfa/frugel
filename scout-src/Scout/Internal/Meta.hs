@@ -16,20 +16,20 @@ module Scout.Internal.Meta where
 
 import Control.Sized
 import Control.ValidEnumerable
-import Control.ValidEnumerable.Whitespace
 
 import Data.Composition
 import Data.Data
 import Data.GenValidity
-import Data.GenValidity.Text        ()
+import Data.GenValidity.Text ()
 import Data.Has
-import qualified Data.Text          as Text
+import qualified Data.Text as Text
 import Data.Validity.Extra
-import Data.Validity.Text           ()
+import Data.Validity.Text ()
+import Data.Whitespace
 
 import Optics.Extra.Scout
 
-import qualified Relude.Unsafe      as Unsafe
+import qualified Relude.Unsafe as Unsafe
 
 import qualified Test.QuickCheck.Gen as QuickCheck
 
