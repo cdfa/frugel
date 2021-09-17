@@ -22,8 +22,9 @@ import Scout.Model
 viewModel :: Model -> View Action
 viewModel model
     = div_
-        [ codeStyle, class_ "has-background-white-bis" ]
-        [ bulmaStyleSheet
+        [ class_ "code has-background-white-bis" ]
+        [ styleSheet "bulma.min.css"
+        , styleSheet "style.css"
         , div_ [ class_ "columns" ]
           $ map
               (div_ [ class_ "column" ])
@@ -33,11 +34,8 @@ viewModel model
         ]
 
         --    , webPrint $ ppShow model
-bulmaStyleSheet :: View action
-bulmaStyleSheet
-    = link_ [ rel_ "stylesheet"
-            , href_ "bulma.min.css"
-            ]
+styleSheet :: Miso.MisoString -> View action
+styleSheet path = link_ [ rel_ "stylesheet", href_ path ]
 
 instructionsView :: Model -> View Action
 instructionsView Model{..}
@@ -61,7 +59,7 @@ instructionsView Model{..}
 
 editorView :: Model -> View Action
 editorView Model{..}
-    = codeRoot [ class_ "block" ]
+    = codeRoot []
     . renderDocStream
     . insertCursor cursorOffset
     . layoutPretty defaultLayoutOptions

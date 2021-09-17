@@ -21,7 +21,7 @@ import Data.Sequence        ( (><) )
 
 import GHC.Exts
 
-import Relude               hiding ( Sum, abs, group, span, toList )
+import Relude               hiding ( Sum, abs, group, toList )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>
