@@ -10,6 +10,7 @@ let
   reload-script = pkgs.writeShellScriptBin "reload" ''
     ${pkgs.ghcid}/bin/ghcid -c '\
         ${pkgs.stack}/bin/stack repl\
+        --only-main\
         --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
         '\
         --reload=www\
