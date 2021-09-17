@@ -38,7 +38,7 @@ setWhitespace (whitespaceFragments, a)
     & (hasLens @Meta @a % #interstitialWhitespace)
     .~ reverse whitespaceFragments
 
-infixl 4 <$%>, <$%, <*%>, <*%
+infixl 4 <$%>, <$%, <*%>, <*%, *%>
 
 (<$%>) :: Functor f => (a -> b) -> f a -> f (WithWhitespace b)
 (<$%>) f fa = second f . noWhitespace <$> fa

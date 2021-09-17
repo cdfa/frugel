@@ -95,5 +95,5 @@ decl = setWhitespace <$> literalDecl <|> declNode
 whereClause :: Parser WhereClause
 whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
   where
-    literalWhere = Node.whereClause' <<$>> string "where" *%> wSome decl
+    literalWhere = Node.whereClause' <<$>> (string "where" *%> wSome decl)
     whereNode = node "a where clause node"

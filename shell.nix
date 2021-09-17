@@ -1,8 +1,8 @@
-{ sources ? import ./nix/sources.nix {}
+{ sources ? import ./nix/sources.nix { }
 , ghc ? "ghc8107"
 }:
 let
-  haskellNix = import sources.haskellNix {};
+  haskellNix = import sources.haskellNix { };
   pkgs = import haskellNix.sources.nixpkgs-2105 haskellNix.nixpkgsArgs;
 
   hsPkgs = import ./base.nix { inherit sources ghc; };
@@ -42,6 +42,7 @@ hsPkgs.shellFor {
     cabal = "3.4.0.0";
     hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
     haskell-language-server = "latest";
+    stan = "latest";
   };
   buildInputs = [
     reload-script
