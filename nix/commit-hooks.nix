@@ -5,7 +5,7 @@
     name = "Floskell";
     description = "A flexible Haskell source code pretty printer.";
     entry = "${floskell}/bin/floskell";
-    files = "^(?!^src\\/Optics\\/External).*\\.l?hs$";
+    files = "\\.l?hs$";
   };
   floskellConfigChangeHook = {
     enable = false;
