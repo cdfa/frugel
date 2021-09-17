@@ -1,38 +1,14 @@
 {
-    "base-noprelude": {
+    "haskellNix": {
         "branch": "master",
-        "description": "All of `base` without the `Prelude` module",
-        "homepage": "http://hackage.haskell.org/package/base-noprelude",
-        "owner": "tek",
-        "repo": "base-noprelude",
-        "rev": "d6ad765adca25c2efb06110dae854113fe1cd733",
-        "sha256": "0ffv2i29q05p5jza2jl1jzrfg0z7z6fw4ix7ay4h4ppzkzakk0ib",
+        "description": "Alternative Haskell Infrastructure for Nixpkgs",
+        "homepage": "https://input-output-hk.github.io/haskell.nix",
+        "owner": "input-output-hk",
+        "repo": "haskell.nix",
+        "rev": "35b58bb882eb7d8f7a0d339e736a6de1dff08044",
+        "sha256": "06gqadccx2zdccqdx2wypp8s38h2a3hzc2q934mpl4mlaan8690z",
         "type": "tarball",
-        "url": "https://github.com/tek/base-noprelude/archive/d6ad765adca25c2efb06110dae854113fe1cd733.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "miso": {
-        "branch": "1.7.1",
-        "description": ":ramen: A tasty Haskell front-end framework",
-        "homepage": "https://haskell-miso.org",
-        "owner": "dmjio",
-        "repo": "miso",
-        "rev": "bb230192164f0532660aadb4175460740abfa2a2",
-        "sha256": "0q44lxzz8pp89ccaiw3iwczha8x2rxjwmgzkxj8cxm97ymsm0diy",
-        "type": "tarball",
-        "url": "https://github.com/dmjio/miso/archive/bb230192164f0532660aadb4175460740abfa2a2.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "nixpkgs": {
-        "branch": "nixos-21.05",
-        "description": "Nix Packages collection",
-        "homepage": "",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "d25ea6a0d2a847fb52131da546f2a866656fbafa",
-        "sha256": "0y2h71pvzrhc2svib4lwjl04hrzy8901ravvlyxlqdbal8hy3838",
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/d25ea6a0d2a847fb52131da546f2a866656fbafa.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/35b58bb882eb7d8f7a0d339e736a6de1dff08044.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pre-commit-hooks.nix": {

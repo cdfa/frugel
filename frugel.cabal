@@ -1,0 +1,207 @@
+cabal-version: 2.0
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           frugel
+version:        0.0.1
+description:    A frugal projectional editor for Live Programming
+homepage:       https://github.com/cdfa/frugel#readme
+bug-reports:    https://github.com/cdfa/frugel/issues
+author:         Colin de Roos
+maintainer:     colinderoos[at]gmail[dot]com
+copyright:      2021 Colin de Roos
+license:        GPL-3
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/cdfa/frugel
+
+library
+  exposed-modules:
+      Control.Zipper.Seq
+      Frugel
+      Frugel.Action
+      Frugel.CstrSite
+      Frugel.Decomposition
+      Frugel.DisplayProjection
+      Frugel.Error
+      Frugel.Error.InternalError
+      Frugel.Internal.DecompositionState
+      Frugel.Internal.Model
+      Frugel.Model
+      Frugel.Parsing
+      Frugel.PrettyPrinting
+      Optics.Applicative
+      Optics.Extra.Frugel
+      Prelude
+  other-modules:
+      Paths_frugel
+  hs-source-dirs:
+      src
+  default-extensions:
+      OverloadedStrings
+      OverloadedLabels
+      DisambiguateRecordFields
+      DeriveGeneric
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j
+  build-depends:
+      composition
+    , lens
+    , mtl
+    , optics >=0.4
+    , optics-vl >=0.2.1
+    , prettyprinter >=1.7.0
+    , relude >=1.0.0.0
+  if impl(ghcjs)
+    build-depends:
+        base-noprelude-ghcjs >=4.7 && <5
+  else
+    build-depends:
+        base-noprelude >=4.7 && <5
+  default-language: Haskell2010
+
+library scout
+  exposed-modules:
+      Control.Enumerable.Combinators
+      Control.Limited
+      Control.ValidEnumerable
+      Control.ValidEnumerable.Access
+      Control.ValidEnumerable.Class
+      Data.Alphanumeric
+      Data.Hidden
+      Data.Sized
+      Data.Validity.Extra
+      Data.Whitespace
+      Frugel.CstrSite.ValidEnumerable
+      Optics.At.Orphans
+      Optics.Extra.Scout
+      Optics.Writer
+      PrettyPrinting.Expr
+      Scout
+      Scout.Error
+      Scout.Evaluation
+      Scout.Internal.Meta
+      Scout.Internal.Node
+      Scout.Internal.Program
+      Scout.Lexing
+      Scout.Meta
+      Scout.Node
+      Scout.Orphans.DisplayProjection
+      Scout.Orphans.Stream
+      Scout.Parsing
+      Scout.Parsing.Error
+      Scout.Parsing.Whitespace
+      Scout.PrettyPrinting
+      Scout.Program
+  hs-source-dirs:
+      scout-src
+  default-extensions:
+      OverloadedStrings
+      OverloadedLabels
+      DisambiguateRecordFields
+      DeriveGeneric
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j
+  build-depends:
+      QuickCheck
+    , composition
+    , containers
+    , dictionary-sharing
+    , frugel
+    , generic-data >=0.8.0.0
+    , genvalidity
+    , genvalidity-containers
+    , genvalidity-text
+    , it-has
+    , lens
+    , megaparsec >=9.0.1
+    , monoidal-containers
+    , mtl
+    , multiset
+    , optics >=0.4
+    , parser-combinators
+    , prettyprinter >=1.7.0
+    , relude >=1.0.0.0
+    , size-based
+    , testing-feat
+    , validity-containers
+    , validity-text
+  if impl(ghcjs)
+    build-depends:
+        base-noprelude-ghcjs >=4.7 && <5
+  else
+    build-depends:
+        base-noprelude >=4.7 && <5
+  default-language: Haskell2010
+
+executable frugel-exe
+  main-is: Main.hs
+  other-modules:
+      Frugel.Event
+      Frugel.View
+      Frugel.View.Elements
+      Frugel.View.Rendering
+      Language.Javascript.JSaddle.Warp.Extra
+      Scout.Action
+      Scout.Internal.Model
+      Scout.Model
+  hs-source-dirs:
+      app
+  default-extensions:
+      OverloadedStrings
+      OverloadedLabels
+      DisambiguateRecordFields
+      DeriveGeneric
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts -with-rtsopts=-N -feager-blackholing
+  ghcjs-options: -dedupe
+  build-depends:
+      QuickCheck
+    , aeson
+    , frugel
+    , miso >=1.8.0.0
+    , multiset
+    , pretty-show
+    , prettyprinter >=1.7.0
+    , relude >=1.0.0.0
+    , scout
+  if impl(ghcjs)
+    build-depends:
+        base-noprelude-ghcjs >=4.7 && <5
+  else
+    build-depends:
+        base-noprelude >=4.7 && <5
+      , jsaddle >=0.9.8 && <0.10
+      , jsaddle-warp >=0.9
+      , wai-app-static >=3.1.7 && <3.2
+      , warp >=3.3.17 && <3.4
+      , websockets >=0.12.7 && <0.13
+  default-language: Haskell2010
+
+test-suite frugel-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      EvaluationSpec
+  hs-source-dirs:
+      test
+  default-extensions:
+      OverloadedStrings
+      OverloadedLabels
+      DisambiguateRecordFields
+      DeriveGeneric
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base-noprelude >=4.7 && <5
+    , frugel
+    , genvalidity-sydtest
+    , multiset
+    , relude >=1.0.0.0
+    , scout
+    , sydtest
+  if impl(ghcjs)
+    buildable: False
+  default-language: Haskell2010

@@ -36,7 +36,7 @@ viewModel model
 bulmaStyleSheet :: View action
 bulmaStyleSheet
     = link_ [ rel_ "stylesheet"
-            , href_ "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
+            , href_ "bulma.min.css"
             ]
 
 instructionsView :: Model -> View Action

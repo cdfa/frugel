@@ -20,9 +20,7 @@ import Data.Data.Lens
 
 import Optics
 
-import Text.Megaparsec.Stream
-
-type family NodeOf a :: *
+type family NodeOf a :: Type
 
 class (NodePrism a, CstrSiteNode a) => IsNode a
 
@@ -35,7 +33,7 @@ class CstrSiteNode a where
 
 newtype ACstrSite n = CstrSite (Seq (Either Char n))
     deriving ( Eq, Ord, Show, Generic, Data )
-    deriving newtype ( One, Stream, IsList, Semigroup, Monoid )
+    deriving newtype ( One, IsList, Semigroup, Monoid )
 
 type instance NodeOf (ACstrSite a) = a
 

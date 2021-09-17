@@ -7,6 +7,8 @@ module Optics.Extra.Scout
     , module Optics.Extra.Frugel
     ) where
 
+import Data.Has
+
 import Optics.At.Orphans ()
 import Optics.Extra.Frugel
 import Optics.Writer
@@ -32,3 +34,6 @@ concatByPrism :: (Is k An_AffineFold, Is k A_Review, Monoid a)
     -> [s]
     -> [s]
 concatByPrism p = concatBy (preview p) (review p)
+
+hasLens :: Has a s => Lens' s a
+hasLens = lens getter (\t b -> modifier (const b) t)

@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Optics.Applicative where
 
@@ -9,7 +8,7 @@ infixl 4 <*^>
 
 -- I think it's possible to make this append indices as well, but that would require some magic (probably conjoined) and it's not needed yet
 class ApplicativeOptic m where
-    (<*^>) :: (Is k m, Is l m, m ~ Join k l)
+    (<*^>) :: (Is k m, Is l m, JoinKinds k l m)
         => Optic' k is s (a -> b)
         -> Optic' l is s a
         -> Optic' m NoIx s b

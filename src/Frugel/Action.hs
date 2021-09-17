@@ -1,14 +1,9 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Frugel.Action where
 
@@ -34,8 +29,6 @@ import Optics.Extra.Frugel
 
 import Prettyprinter.Render.String
 
-import qualified Text.Megaparsec as Megaparsec
-
 data EditResult = Success | Failure
     deriving ( Show, Eq )
 
@@ -52,9 +45,6 @@ class ( Data p
       , CstrSiteNode (NodeOf p)
       , Parseable p
       ) => Editable p
-
-deriving instance (Ord (Megaparsec.Token s), Ord e)
-    => Ord (Megaparsec.ParseError s e)
 
 updateModel :: forall p.
     (Editable p, DisplayProjection p)

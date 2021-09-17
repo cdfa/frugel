@@ -6,7 +6,7 @@ module Frugel.View.Rendering where
 import Frugel
 import Frugel.View.Elements              as Elements
 
-import Miso                              hiding ( node, view )
+import Miso                              hiding ( Node, node, view )
 import qualified Miso.String
 
 import Optics.Extra.Scout                hiding ( views )

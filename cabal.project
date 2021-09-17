@@ -1,0 +1,13 @@
+packages: .
+
+index-state: 2021-09-16T00:00:00Z
+  
+allow-newer: size-based:template-haskell, base-noprelude:base
+
+allow-older: base-noprelude-ghcjs:base
+
+source-repository-package
+  type: git
+  location: https://github.com/cdfa/base-noprelude-ghcjs
+  tag: 0cd2afc636928b29a196fb86be6cc8272c486c49
+  --sha256: 1isya3qds75f9dbm1p2wkxkr8z1jzjxi5j800bnskk36nvk2avfm

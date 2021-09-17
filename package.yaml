@@ -19,8 +19,7 @@ extra-source-files:
 description: A frugal projectional editor for Live Programming
 
 dependencies:
-  - base-noprelude >= 4.7 && < 5
-  - relude >= 0.7.0.0
+  - relude >= 1.0.0.0
 
 ghc-options:
   - -Wall
@@ -42,59 +41,41 @@ default-extensions:
 library:
   source-dirs: src
   when:
-    - condition: "impl(ghcjs)"
-      source-dirs: scout-src
-      exposed-modules: Scout
-  # Note: you may need to stack build before changes are reflected in the editor, because we use a cabal cradle for this component, because stack does not support internal libraries https://github.com/commercialhaskell/stack/issues/4564
+    - condition: impl(ghcjs)
+      then:
+        dependencies: base-noprelude-ghcjs >= 4.7 && < 5
+      else:
+        dependencies: base-noprelude >= 4.7 && < 5
+  # Note: you may need to stack build before changes are reflected in the editor, because we use a cabal cradle for this component, because stack repl does not support internal libraries https://github.com/commercialhaskell/stack/issues/4564
   dependencies:
-    - megaparsec >= 9.0.1
-    - parser-combinators
-    - containers
-    - text
     - prettyprinter >= 1.7.0
     - composition
-    - it-has
-    - optics >= 0.3
+    - optics >= 0.4
     - optics-vl >= 0.2.1
     - lens
     - mtl
-    - multiset
-    - genvalidity
-    - validity-text
-    - validity-containers
-    - genvalidity-text
-    - genvalidity-containers
-    - QuickCheck
-    - testing-feat
-    - size-based
-    - dictionary-sharing
-    - generic-data
-    - monoidal-containers
 
 
 internal-libraries:
   scout:
-    when: # Ugly hack because ghcjs does not seem to support internal libraries: https://github.com/ghcjs/ghcjs/issues/806
-      - condition: "impl(ghcjs)"
-        buildable: false
+    when:
+      - condition: impl(ghcjs)
+        then:
+          dependencies: base-noprelude-ghcjs >= 4.7 && < 5
+        else:
+          dependencies: base-noprelude >= 4.7 && < 5
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
     source-dirs: scout-src
-    exposed-modules:
-      - Scout
-      - Optics.Extra.Scout
-      - Control.ValidEnumerable
-      - Data.Sized
     dependencies:
       - frugel
       - megaparsec >= 9.0.1
       - parser-combinators
       - containers
-      - text
       - prettyprinter >= 1.7.0
       - composition
       - it-has
-      - optics >= 0.3
+      - optics >= 0.4
       - lens
       - mtl
       - multiset
@@ -107,7 +88,7 @@ internal-libraries:
       - testing-feat
       - size-based
       - dictionary-sharing
-      - generic-data
+      - generic-data >= 0.8.0.0
       - monoidal-containers
 
 executables:
@@ -119,19 +100,28 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
       - -feager-blackholing
+    ghcjs-options: -dedupe
     dependencies:
       - frugel
-      - miso
+      - scout
+      - miso >= 1.8.0.0
       - pretty-show
       - prettyprinter >= 1.7.0
       - aeson
       - QuickCheck
       - multiset
     when:
-      - condition: "!impl(ghcjs)"
-        dependencies:
-          - jsaddle-warp
-          - scout
+      - condition: impl(ghcjs)
+        then:
+          dependencies: base-noprelude-ghcjs >= 4.7 && < 5
+        else:
+          dependencies:
+            - base-noprelude >= 4.7 && < 5
+            - jsaddle ^>= 0.9.8
+            - jsaddle-warp >= 0.9
+            - websockets ^>= 0.12.7
+            - warp ^>= 3.3.17
+            - wai-app-static ^>= 3.1.7
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
 
@@ -144,12 +134,14 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
+      - base-noprelude >= 4.7 && < 5
       - frugel
+      - scout
       - sydtest
       - genvalidity-sydtest
       - multiset
     when:
-      - condition: "!impl(ghcjs)"
-        dependencies: scout
+      - condition: impl(ghcjs)
+        buildable: false
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel

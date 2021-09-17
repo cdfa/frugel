@@ -1,26 +1,36 @@
-{ sources, pkgs, ghc }:
+{ sources, ghc }:
 let
-  stablePkgs = import sources.nixpkgs { };
-
-  gitIgnore = stablePkgs.nix-gitignore.gitignoreSourcePure;
-
-  packageSourceOverrides = pkgs.lib.mapAttrs (
-    name: version:
-      pkgs.haskell.packages.${ghc}.callHackage name version { }
-  );
-  overrides = packageSourceOverrides {
-    megaparsec = "9.0.1";
-    relude = "0.7.0.0";
-    optics = "0.3";
-    it-has = "0.2.0.0";
-    genvalidity-sydtest = "0.0.0.0";
-    genvalidity-text = "0.7.0.2";
-    genvalidity-containers = "0.9.0.0";
-  };
+  haskellNix = import sources.haskellNix {};
+  pkgs = import haskellNix.sources.nixpkgs-unstable haskellNix.nixpkgsArgs;
+  fetchpatch = pkgs.fetchpatch;
+  callHpack = name: src: pkgs.runCommand "hpack2cabal-${name}" {} ''
+    mkdir -p $out
+    cp -r ${src}/. $out/
+    rm "$out/frugel.cabal"
+    ${pkgs.hpack}/bin/hpack '${src}' - > "$out/frugel.cabal"
+  '';
 in
-pkgs.haskell.packages.${ghc}.callCabal2nix "frugel" (gitIgnore [ ./.gitignore ] ./.)
-  (
-    overrides // {
-      relude = pkgs.haskell.lib.dontCheck overrides.relude;
+pkgs.haskell-nix.cabalProject {
+  src = callHpack "frugel" (
+    pkgs.haskell-nix.haskellLib.cleanGit {
+      name = "frugel";
+      src = ./.;
     }
-  )
+  );
+  compiler-nix-name = ghc;
+  modules = [
+    {
+      packages.miso.patches = [
+        (
+          (
+            fetchpatch {
+              name = "prevent-firefox-spinning-xhr.patch";
+              url = "https://github.com/cdfa/miso/commit/4e1a6ee7c18a63a501ffaf08227011181e427b1a.patch";
+              sha256 = "185mxvmdg3x7vpdw800w0lqj2via2z8snb9wys015bv1y1yi5q2i";
+            }
+          )
+        )
+      ];
+    }
+  ];
+}

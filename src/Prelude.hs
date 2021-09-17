@@ -21,7 +21,7 @@ import Data.Sequence        ( (><) )
 
 import GHC.Exts
 
-import Relude               hiding ( Sum, abs, group, toList )
+import Relude               hiding ( Sum, abs, group, span, toList )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>
@@ -40,9 +40,9 @@ infixl 4 <<*>>
     :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
 (<<*>>) = liftA2 (<*>)
 
-lift2 :: forall (s :: (* -> *)
-                 -> *
-                 -> *) t m a.
+lift2 :: forall (s :: (Type -> Type)
+                 -> Type
+                 -> Type) t m a.
     (MonadTrans s, MonadTrans t, Monad (t m), Monad m)
     => m a
     -> s (t m) a

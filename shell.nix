@@ -1,28 +1,27 @@
-{ sources ? import ./nix/sources.nix { }
-, ghc ? "ghc865"
+{ sources ? import ./nix/sources.nix {}
+, ghc ? "ghc8107"
 }:
 let
-  stablePkgs = import sources.nixpkgs { };
-  miso = import ./nix/miso.nix { inherit sources ghc; };
-  pkgs = miso.pkgs;
-  base = (import ./base.nix { inherit sources pkgs ghc; }).override {
-    miso = miso.miso-jsaddle; /* Overrides dependencies defined in package.yaml */
-  };
+  haskellNix = import sources.haskellNix {};
+  pkgs = import haskellNix.sources.nixpkgs-2105 haskellNix.nixpkgsArgs;
 
-  reload-script = stablePkgs.writeShellScriptBin "reload" ''
-    ${stablePkgs.ghcid}/bin/ghcid -c '\
-        ${stablePkgs.stack}/bin/stack repl\
+  hsPkgs = import ./base.nix { inherit sources ghc; };
+
+  reload-script = pkgs.writeShellScriptBin "reload" ''
+    ${pkgs.ghcid}/bin/ghcid -c '\
+        ${pkgs.stack}/bin/stack repl\
         --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
         '\
+        --reload=www\
         --restart=package.yaml\
         -r -W
   '';
 
-  floskell = stablePkgs.haskellPackages.floskell;
+  floskell = pkgs.haskellPackages.floskell;
   nix-pre-commit-hooks = import sources."pre-commit-hooks.nix";
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
-    hooks = with import ./nix/commit-hooks.nix { inherit stablePkgs floskell; }; {
+    hooks = with import ./nix/commit-hooks.nix { inherit pkgs floskell; }; {
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
@@ -38,21 +37,30 @@ let
     };
   };
 in
-base.env.overrideAttrs (
-  old: {
-    buildInputs = old.buildInputs ++ [
-      reload-script
-      stablePkgs.hlint
-      stablePkgs.haskellPackages.apply-refact
-      floskell
-      stablePkgs.ghcid
-      stablePkgs.stack
-      stablePkgs.cabal-install
-      pkgs.haskell.packages.ghcjs.ghc
-      stablePkgs.git # has to be present for pre-commit-check shell hook
-    ];
-    shellHook = ''
-      ${pre-commit-check.shellHook}
-    '';
-  }
-)
+hsPkgs.shellFor {
+  tools = {
+    cabal = "3.4.0.0";
+    hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
+    haskell-language-server = "latest";
+  };
+  buildInputs = [
+    reload-script
+    floskell
+    pkgs.ghcid
+    pkgs.stack
+    pkgs.git # required by pre-commit-check shell hook
+    (
+      pkgs.haskell-nix.hackage-package
+        {
+          compiler-nix-name = ghc;
+          name = "apply-refact";
+          version = "latest";
+        }
+    ).components.exes.refactor
+  ];
+  withHoogle = false;
+  exactDeps = false;
+  shellHook = ''
+    ${pre-commit-check.shellHook}
+  '';
+}

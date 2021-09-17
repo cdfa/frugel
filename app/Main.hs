@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,15 +9,14 @@ import Control.ValidEnumerable
 
 import Data.Sized
 
-import Frugel                     hiding ( Model, initialModel, updateModel )
+import Frugel
+    hiding ( Model, initialModel, updateModel )
 import qualified Frugel
 import Frugel.View
 
-#ifndef __GHCJS__
-import Language.Javascript.JSaddle.Warp as JSaddle
-#endif
+import Language.Javascript.JSaddle.Warp.Extra as JSaddleWarp
 
-import Miso                       hiding ( model, node, set, view )
+import Miso                             hiding ( model, node, set, view )
 import qualified Miso
 
 import Optics.Extra.Scout
@@ -29,15 +27,6 @@ import qualified Scout.Internal.Model
 import Scout.Model
 
 import Test.QuickCheck.Gen
-
-#ifndef __GHCJS__
-runApp :: JSM () -> IO ()
-runApp = JSaddle.debug 3708
-
-#else
-runApp :: IO () -> IO ()
-runApp app = app
-#endif
 
 -- Entry point for a miso application
 main :: IO ()

@@ -20,8 +20,8 @@ import Frugel.Decomposition
 import Optics.Extra.Frugel
 
 class Ord (ParseErrorOf p) => Parseable p where
-    type ParserOf p :: * -> *
-    type ParseErrorOf p :: *
+    type ParserOf p :: Type -> Type
+    type ParseErrorOf p :: Type
     programParser :: (ParserOf p) p
     anyNodeParser :: (ParserOf p) (NodeOf p)
     runParser :: (ParserOf p) n

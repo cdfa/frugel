@@ -1,5 +1,4 @@
 result
-*.cabal
 .pre-commit-config.yaml
 
 dist

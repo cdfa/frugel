@@ -1,4 +1,4 @@
-{ stablePkgs, floskell }:
+{ pkgs, floskell }:
 {
   floskellHook = {
     enable = false;
@@ -11,7 +11,7 @@
     enable = false;
     name = "Floskell config change";
     description = "Reformatting all Haskell files because the Floskell config has changed";
-    entry = "${stablePkgs.bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${stablePkgs.coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${stablePkgs.gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
+    entry = "${pkgs.bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${pkgs.coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${pkgs.gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
     files = "floskell.json$";
     pass_filenames = false;
   };

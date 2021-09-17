@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -50,6 +51,7 @@ import PrettyPrinting.Expr
 import Scout.Internal.Meta       ( ExprMeta(standardMeta) )
 import qualified Scout.Internal.Meta
 import Scout.Meta
+import Scout.Orphans.Stream      ()
 
 import Test.QuickCheck.Gen       as Gen
 
@@ -108,12 +110,8 @@ data EvaluationOutput
                        , binders :: MonoidalMap Identifier (Max Int)
                        }
     deriving ( Generic, Data )
-
-instance Semigroup EvaluationOutput where
-    (<>) = gmappend
-
-instance Monoid EvaluationOutput where
-    mempty = gmempty
+    deriving Semigroup via (Generically EvaluationOutput)
+    deriving Monoid via (Generically EvaluationOutput)
 
 data EvaluationError
     = TypeError TypeError
