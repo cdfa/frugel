@@ -89,12 +89,6 @@ showErrorFancy = \case
             GT -> "greater than "
     ErrorCustom a -> absurd a
 
--- | Get length of the “pointer” to display under a given 'ErrorFancy'.
-errorFancyLength :: ShowErrorComponent e => ErrorFancy e -> Int
-errorFancyLength = \case
-    ErrorCustom a -> errorComponentLen a
-    _ -> 1
-
 -- | Transforms a list of error messages into their textual representation.
 messageItemsPretty ::
     -- | Prefix to prepend

@@ -15,9 +15,8 @@ inConstruction = codeSpan . (class_ "in-construction node-padding" :)
 complete :: [Attribute action] -> [View action] -> View action
 complete = codeSpan . (class_ "has-background-white node-padding" :)
 
-node :: [Attribute action] -> [View action] -> View action
-node = codeSpan . (class_ "node" :)
-
+-- node :: [Attribute action] -> [View action] -> View action
+-- node = codeSpan . (class_ "node" :)
 caret :: [Attribute action] -> [View action] -> View action
 caret = codeSpan . (class_ "caret" :)
 

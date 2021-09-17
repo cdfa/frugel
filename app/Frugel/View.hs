@@ -92,9 +92,8 @@ evaluatedView Model{..}
                ]
         ]
 
-webPrint :: Miso.ToMisoString a => a -> View action
-webPrint x = pre_ [] [ text $ Miso.ms x ]
-
+-- webPrint :: Miso.ToMisoString a => a -> View action
+-- webPrint x = pre_ [] [ text $ Miso.ms x ]
 insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation
 insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
 insertCursor offset s = case s of

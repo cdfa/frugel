@@ -1,7 +1,6 @@
 module Scout.Lexing where
 
 import Data.Alphanumeric
-import Data.Char
 import qualified Data.Set as Set
 
 import Scout.Node
@@ -22,7 +21,6 @@ string s = s <$ chunk (fromList $ map Left s)
 alphaNumChar :: Parser Alphanumeric
 alphaNumChar
     = namedToken "an alphanumeric character" (leftToMaybe >=> fromChar)
-
-lowerChar :: Parser Char
-lowerChar
-    = namedToken "a lower-case character" (leftToMaybe >=> guarded isLower)
+-- lowerChar :: Parser Char
+-- lowerChar
+--     = namedToken "a lower-case character" (leftToMaybe >=> guarded isLower)

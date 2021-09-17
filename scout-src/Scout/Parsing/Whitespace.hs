@@ -75,11 +75,10 @@ wSome fa = bimap reverse fromList <$> wSome'
         = second . cons <$> fa
         <*> (try (first . cons <$> whitespaceToken <*> wSome')
              <|> pure (noWhitespace []))
-
-wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
-    => m a
-    -> m (WithWhitespace [a])
-wMany fa = toList <<$>> wSome fa <|> pure (noWhitespace [])
+-- wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
+--     => m a
+--     -> m (WithWhitespace [a])
+-- wMany fa = toList <<$>> wSome fa <|> pure (noWhitespace [])
 -- wOptional
 --     :: MonadPlus m => m (WithWhitespace a) -> m (WithWhitespace (Maybe a))
 -- wOptional fa = Just <<$>> fa <|> pure (noWhitespace Nothing)

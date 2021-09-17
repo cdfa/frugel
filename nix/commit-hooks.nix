@@ -1,17 +1,17 @@
-{ pkgs, floskell }:
+{ pkgs, weeder }: with pkgs;
 {
   floskellHook = {
     enable = false;
     name = "Floskell";
     description = "A flexible Haskell source code pretty printer.";
-    entry = "${floskell}/bin/floskell";
+    entry = "${haskellPackages.floskell}/bin/floskell";
     files = "\\.l?hs$";
   };
   floskellConfigChangeHook = {
     enable = false;
     name = "Floskell config change";
     description = "Reformatting all Haskell files because the Floskell config has changed";
-    entry = "${pkgs.bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${pkgs.coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${pkgs.gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
+    entry = "${bash}/bin/bash -c 'shopt -s globstar; ${haskellPackages.floskell}/bin/floskell $(${coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
     files = "floskell.json$";
     pass_filenames = false;
   };
@@ -22,5 +22,13 @@
     entry = "nix-build";
     files = "package\\.yaml$";
     pass_filenames = false;
+  };
+  weederHook = {
+    enable = false;
+    name = "weeder";
+    description = "Check dead code";
+    # Generating the .hie files with stack repl will fail when both Main.hs and Spec.hs are passed. Not much that can be done about it I think
+    entry = "${bash}/bin/bash -c 'echo \"\" | ${stack}/bin/stack repl --test --ghci-options \"-fwrite-ide-info -hiedir=.hie -ignore-dot-ghci\" $0 $@ > /dev/null 2> /dev/null ; ${weeder}/bin/weeder'";
+    files = "\\.l?hs$";
   };
 }

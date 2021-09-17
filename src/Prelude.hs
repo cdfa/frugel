@@ -13,15 +13,14 @@ module Prelude
 import Control.Monad.Reader
     ( MonadReader(..), Reader, ReaderT(ReaderT), asks, mapReader, mapReaderT
     , runReader, runReaderT, withReader, withReaderT )
-import Control.Monad.Writer.Class
 
 import qualified Data.Foldable as Foldable
-import Data.List            ( groupBy )
-import Data.Sequence        ( (><) )
+import Data.List      ( groupBy )
+import Data.Sequence  ( (><) )
 
 import GHC.Exts
 
-import Relude               hiding ( Sum, abs, group, toList )
+import Relude         hiding ( Sum, abs, group, toList )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>
@@ -47,9 +46,6 @@ lift2 :: forall (s :: (Type -> Type)
     => m a
     -> s (t m) a
 lift2 = lift . lift
-
-writer' :: MonadWriter w m => a -> w -> m a
-writer' = curry writer
 
 -- From https://hackage.haskell.org/package/utility-ht-0.0.16/docs/src/Data.Function.HT.Private.html#nest
 {-# INLINE nTimes #-}

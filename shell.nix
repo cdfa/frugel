@@ -18,11 +18,19 @@ let
         -r -W
   '';
 
-  floskell = pkgs.haskellPackages.floskell;
+  weeder = (
+    pkgs.haskell-nix.hackage-package
+      {
+        compiler-nix-name = ghc;
+        name = "weeder";
+        version = "latest";
+      }
+  ).components.exes.weeder;
+
   nix-pre-commit-hooks = import sources."pre-commit-hooks.nix";
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
-    hooks = with import ./nix/commit-hooks.nix { inherit pkgs floskell; }; {
+    hooks = with import ./nix/commit-hooks.nix { inherit pkgs weeder; }; {
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
@@ -35,6 +43,9 @@ let
       floskellConfigChange = floskellConfigChangeHook // {
         enable = true;
       };
+      weeder = weederHook // {
+        enable = true;
+      };
     };
   };
 in
@@ -45,12 +56,14 @@ hsPkgs.shellFor {
     haskell-language-server = "latest";
     stan = "latest";
   };
-  buildInputs = [
+  buildInputs = with pkgs; [
     reload-script
-    floskell
-    pkgs.ghcid
-    pkgs.stack
-    pkgs.git # required by pre-commit-check shell hook
+    haskellPackages.floskell
+    ghcid
+    stack
+    git # required by pre-commit-check shell hook
+    weeder
+    dhall-lsp-server
     (
       pkgs.haskell-nix.hackage-package
         {
