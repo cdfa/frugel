@@ -1,9 +1,7 @@
-{ sources, ghc }:
+{ pkgs, ghc }:
 let
-  haskellNix = import sources.haskellNix {};
-  pkgs = import haskellNix.sources.nixpkgs-unstable haskellNix.nixpkgsArgs;
   fetchpatch = pkgs.fetchpatch;
-  callHpack = name: src: pkgs.runCommand "hpack2cabal-${name}" {} ''
+  callHpack = name: src: pkgs.runCommand "hpack2cabal-${name}" { } ''
     mkdir -p $out
     cp -r ${src}/. $out/
     rm "$out/frugel.cabal"

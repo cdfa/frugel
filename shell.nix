@@ -3,9 +3,9 @@
 }:
 let
   haskellNix = import sources.haskellNix { };
-  pkgs = import haskellNix.sources.nixpkgs-2105 haskellNix.nixpkgsArgs;
+  pkgs = import haskellNix.sources.nixpkgs-unstable haskellNix.nixpkgsArgs;
 
-  hsPkgs = import ./base.nix { inherit sources ghc; };
+  hsPkgs = import ./base.nix { inherit pkgs ghc; };
 
   reload-script = pkgs.writeShellScriptBin "reload" ''
     ${pkgs.ghcid}/bin/ghcid -c '\
@@ -27,7 +27,7 @@ let
       }
   ).components.exes.weeder;
 
-  nix-pre-commit-hooks = import sources."pre-commit-hooks.nix";
+  nix-pre-commit-hooks = import "${sources."pre-commit-hooks.nix"}/nix" { nixpkgs = haskellNix.sources.nixpkgs-unstable; };
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
     hooks = with import ./nix/commit-hooks.nix { inherit pkgs weeder; }; {

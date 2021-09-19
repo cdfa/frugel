@@ -12,15 +12,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pre-commit-hooks.nix": {
-        "branch": "20.09",
+        "branch": "master",
         "description": "Seamless integration of https://pre-commit.com git hooks with Nix.",
         "homepage": "",
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
-        "rev": "9ef0d41307cfba042cc9fa65cc06875368f49c8e",
-        "sha256": "01z4d5bi35n4gbip189swdj56rp02fvqnp3mkwgm1zmpy2cg9vyp",
+        "rev": "3ed0e618cebc1ff291c27b749cf7568959cac028",
+        "sha256": "0zni3zpz544p7bs7a87wjhd6wb7jmicx0sf2s5nrqapnxa97zcs4",
         "type": "tarball",
-        "url": "https://github.com/cachix/pre-commit-hooks.nix/archive/9ef0d41307cfba042cc9fa65cc06875368f49c8e.tar.gz",
+        "url": "https://github.com/cachix/pre-commit-hooks.nix/archive/3ed0e618cebc1ff291c27b749cf7568959cac028.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
