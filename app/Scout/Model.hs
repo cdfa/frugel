@@ -29,15 +29,18 @@ unsafeFromFrugelModel :: Int -> Frugel.Model Program -> Model
 unsafeFromFrugelModel = partialFromFrugelModel Infinity
 
 partialFromFrugelModel :: Limit -> Int -> Frugel.Model Program -> Model
-partialFromFrugelModel fuel fuelLimit Frugel.Model{..}
+partialFromFrugelModel fuelLimit scoutModelFuelLimit Frugel.Model{..}
     = Model { errors = map fromFrugelError errors
                   ++ map (uncurry $ flip EvaluationError)
                          (toOccurList evalErrors)
             , evalThreadId = Nothing
+            , fuelLimit = case fuelLimit of
+                  Only x -> x
+                  Infinity -> scoutModelFuelLimit
             , ..
             }
   where
-    (evaluated, evalErrors) = runEval fuel $ evalProgram program
+    (evaluated, evalErrors) = runEval fuelLimit $ evalProgram program
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
 updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->

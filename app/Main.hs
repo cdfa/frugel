@@ -90,9 +90,7 @@ reEvaluate :: (Frugel.Model Program -> Frugel.Model Program)
        )
 reEvaluate f model@Model{evalThreadId, fuelLimit}
     = ( set #evalThreadId Nothing
-        $ partialFromFrugelModel (Only initialFuelLimit)
-                                 fuelLimit
-                                 newFrugelModel
+        $ partialFromFrugelModel (Only fuelLimit) fuelLimit newFrugelModel
       , \sink -> do
             traverse_ killThread evalThreadId
             threadId <- myThreadId
