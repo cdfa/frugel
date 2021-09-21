@@ -64,6 +64,12 @@ updateModel GenerateRandom model = effectSub model $ \sink -> liftIO $ do
 updateModel (ModifyModel f) model = noEff $ f model
 updateModel (Log msg) model
     = fromTransition (scheduleIO_ . consoleLog $ show msg) model
+updateModel (FocusedNodeValueIndexAction action)
+            model = noEff $ model & #focusedNodeValueIndex %~ case action of
+    Increment -> min
+        (lengthOf (#evaluationOutput % #focusedNodeValues) model - 1)
+        . succ
+    Decrement -> max 0 . pred
 -- reEvaluate to update type error locations
 updateModel PrettyPrint model
     = uncurry effectSub . over _2 (liftIO .) $ reEvaluate prettyPrint model
@@ -85,13 +91,13 @@ reEvaluate :: (Frugel.Model Program -> Frugel.Model Program)
        )
 reEvaluate f model@Model{evalThreadId, fuelLimit}
     = ( set #evalThreadId Nothing
-        $ partialFromFrugelModel (Only fuelLimit) fuelLimit newFrugelModel
+        $ partialFromFrugelModel (Only fuelLimit) model newFrugelModel
       , \sink -> do
             traverse_ killThread evalThreadId
             threadId <- myThreadId
             sink . ModifyModel $ set #evalThreadId (Just threadId)
             let newModel@Model{errors}
-                    = unsafeFromFrugelModel fuelLimit newFrugelModel
+                    = unsafeFromFrugelModel model newFrugelModel
             seq (length errors) . sink . ModifyModel $ const newModel -- force errors to force all expressions
       )
   where

@@ -97,22 +97,35 @@ evaluatedView Model{..}
          ]
          ++ foldMapOf
              (#focusedNodeValues % _NonEmpty)
-             (const
-                  [ div_ [ class_ "card-header" ]
-                         [ p_ [ class_ "card-header-title" ]
-                              [ "Focused node values" ]
-                         ]
-                  , div_ [ class_ "card-content" ]
-                         [ div_ [ class_ "content" ]
-                           . renderDocStream
-                           . reAnnotateS toStandardAnnotation
-                           . layoutPretty defaultLayoutOptions
-                           . annPretty
-                           . fromMaybe (ExprNode $ exprCstrSite' $ fromList [])
-                           $ preview (#focusedNodeValues % ix 0)
-                                     evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
-                         ]
-                  ])
+             (\focusedNodeValues ->
+              [ div_ [ class_ "card-header" ]
+                     [ p_ [ class_ "card-header-title" ]
+                          [ "Focused node value" ]
+                     , button_ [ class_ "card-header-icon"
+                               , onClick (FocusedNodeValueIndexAction Decrement)
+                               ]
+                               [ span_ [ class_ "icon" ] [ text "<" ] ]
+                     , span_ [ class_ "card-header-vertical-padding" ]
+                             [ text (show (focusedNodeValueIndex + 1)
+                                     <> " of "
+                                     <> show (lengthOf #focusedNodeValues
+                                                       evaluationOutput))
+                             ]
+                     , button_ [ class_ "card-header-icon"
+                               , onClick (FocusedNodeValueIndexAction Increment)
+                               ]
+                               [ span_ [ class_ "icon" ] [ text ">" ] ]
+                     ]
+              , div_ [ class_ "card-content" ]
+                     [ div_ [ class_ "content" ]
+                       . renderDocStream
+                       . reAnnotateS toStandardAnnotation
+                       . layoutPretty defaultLayoutOptions
+                       . annPretty
+                       . fromMaybe (last focusedNodeValues)
+                       $ preview (ix focusedNodeValueIndex) focusedNodeValues -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                     ]
+              ])
              evaluationOutput)
 
 -- webPrint :: Miso.ToMisoString a => a -> View action

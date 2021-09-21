@@ -44,6 +44,10 @@
   min-width: 0.6em;
 }
 
+.card-header-vertical-padding {
+  padding: 0.75rem 0;
+}
+
 .card-content:not(:last-child) {
   box-shadow: 0 0.125em 0.25em rgba(10, 10, 10, 0.1);
 }

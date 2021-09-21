@@ -19,6 +19,7 @@ data Model
             , program :: Program
             , errors :: [Error]
             , evaluationOutput :: EvaluationOutput
+            , focusedNodeValueIndex :: Int
             , evalThreadId :: Maybe ThreadId
             , fuelLimit :: Int
             }

@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Scout.Model ( module Scout.Model, Model(Model) ) where
@@ -13,11 +14,23 @@ import Scout.Internal.Model
 
 -- Assumes program terminates
 initialModel :: Program -> Model
-initialModel
-    = unsafeFromFrugelModel initialFuelLimit
-    . Frugel.prettyPrint -- pretty print twice, because program may not be fully parsed (and then it's only parsed but not pretty-printed)
-    . Frugel.prettyPrint
-    . Frugel.initialModel
+initialModel programCstrSite
+    = unsafeFromFrugelModel
+        Model { fuelLimit = initialFuelLimit
+              , focusedNodeValueIndex = 0
+              , errors = []
+              , evalThreadId = Nothing
+              , evaluationOutput = EvaluationOutput { evaluated = program
+                                                    , focusedNodeValues = mempty
+                                                    }
+              , ..
+              }
+        frugelModel
+  where
+    frugelModel@Frugel.Model{..}
+        = Frugel.prettyPrint -- pretty print twice, because program may not be fully parsed (and then it's only parsed but not pretty-printed)
+        . Frugel.prettyPrint
+        $ Frugel.initialModel programCstrSite
 
 -- Currently, the largest limiting factor on this is that rendering big partially evaluated programs
 -- Otherwise it could be 20, which is still to low for real-world programs. To make partial evaluation useful for those, the editor could present iteratively further evaluated programs
@@ -25,24 +38,25 @@ initialFuelLimit :: Int
 initialFuelLimit = 10
 
 -- Assumes program terminates
-unsafeFromFrugelModel :: Int -> Frugel.Model Program -> Model
+unsafeFromFrugelModel :: Model -> Frugel.Model Program -> Model
 unsafeFromFrugelModel = partialFromFrugelModel Infinity
 
-partialFromFrugelModel :: Limit -> Int -> Frugel.Model Program -> Model
-partialFromFrugelModel fuelLimit scoutModelFuelLimit Frugel.Model{..}
+partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> Model
+partialFromFrugelModel fuel
+                       scoutModel@Model{focusedNodeValueIndex}
+                       Frugel.Model{..}
     = Model { errors = map fromFrugelError errors
                   ++ map (uncurry $ flip EvaluationError)
                          (toOccurList evalErrors)
             , evalThreadId = Nothing
             , evaluationOutput = EvaluationOutput { .. }
-            , fuelLimit = case fuelLimit of
-                  Only x -> x
-                  Infinity -> scoutModelFuelLimit
+            , fuelLimit = fuelLimit scoutModel
+            , focusedNodeValueIndex
             , ..
             }
   where
     (evaluated, (evalErrors, focusedNodeValues))
-        = runEval (Just cursorOffset) fuelLimit evalProgram program
+        = runEval (Just cursorOffset) fuel evalProgram program
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
 updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->
