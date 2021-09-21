@@ -34,13 +34,15 @@ partialFromFrugelModel fuelLimit scoutModelFuelLimit Frugel.Model{..}
                   ++ map (uncurry $ flip EvaluationError)
                          (toOccurList evalErrors)
             , evalThreadId = Nothing
+            , evaluationOutput = EvaluationOutput { .. }
             , fuelLimit = case fuelLimit of
                   Only x -> x
                   Infinity -> scoutModelFuelLimit
             , ..
             }
   where
-    (evaluated, evalErrors) = runEval fuelLimit $ evalProgram program
+    (evaluated, (evalErrors, focusedNodeValues))
+        = runEval (Just cursorOffset) fuelLimit evalProgram program
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
 updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->

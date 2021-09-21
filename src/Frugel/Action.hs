@@ -214,9 +214,6 @@ zipperAtCursor :: (Decomposable p, CstrSiteNode p)
     -> Int
     -> p
     -> Either (InternalError p) p
-zipperAtCursor f
-    = modifyNodeAt (\cstrSiteOffset materials ->
-                    maybeToRight (CstrSiteActionFailed cstrSiteOffset materials)
-                    $ traverseOf _CstrSite
-                                 (rezip <.> f <=< unzipTo cstrSiteOffset)
-                                 materials)
+zipperAtCursor f = modifyNodeAt $ \cstrSiteOffset materials -> maybeToRight
+    (CstrSiteActionFailed cstrSiteOffset materials)
+    $ traverseOf _CstrSite (rezip <.> f <=< unzipTo cstrSiteOffset) materials

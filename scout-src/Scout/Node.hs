@@ -30,7 +30,6 @@ module Scout.Node
     , _WhereCstrSite
     , _WhereNode
     , ScopedEvaluation
-    , EvaluationOutput(EvaluationOutput)
     , EvaluationError(..)
     , TypeError(..)
     , ExpectedType(..)

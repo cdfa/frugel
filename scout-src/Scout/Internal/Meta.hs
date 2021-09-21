@@ -40,12 +40,15 @@ data ProgramMeta
     = ProgramMeta { standardMeta :: Meta, trailingWhitespace :: Text }
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
+-- It would be nicer if a heterogeneous type list would be used instead, especially since elided and focused are not used by core Frugel
 data Meta
     = Meta { interstitialWhitespace :: [Text] -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
              -- If elided == True, the node with this metadata may not have been processed by a previous operation and a dummy result should be used
              -- The various node type should really be made parametric using hypertypes (https://github.com/lamdu/hypertypes), but there are higher priority tasks atm.
              -- ATM this is only set to true by evaluation and obeyed by pretty printing (not standard rendering)
            , elided :: Bool
+             -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
+           , focused :: Bool
            }
     deriving ( Eq, Ord, Show, Generic, Data )
 
@@ -131,4 +134,5 @@ enumerateValidProgramMeta n
 
 enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
 enumerateValidMeta n
-    = pay $ Meta <$> vectorOf n enumerateWhitespace <*> accessValid
+    = pay
+    $ Meta <$> vectorOf n enumerateWhitespace <*> pure False <*> pure False

@@ -32,7 +32,6 @@ import Data.Text.Optics
 import Data.Whitespace
 
 import Frugel
-import Frugel.Decomposition
 import Frugel.PrettyPrinting
 
 import Optics.Extra.Scout

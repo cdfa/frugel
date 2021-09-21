@@ -67,12 +67,7 @@ updateModel (Log msg) model
 -- reEvaluate to update type error locations
 updateModel PrettyPrint model
     = uncurry effectSub . over _2 (liftIO .) $ reEvaluate prettyPrint model
-updateModel (GenericAction action@(Move _)) model
-    = noEff
-    $ set #cursorOffset
-          (view #cursorOffset . snd . Frugel.updateModel action
-           $ toFrugelModel model)
-          model
+-- Move action also cause reEvaluation, because value of expression under the cursor may need to be updated
 updateModel (GenericAction action) model = case editResult of
     Success -> uncurry effectSub . over _2 (liftIO .)
         $ reEvaluate (const newFrugelModel) model

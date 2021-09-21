@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -82,6 +81,8 @@ data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
+-- This has to live her instead of in Meta because ReifiedFunction depends on Expr
+-- Could be removed by using data-diverse for Meta
 data AbstractionMeta
     = AbstractionMeta { standardExprMeta :: ExprMeta
                       , reified :: Maybe (Hidden ReifiedFunction)
@@ -108,8 +109,9 @@ type ScopedEvaluation = Writer EvaluationOutput
 data EvaluationOutput
     = EvaluationOutput { errors :: MultiSet EvaluationError
                        , binders :: MonoidalMap Identifier (Max Int)
+                       , focusedNodeValues :: Seq Node
                        }
-    deriving ( Generic, Data )
+    deriving ( Eq, Show, Generic, Data )
     deriving Semigroup via (Generically EvaluationOutput)
     deriving Monoid via (Generically EvaluationOutput)
 
@@ -141,6 +143,14 @@ makePrisms ''Decl
 makePrisms ''WhereClause
 
 makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput
+
+instance Has Meta Node where
+    getter (ExprNode n) = getter n
+    getter (DeclNode n) = getter n
+    getter (WhereNode n) = getter n
+    modifier f n@(ExprNode _) = n & _ExprNode %~ modifier f
+    modifier f n@(DeclNode _) = n & _DeclNode %~ modifier f
+    modifier f n@(WhereNode _) = n & _WhereNode %~ modifier f
 
 instance Has ExprMeta Expr where
     getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta
@@ -505,6 +515,7 @@ instance ValidEnumerable WhereClause where
                                                         . fst)
                               $ toList decls
                         , elided = False
+                        , focused = False
                         }
                $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
 

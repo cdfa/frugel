@@ -18,10 +18,16 @@ data Model
     = Model { cursorOffset :: Int
             , program :: Program
             , errors :: [Error]
-            , evaluated :: Program
+            , evaluationOutput :: EvaluationOutput
             , evalThreadId :: Maybe ThreadId
             , fuelLimit :: Int
             }
     deriving ( Show, Eq )
 
+data EvaluationOutput
+    = EvaluationOutput { evaluated :: Program, focusedNodeValues :: Seq Node }
+    deriving ( Show, Eq )
+
 makeFieldLabelsWith noPrefixFieldLabels ''Model
+
+makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput

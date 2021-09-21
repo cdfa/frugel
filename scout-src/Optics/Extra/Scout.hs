@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Optics.Extra.Scout
     ( module Optics.Writer
@@ -8,6 +9,8 @@ module Optics.Extra.Scout
     ) where
 
 import Data.Has
+
+import GHC.Exts
 
 import Optics.At.Orphans ()
 import Optics.Extra.Frugel
@@ -37,3 +40,6 @@ concatByPrism p = concatBy (preview p) (review p)
 
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
+
+_NonEmpty :: (IsList l, Item l ~ a) => Prism' l (NonEmpty a)
+_NonEmpty = prism' fromFoldable (nonEmpty . toList)

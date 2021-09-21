@@ -78,19 +78,42 @@ evaluatedView :: Model -> View Action
 evaluatedView Model{..}
     = div_
         [ class_ "card" ]
-        [ div_ [ class_ "card-header" ]
+        ([ div_
+               [ class_ "card-header" ]
                [ p_ [ class_ "card-header-title" ]
                     [ if isJust evalThreadId then "Evaluating..." else "Result"
                     ]
                ]
-        , div_ [ class_ "card-content" ]
-               [ div_ [ class_ "content" ]
-                 . renderDocStream
-                 . reAnnotateS toStandardAnnotation
-                 . layoutPretty defaultLayoutOptions
-                 $ unsafePrettyProgram evaluated -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
-               ]
-        ]
+         , div_ [ class_ "card-header" ]
+                [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
+         , div_ [ class_ "card-content" ]
+                [ div_ [ class_ "content" ]
+                  . renderDocStream
+                  . reAnnotateS toStandardAnnotation
+                  . layoutPretty defaultLayoutOptions
+                  . unsafePrettyProgram
+                  $ view #evaluated evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                ]
+         ]
+         ++ foldMapOf
+             (#focusedNodeValues % _NonEmpty)
+             (const
+                  [ div_ [ class_ "card-header" ]
+                         [ p_ [ class_ "card-header-title" ]
+                              [ "Focused node values" ]
+                         ]
+                  , div_ [ class_ "card-content" ]
+                         [ div_ [ class_ "content" ]
+                           . renderDocStream
+                           . reAnnotateS toStandardAnnotation
+                           . layoutPretty defaultLayoutOptions
+                           . annPretty
+                           . fromMaybe (ExprNode $ exprCstrSite' $ fromList [])
+                           $ preview (#focusedNodeValues % ix 0)
+                                     evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                         ]
+                  ])
+             evaluationOutput)
 
 -- webPrint :: Miso.ToMisoString a => a -> View action
 -- webPrint x = pre_ [] [ text $ Miso.ms x ]

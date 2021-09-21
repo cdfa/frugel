@@ -11,7 +11,7 @@ module Frugel
 
 import Frugel.Action
 import Frugel.CstrSite
-import Frugel.Decomposition ( Decomposable(..) )
+import Frugel.Decomposition hiding ( ModificationStatus(..) )
 import Frugel.DisplayProjection
 import Frugel.Error
 import qualified Frugel.Internal.Model
