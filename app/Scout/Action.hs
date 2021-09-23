@@ -8,11 +8,13 @@ import Scout.Model
 data Action
     = Init
     | GenerateRandom
-    | ModifyModel (Model -> Model)
     | Log String
     | PrettyPrint
     | GenericAction GenericAction
-    | EvaluationFinished Model
+    | AsyncAction Int AsyncAction
     | FocusedNodeValueIndexAction FocusedNodeValueIndexAction
+    | ChangeFuelLimit Int
+
+data AsyncAction = EvaluationFinished Model | NewProgramGenerated Model
 
 data FocusedNodeValueIndexAction = Increment | Decrement

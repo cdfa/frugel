@@ -45,8 +45,8 @@ instructionsView Model{..}
            , text "Fuel limit for evaluation following each keystroke "
            , input_ [ type_ "number"
                     , value_ $ Miso.ms $ show @String fuelLimit
-                    , onChange (\value -> ModifyModel
-                                    (maybe id (set #fuelLimit) . readMaybe
+                    , onChange (\value -> ChangeFuelLimit
+                                    (fromMaybe fuelLimit . readMaybe
                                      $ Miso.fromMisoString value))
                     ]
            , div_ [ class_ "buttons" ]

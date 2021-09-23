@@ -56,17 +56,15 @@ updateModel evalThreadVar action model'
     updateModel' Init _ = Right . const $ focus "code-root"
     updateModel' GenerateRandom model = Right $ \sink -> liftIO $ do
         newProgram <- unSized @500 <.> generate $ uniformValid 500
+        let newFrugelModel
+                = set #cursorOffset 0
+                . snd
+                . attemptEdit (const $ Right newProgram) -- reparse the new program for parse errors
+                $ toFrugelModel model
         let (preEvaluationModel, sub)
-                = reEvaluate
-                    evalThreadVar
-                    (set #cursorOffset 0
-                     . snd
-                     . attemptEdit (const $ Right newProgram) -- reparse the new program for parse errors
-                     $ toFrugelModel model)
-                    model
-        sink . ModifyModel $ const preEvaluationModel
+                = reEvaluate evalThreadVar newFrugelModel model
+        sink . AsyncAction 1 $ NewProgramGenerated preEvaluationModel
         sub sink
-    updateModel' (ModifyModel f) model = Left . noEff $ f model
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
     updateModel' (FocusedNodeValueIndexAction indexAction) model
         = Left . noEff $ model & #focusedNodeValueIndex %~ case indexAction of
@@ -74,6 +72,13 @@ updateModel evalThreadVar action model'
                 (lengthOf (#evaluationOutput % #focusedNodeValues) model - 1)
                 . succ
             Decrement -> max 0 . pred
+    updateModel' (ChangeFuelLimit newLimit) model
+        = Left . uncurry effectSub . over _2 (liftIO .)
+        $ reEvaluate evalThreadVar
+                     (prettyPrint $ toFrugelModel newModel)
+                     newModel
+      where
+        newModel = model & #fuelLimit .~ max 0 newLimit
     -- reEvaluate to update type error locations
     updateModel' PrettyPrint model
         = Left . uncurry effectSub . over _2 (liftIO .)
