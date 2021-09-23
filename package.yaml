@@ -110,6 +110,7 @@ executables:
       - aeson
       - QuickCheck
       - multiset
+      - composition
     when:
       - condition: impl(ghcjs)
         then:

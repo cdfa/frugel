@@ -20,7 +20,8 @@ import Data.Sequence  ( (><) )
 
 import GHC.Exts
 
-import Relude         hiding ( Sum, abs, group, toList )
+import Relude
+    hiding ( Sum, abs, group, newEmptyMVar, newMVar, swapMVar, toList )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>

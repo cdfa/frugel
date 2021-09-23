@@ -78,12 +78,11 @@ evaluatedView :: Model -> View Action
 evaluatedView Model{..}
     = div_
         [ class_ "card" ]
-        ([ div_
-               [ class_ "card-header" ]
-               [ p_ [ class_ "card-header-title" ]
-                    [ if isJust evalThreadId then "Evaluating..." else "Result"
-                    ]
-               ]
+        ([ div_ [ class_ "card-header" ]
+                [ p_ [ class_ "card-header-title" ]
+                     [ if partiallyEvaluated then "Evaluating..." else "Result"
+                     ]
+                ]
          , div_ [ class_ "card-header" ]
                 [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
          , div_ [ class_ "card-content" ]

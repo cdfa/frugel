@@ -36,6 +36,7 @@ data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
 data GenericAction = Insert Char | Delete | Backspace | Move Direction
+    deriving ( Show, Eq )
 
 class ( Data p
       , Data (NodeOf p)

@@ -8,19 +8,18 @@
 
 module Scout.Internal.Model where
 
-import Control.Concurrent
-
 import Optics.Extra.Scout
 
 import Scout
 
 data Model
-    = Model { cursorOffset :: Int
+    = Model { version :: Integer
+            , cursorOffset :: Int
             , program :: Program
             , errors :: [Error]
             , evaluationOutput :: EvaluationOutput
             , focusedNodeValueIndex :: Int
-            , evalThreadId :: Maybe ThreadId
+            , partiallyEvaluated :: Bool
             , fuelLimit :: Int
             }
     deriving ( Show, Eq )

@@ -16,10 +16,11 @@ import Scout.Internal.Model
 initialModel :: Program -> Model
 initialModel programCstrSite
     = unsafeFromFrugelModel
-        Model { fuelLimit = initialFuelLimit
+        Model { version = 0
+              , fuelLimit = initialFuelLimit
               , focusedNodeValueIndex = 0
               , errors = []
-              , evalThreadId = Nothing
+              , partiallyEvaluated = False
               , evaluationOutput = EvaluationOutput { evaluated = program
                                                     , focusedNodeValues = mempty
                                                     }
@@ -43,12 +44,14 @@ unsafeFromFrugelModel = partialFromFrugelModel Infinity
 
 partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> Model
 partialFromFrugelModel fuel
-                       scoutModel@Model{focusedNodeValueIndex}
+                       scoutModel@Model{version, focusedNodeValueIndex}
                        Frugel.Model{..}
     = Model { errors = map fromFrugelError errors
                   ++ map (uncurry $ flip EvaluationError)
                          (toOccurList evalErrors)
-            , evalThreadId = Nothing
+            , partiallyEvaluated = case fuel of
+                  Only _ -> True
+                  Infinity -> False
             , evaluationOutput = EvaluationOutput { .. }
             , fuelLimit = fuelLimit scoutModel
             , focusedNodeValueIndex

@@ -12,6 +12,7 @@ data Action
     | Log String
     | PrettyPrint
     | GenericAction GenericAction
+    | EvaluationFinished Model
     | FocusedNodeValueIndexAction FocusedNodeValueIndexAction
 
 data FocusedNodeValueIndexAction = Increment | Decrement
