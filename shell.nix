@@ -23,6 +23,10 @@ let
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
+      prettier = {
+        enable = true;
+        files = "www/.*\\.css$";
+      };
       floskell = floskellHook // {
         enable = true;
       };
