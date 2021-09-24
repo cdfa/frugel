@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
+
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -51,7 +53,8 @@ import Control.Lens.Plated
 import Data.Alphanumeric
 import Data.Char
 import Data.Data.Lens
-import Data.Sequence ( spanl, spanr )
+import Data.Sequence       ( spanl, spanr )
+import Data.String.Interpolation
 
 import Frugel.CstrSite
 
@@ -146,7 +149,7 @@ frugelId' :: CstrSite
 frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ unsafeVariable "x" ]
 
 whitespaceId :: CstrSite
-whitespaceId = toCstrSite [ Left "\\  \tx \n=x  \t\n\n" ]
+whitespaceId = toCstrSite [ Left "\  \tx \n=x  \tn" ]
 
 app :: CstrSite
 app = [ Left 'x', Right . ExprNode $ unsafeVariable "x", Left 'x' ]
@@ -175,23 +178,23 @@ sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
 evalTest :: CstrSite
 evalTest
-    = toCstrSite [ Left "fact2 (succ (succ 1)) \n\
-                        \  where\n\
-                        \    i = \\x = x\n\
-                        \    k = \\x = \\y = x\n\
-                        \    s = \\f = \\g = \\x = f x (g x)\n\
-                        \    o = \\x = x x\n\
-                        \    true = \\x = \\y = x\n\
-                        \    false = \\x = \\y = y\n\
-                        \    0 = \\f = \\x = x\n\
-                        \    1 = \\f = \\x = f x\n\
-                        \    succ = \\n = \\f = \\x = f(n f x)\n\
-                        \    pred = \\n = \\f = \\x = n(\\g = \\h = h (g f)) (\\u = x) (\\u =u)\n\
-                        \    mul = \\m = \\n = \\f = m(n f)\n\
-                        \    is0 = \\n = n (\\x = false) true\n\
-                        \    Y = \\f = (\\x = f (x x))(\\x = f(x x))\n\
-                        \    fact = Y(\\f = \\n = (is0 n) 1 (mul n (f (pred n))))\n\
-                        \    fact2 = \\n = (is0 n) 1 (mul n (fact3 (pred n)))\n\
-                        \    fact3 = \\n = (is0 n) 1 (mul n (fact2 (pred n)))\n\
-                        \    infiniteRecursion = infiniteRecursion"
+    = toCstrSite [ Left [str|fact2 (succ (succ 1))
+                               where
+                                 i = \x = x
+                                 k = \x = \y = x
+                                 s = \f = \g = \x = f x (g x)
+                                 o = \x = x x
+                                 true = \x = \y = x
+                                 false = \x = \y = y
+                                 0 = \f = \x = x
+                                 1 = \f = \x = f x
+                                 succ = \n = \f = \x = f(n f x)
+                                 pred = \n = \f = \x = n(\g = \h = h (g f)) (\u = x) (\u =u)
+                                 mul = \m = \n = \f = m(n f)
+                                 is0 = \n = n (\x = false) true
+                                 Y = \f = (\x = f (x x))(\x = f(x x))
+                                 fact = Y(\f = \n = (is0 n) 1 (mul n (f (pred n))))
+                                 fact2 = \n = (is0 n) 1 (mul n (fact3 (pred n)))
+                                 fact3 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
+                                 infiniteRecursion = infiniteRecursion|]
                  ]

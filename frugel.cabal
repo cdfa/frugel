@@ -107,7 +107,8 @@ library scout
       DeriveGeneric
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j
   build-depends:
-      QuickCheck
+      Interpolation
+    , QuickCheck
     , composition
     , containers
     , dictionary-sharing

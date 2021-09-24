@@ -90,6 +90,7 @@ internal-libraries:
       - dictionary-sharing
       - generic-data >= 0.8.0.0
       - monoidal-containers
+      - Interpolation
 
 executables:
   frugel-exe:
