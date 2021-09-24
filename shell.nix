@@ -7,17 +7,6 @@ let
 
   hsPkgs = import ./base.nix { inherit pkgs ghc; };
 
-  reload-script = pkgs.writeShellScriptBin "reload" ''
-    ${pkgs.ghcid}/bin/ghcid -c '\
-        ${pkgs.stack}/bin/stack repl\
-        --only-main\
-        --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
-        '\
-        --reload=www\
-        --restart=package.yaml\
-        -r -W
-  '';
-
   weeder = (
     pkgs.haskell-nix.hackage-package
       {
@@ -57,7 +46,6 @@ hsPkgs.shellFor {
     stan = "latest";
   };
   buildInputs = with pkgs; [
-    reload-script
     haskellPackages.floskell
     ghcid
     stack
@@ -72,7 +60,7 @@ hsPkgs.shellFor {
           version = "latest";
         }
     ).components.exes.refactor
-  ];
+  ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs; });
   withHoogle = false;
   exactDeps = false;
   shellHook = ''
