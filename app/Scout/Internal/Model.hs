@@ -28,6 +28,6 @@ data EvaluationOutput
     = EvaluationOutput { evaluated :: Program, focusedNodeValues :: Seq Node }
     deriving ( Show, Eq )
 
-makeFieldLabelsWith noPrefixFieldLabels ''Model
+makeFieldLabelsNoPrefix ''Model
 
-makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput
+makeFieldLabelsNoPrefix ''EvaluationOutput

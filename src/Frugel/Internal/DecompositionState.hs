@@ -36,7 +36,7 @@ type DecompositionMonad m = StateT DecompositionState m
 
 makePrisms ''ModificationStatus
 
-makeFieldLabelsWith noPrefixFieldLabels ''DecompositionState
+makeFieldLabelsNoPrefix ''DecompositionState
 
 initialDecompositionState :: Int -> DecompositionState
 

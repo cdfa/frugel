@@ -17,7 +17,7 @@ import Optics.Extra.Frugel
 data SeqZipper a = SeqZipper { reversedPrefix :: Seq a, suffix :: Seq a }
     deriving ( Eq )
 
-makeFieldLabelsWith noPrefixFieldLabels ''SeqZipper
+makeFieldLabelsNoPrefix ''SeqZipper
 
 unzipTo :: Int -> Seq a -> Maybe (SeqZipper a)
 unzipTo i xs | 0 <= i && i <= length xs, (prefix, suffix) <- Seq.splitAt i xs

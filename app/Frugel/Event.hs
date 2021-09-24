@@ -24,7 +24,7 @@ data KeyInfo
     = KeyInfo { key :: !String, shiftKey, metaKey, ctrlKey, altKey :: !Bool }
     deriving ( Show, Eq )
 
-makeFieldLabelsWith noPrefixFieldLabels ''KeyInfo
+makeFieldLabelsNoPrefix ''KeyInfo
 
 keyDownHandler :: Attribute Action
 keyDownHandler = onKeyDownWithInfo handleKeyDown

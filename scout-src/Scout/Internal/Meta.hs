@@ -52,11 +52,11 @@ data Meta
            }
     deriving ( Eq, Ord, Show, Generic, Data )
 
-makeFieldLabelsWith noPrefixFieldLabels ''ExprMeta
+makeFieldLabelsNoPrefix ''ExprMeta
 
-makeFieldLabelsWith noPrefixFieldLabels ''ProgramMeta
+makeFieldLabelsNoPrefix ''ProgramMeta
 
-makeFieldLabelsWith noPrefixFieldLabels ''Meta
+makeFieldLabelsNoPrefix ''Meta
 
 instance Validity ExprMeta where
     validate

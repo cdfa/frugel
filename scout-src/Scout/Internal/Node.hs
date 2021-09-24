@@ -128,9 +128,9 @@ data TypeError = TypeMismatchError ExpectedType Expr
 data ExpectedType = Function | Integer
     deriving ( Eq, Show, Ord, Data )
 
-makeFieldLabelsWith noPrefixFieldLabels ''Decl
+makeFieldLabelsNoPrefix ''Decl
 
-makeFieldLabelsWith noPrefixFieldLabels ''AbstractionMeta
+makeFieldLabelsNoPrefix ''AbstractionMeta
 
 makePrisms ''Node
 
@@ -142,7 +142,7 @@ makePrisms ''Decl
 
 makePrisms ''WhereClause
 
-makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput
+makeFieldLabelsNoPrefix ''EvaluationOutput
 
 instance Has Meta Node where
     getter (ExprNode n) = getter n

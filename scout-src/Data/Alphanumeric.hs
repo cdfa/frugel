@@ -27,7 +27,7 @@ import Test.QuickCheck.Gen      hiding ( growingElements )
 newtype Alphanumeric = Alphanumeric { unAlphanumeric :: Char }
     deriving ( Eq, Ord, Show, Generic, Data, Pretty )
 
-makeFieldLabelsWith noPrefixFieldLabels ''Alphanumeric
+makeFieldLabelsNoPrefix ''Alphanumeric
 
 instance Validity Alphanumeric where
     validate

@@ -60,7 +60,7 @@ data Program
 
 type instance NodeOf Program = Node
 
-makeFieldLabelsWith noPrefixFieldLabels ''Program
+makeFieldLabelsNoPrefix ''Program
 
 makePrisms ''Program
 
