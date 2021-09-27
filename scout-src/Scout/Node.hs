@@ -8,7 +8,6 @@
 
 module Scout.Node
     ( module Scout.Node
-    , module Scout.Meta
     , module Frugel.CstrSite
     , ValidInterstitialWhitespace(..)
     , Expr(..)
@@ -18,6 +17,8 @@ module Scout.Node
     , Node(..)
     , WhereClause(..)
     , AbstractionMeta(AbstractionMeta)
+    , ExprMeta(ExprMeta)
+    , Meta(Meta)
     , _Identifier
     , _Abstraction
     , _Application
@@ -41,11 +42,18 @@ module Scout.Node
     , exprCstrSite'
     , declCstrSite'
     , whereCstrSite'
+    , defaultExprMeta
+    , defaultMeta
     , addMeta
     , addMetaWith
     , parenthesizeExprFromMeta
     , intersperseWhitespaceTraversers
     , whitespaceFragmentTraverser
+    , validateInterstitialWhitespace
+    , validateInterstitialWhitespaceWith
+    , hasNonEmptyInterstitialWhitespace
+    , enumerateValidExprMeta
+    , enumerateValidMeta
     ) where
 
 import Control.Lens.Plated
@@ -63,7 +71,6 @@ import Optics.Extra.Scout
 import qualified Relude.Unsafe as Unsafe
 
 import Scout.Internal.Node as Node
-import Scout.Meta
 
 identifier' :: String -> Maybe Identifier
 identifier' = Identifier <.> (nonEmpty <=< traverse fromChar)

@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -62,15 +63,16 @@ evalCstrSite cstrSite = do
                 $ whereCstrSite' mempty
     pure (newEnv, newCstrSite)
 
--- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
 evalExpr :: Expr -> Evaluation Expr
 evalExpr expr = do
     ex <- evalExpr' expr
     if expr ^. hasLens @Meta % #focused
-        then writerFragment' #focusedNodeValues ex . one
-            $ ExprNode ex
+        then pure ex
+            <&> hasLens @Meta % #focusedNodeValues
+            %~ (ExprNode (ex & hasLens @Meta % #focusedNodeValues .~ mempty) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
         else pure ex
   where
+    -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     evalExpr' v@(Variable meta identifier) = do
         valueBinding <- asks $ Map.lookup identifier
         case valueBinding of
@@ -83,13 +85,15 @@ evalExpr expr = do
             Just (Left value) -> lift2 value
     evalExpr' (Application meta f x) = do
         -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
-        (ef, errors) <- mapReaderT (mapLimiterT (pure . runWriter))
+        ((efValues, ef), errors) <- mapReaderT (mapLimiterT (pure . runWriter))
+            . fmap splitFocusedNodeValues
             $ evalExpr f
         case ef of
             Abstraction
                 AbstractionMeta{reified = Just (Hidden reifiedFunction)}
                 _
                 _ -> draw successfulApplication >>= maybe applicationStub pure
+                <&> hasLens @Meta % #focusedNodeValues %~ (efValues <>)
               where
                 applicationStub
                     = writerFragment' #errors placeholder
@@ -106,8 +110,13 @@ evalExpr expr = do
                         $ evalExpr x
             _ -> do
                 tell errors
-                Application meta <$> reportAnyTypeErrors Function ef
-                    <*> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
+                (exValues, ex) <- splitFocusedNodeValues
+                    <$> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
+                let newMeta
+                        = meta
+                        & hasLens @Meta % #focusedNodeValues
+                        .~ efValues <> exValues
+                Application newMeta <$> reportAnyTypeErrors Function ef ?? ex
     evalExpr' (Abstraction meta n e) = mdo
         reifiedFunction <- asks $ \env x ->
             usingReaderT (Map.insert n (Left x) env) $ evalExpr e
@@ -121,9 +130,12 @@ evalExpr expr = do
                           ex
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
-        ex <- evalExpr x
-        ey <- evalExpr y
-        uncurry (Sum meta)
+        (exValues, ex) <- splitFocusedNodeValues <$> evalExpr x
+        (eyValues, ey) <- splitFocusedNodeValues <$> evalExpr y
+        let newMeta
+                = meta
+                & hasLens @Meta % #focusedNodeValues .~ exValues <> eyValues
+        uncurry (Sum newMeta)
             <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
         -- case (ex, ey) of
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
@@ -189,22 +201,31 @@ evalProgram program = case program of
         ProgramCstrSite meta . snd <$> evalCstrSite cstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
-runEval :: (Data a, Decomposable a, NodeOf a ~ Node)
+runEval :: forall a.
+    (Data a, Decomposable a, NodeOf a ~ Node)
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
     -> a
     -> (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval
-    = transformOnOf (template @_ @Expr)
-                    uniplate
-                    (_Abstraction % _1 % #reified .~ Nothing)
-    . second (view #errors &&& view #focusedNodeValues)
+    = removeReifiedFunctions
+    . (\(n, output) -> (n, (view #errors output, collectNodeValues n)))
     . runWriter
     . usingLimiterT fuel
     . usingReaderT mempty
     . eval
     . maybe id focusNodeUnderCursor cursorOffset
+  where
+    removeReifiedFunctions
+        = transformOnOf (template @_ @Expr)
+                        uniplate
+                        (_Abstraction % _1 % #reified .~ Nothing)
+    collectNodeValues
+        = foldOf $ foldVL (template @a @Meta) % #focusedNodeValues
+
+splitFocusedNodeValues :: Has Meta n => n -> (Seq Node, n)
+splitFocusedNodeValues = hasLens @Meta % #focusedNodeValues <<.~ mempty
 
 reportAnyTypeErrors :: MonadWriter Internal.EvaluationOutput f
     => ExpectedType
@@ -233,11 +254,10 @@ numberedIdentifier identifier i
     = identifier <> Unsafe.fromJust (identifier' $ show i) -- safe because i is integer
 
 focusNodeUnderCursor :: (Decomposable n, NodeOf n ~ Node) => Int -> n -> n
-focusNodeUnderCursor cursorOffset program
-    = fromRight program
-    $ modifyNodeAt' (const $ pure . focusNode) cursorOffset program
+focusNodeUnderCursor cursorOffset n
+    = fromRight n $ modifyNodeAt' (const $ pure . focusNode) cursorOffset n
   where
-    focusNode n
-        = Unsafe.fromJust . preview nodePrism . focus $ review nodePrism n -- safe because of first prism law
+    focusNode :: (IsNode n, NodeOf n ~ Node) => n -> n
+    focusNode = Unsafe.fromJust . preview nodePrism . focus . review nodePrism -- safe because of optics laws and that hasLens @Meta @(NodeOf n) can not change what type of node it is
     focus :: Has Meta n => n -> n
     focus = hasLens @Meta % #focused .~ True

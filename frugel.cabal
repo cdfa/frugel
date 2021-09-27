@@ -85,11 +85,9 @@ library scout
       Scout
       Scout.Error
       Scout.Evaluation
-      Scout.Internal.Meta
       Scout.Internal.Node
       Scout.Internal.Program
       Scout.Lexing
-      Scout.Meta
       Scout.Node
       Scout.Orphans.DisplayProjection
       Scout.Orphans.Stream

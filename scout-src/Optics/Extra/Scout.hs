@@ -43,3 +43,19 @@ hasLens = lens getter (\t b -> modifier (const b) t)
 
 _NonEmpty :: (IsList l, Item l ~ a) => Prism' l (NonEmpty a)
 _NonEmpty = prism' fromFoldable (nonEmpty . toList)
+
+infixr 4 <<.~, <<%~
+
+(<<%~) :: PermeableOptic k a
+    => Optic k is s t a b
+    -> (a -> b)
+    -> s
+    -> (ViewResult k a, t)
+o <<%~ f = passthrough o $ \a -> (a, f a)
+
+(<<.~) :: PermeableOptic k a
+    => Optic k is s t a b
+    -> b
+    -> s
+    -> (ViewResult k a, t)
+o <<.~ b = o <<%~ const b
