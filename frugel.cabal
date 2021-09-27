@@ -53,9 +53,9 @@ library
       composition
     , lens
     , mtl
-    , optics >=0.4
-    , optics-vl >=0.2.1
-    , prettyprinter >=1.7.0
+    , optics ==0.4.*
+    , optics-vl >=0.2.1 && <0.3
+    , prettyprinter >=1.7.0 && <1.8
     , relude >=1.0.0.0
   if impl(ghcjs)
     build-depends:
@@ -113,19 +113,19 @@ library scout
     , containers
     , dictionary-sharing
     , frugel
-    , generic-data >=0.8.0.0
+    , generic-data >=0.8.0.0 && <0.9
     , genvalidity
     , genvalidity-containers
     , genvalidity-text
     , it-has
     , lens
-    , megaparsec >=9.0.1
+    , megaparsec >=9.0.1 && <9.1
     , monoidal-containers
     , mtl
     , multiset
-    , optics >=0.4
+    , optics ==0.4.*
     , parser-combinators
-    , prettyprinter >=1.7.0
+    , prettyprinter >=1.7.0 && <1.8
     , relude >=1.0.0.0
     , size-based
     , testing-feat
@@ -164,10 +164,10 @@ executable frugel-exe
     , aeson
     , composition
     , frugel
-    , miso >=1.8.0.0
+    , miso >=1.8.0.0 && <1.9
     , multiset
     , pretty-show
-    , prettyprinter >=1.7.0
+    , prettyprinter >=1.7.0 && <1.8
     , relude >=1.0.0.0
     , scout
   if impl(ghcjs)
@@ -177,7 +177,7 @@ executable frugel-exe
     build-depends:
         base-noprelude >=4.7 && <5
       , jsaddle >=0.9.8 && <0.10
-      , jsaddle-warp >=0.9
+      , jsaddle-warp ==0.9.*
       , wai-app-static >=3.1.7 && <3.2
       , warp >=3.3.17 && <3.4
       , websockets >=0.12.7 && <0.13
