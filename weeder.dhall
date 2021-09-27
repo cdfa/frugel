@@ -1,6 +1,7 @@
 { roots =
-  [ "^Main.main\$"
-  , "^Spec.main\$"
+  [ "^Main.main$"
+  , "^Spec.main$"
+  , "^Frugel.Action.*"
   , "^Control.ValidEnumerable.*"
   , "^Optics.Writer.*"
   , "^Scout.Node.*"

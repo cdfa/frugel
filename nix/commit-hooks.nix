@@ -1,4 +1,8 @@
-{ pkgs, weeder }: with pkgs;
+{ pkgs, weeder }:
+let
+  inherit (import ./scripts.nix { inherit pkgs;}) regen-hie-script;
+in
+ with pkgs;
 {
   floskellHook = {
     enable = false;
@@ -28,7 +32,8 @@
     name = "weeder";
     description = "Check dead code";
     # Generating the .hie files with stack repl will fail when both Main.hs and Spec.hs are passed. Not much that can be done about it I think
-    entry = "${bash}/bin/bash -c 'echo \"\" | ${stack}/bin/stack repl --test --ghci-options \"-fwrite-ide-info -hiedir=.hie -ignore-dot-ghci\" $0 $@ > /dev/null 2> /dev/null ; ${weeder}/bin/weeder'";
+    entry = "${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie > /dev/null 2> /dev/null ; ${weeder}/bin/weeder'";
     files = "\\.l?hs$";
+    pass_filenames = false;
   };
 }
