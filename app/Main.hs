@@ -43,7 +43,7 @@ main = runApp $ do
             , events = defaultEvents -- default delegated events
             , subs = [] -- empty subscription list
             , mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
-            , logLevel = DebugPrerender -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
+            , logLevel = Off -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
             }
 
 updateModel :: MVar (Maybe ThreadId) -> Action -> Model -> Effect Action Model
