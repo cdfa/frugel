@@ -103,7 +103,7 @@ evaluatedView Model{..}
                      , button_ [ class_ "card-header-icon"
                                , onClick (FocusedNodeValueIndexAction Decrement)
                                ]
-                               [ span_ [ class_ "icon" ] [ text "<" ] ]
+                               [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
                      , span_ [ class_ "card-header-vertical-padding" ]
                              [ text (show (focusedNodeValueIndex + 1)
                                      <> " of "
@@ -112,7 +112,7 @@ evaluatedView Model{..}
                      , button_ [ class_ "card-header-icon"
                                , onClick (FocusedNodeValueIndexAction Increment)
                                ]
-                               [ span_ [ class_ "icon" ] [ text ">" ] ]
+                               [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
                      ]
               , div_ [ class_ "card-content" ]
                      [ div_ [ class_ "content" ]
