@@ -130,12 +130,9 @@ evalExpr expr = do
                           ex
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
-        (exValues, ex) <- splitFocusedNodeValues <$> evalExpr x
-        (eyValues, ey) <- splitFocusedNodeValues <$> evalExpr y
-        let newMeta
-                = meta
-                & hasLens @Meta % #focusedNodeValues .~ exValues <> eyValues
-        uncurry (Sum newMeta)
+        ex <- evalExpr x
+        ey <- evalExpr y
+        uncurry (Sum meta)
             <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
         -- case (ex, ey) of
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
