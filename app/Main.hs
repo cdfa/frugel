@@ -69,7 +69,9 @@ updateModel evalThreadVar action model'
     updateModel' (FocusedNodeValueIndexAction indexAction) model
         = Left . noEff $ model & #focusedNodeValueIndex %~ case indexAction of
             Increment -> min
-                (lengthOf (#evaluationOutput % #focusedNodeValues) model - 1)
+                (lengthOf (#evaluationOutput % #focusedNodeValues % folded)
+                          model
+                 - 1)
                 . succ
             Decrement -> max 0 . pred
     updateModel' (ChangeFuelLimit newLimit) model

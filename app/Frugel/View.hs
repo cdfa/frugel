@@ -107,8 +107,7 @@ evaluatedView Model{..}
                      , span_ [ class_ "card-header-vertical-padding" ]
                              [ text (show (focusedNodeValueIndex + 1)
                                      <> " of "
-                                     <> show (lengthOf #focusedNodeValues
-                                                       evaluationOutput))
+                                     <> show (length focusedNodeValues))
                              ]
                      , button_ [ class_ "card-header-icon"
                                , onClick (FocusedNodeValueIndexAction Increment)
