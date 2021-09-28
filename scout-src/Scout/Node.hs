@@ -1,9 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
-
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Scout.Node
@@ -57,6 +58,7 @@ module Scout.Node
     ) where
 
 import Control.Lens.Plated
+import Control.Limited
 
 import Data.Alphanumeric
 import Data.Char
@@ -137,6 +139,38 @@ liftNestedCstrSiteOuterWhitespace
                  . second (spanr isWhitespaceItem)
                  . spanl isWhitespaceItem)
                 item
+
+capTree :: Limit -> Node -> Node
+capTree (Only 0) n = case n of
+    ExprNode _ -> ExprNode elidedExpr
+    DeclNode _ -> DeclNode elidedDecl
+    WhereNode _ -> WhereNode elidedWhereClause
+capTree limit n = case n of
+    ExprNode expr -> ExprNode $ capExprTree limit expr
+    DeclNode decl -> DeclNode $ capDecl limit decl
+    WhereNode whereClause -> WhereNode
+        $ _WhereClause % _2 % mapped %~ capDecl limit
+        $ capCstrSiteNodes limit whereClause
+  where
+    capExprTree (Only 0) _ = elidedExpr
+    capExprTree limit' expr
+        = expr
+        & traversalVL uniplate %~ capExprTree (predLimit limit')
+        & capCstrSiteNodes limit'
+    capDecl limit'
+        = #value %~ capExprTree (predLimit limit') . capCstrSiteNodes limit'
+    capCstrSiteNodes limit'
+        = traversalVL (template @_ @Node) %~ capTree (predLimit limit')
+
+elidedExpr :: Expr
+elidedExpr = set (hasLens @Meta % #elided) True $ exprCstrSite' mempty
+
+elidedDecl :: Decl
+elidedDecl = set (declMeta % #elided) True $ declCstrSite' mempty
+
+elidedWhereClause :: WhereClause
+elidedWhereClause
+    = set (whereClauseMeta % #elided) True $ whereCstrSite' mempty
 
 type CstrSite' = [Either String Node]
 

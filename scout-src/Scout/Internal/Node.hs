@@ -115,7 +115,9 @@ data Meta
              -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
            , focused :: Bool
              -- Used to keep track of the values of all focused expressions that were evaluated while normalising this expression to weak-head normal form
-           , focusedNodeValues :: Seq Node
+             -- Hidden because we typically do not want to consider these nodes when using template/uniplate
+             -- Be careful with evaluating the Nodes completely because they may be infinitely large. Use capTree to cap them to a certain depth
+           , focusedNodeValues :: Seq (Hidden Node)
            }
     deriving ( Eq, Ord, Show, Generic, Data )
 
@@ -561,14 +563,14 @@ instance GenValid ExprMeta where
 instance GenValid Meta where
     genValid = QuickCheck.sized . uniformWith $ enumerateValidMeta 0
     shrinkValid meta@Meta{interstitialWhitespace}
-        = shrinkValidStructurallyWithoutExtraFiltering meta
+        = shrinkValidStructurallyWithoutExtraFiltering interstitialWhitespace
         -- ensure number of whitespace fragments is preserved
-        & filter ((length interstitialWhitespace ==)
-                  . lengthOf #interstitialWhitespace)
+        & filter ((length interstitialWhitespace ==) . length)
         -- ensure only characters from previous whitespace fragments are used
-        & mapped % #interstitialWhitespace % imapped
-        %@~ \i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
-        $ interstitialWhitespace Unsafe.!! i
+        & mapped % imapped
+        %@~ (\i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
+             $ interstitialWhitespace Unsafe.!! i)
+        & fmap (flip (set #interstitialWhitespace) meta)
 
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]

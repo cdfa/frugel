@@ -16,6 +16,7 @@ module Control.Limited
     , LimiterT
     , Limited(..)
     , MonadLimiter(..)
+    , predLimit
     , runLimiter
     , runLimiterT
     , usingLimiter

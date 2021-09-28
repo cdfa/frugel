@@ -56,21 +56,21 @@ evalCstrSite cstrSite = do
     newCstrSite <- local (const newEnv)
         $ cstrSite & _CstrSite % traversed % _Right %%~ \case
             ExprNode e -> ExprNode <$> evalExpr e
-            DeclNode _ -> pure . DeclNode . set (declMeta % #elided) True
-                $ declCstrSite' mempty
-            WhereNode _ ->
-                pure . WhereNode . set (whereClauseMeta % #elided) True
-                $ whereCstrSite' mempty
+            DeclNode _ -> pure $ DeclNode elidedDecl
+            WhereNode _ -> pure $ WhereNode elidedWhereClause
     pure (newEnv, newCstrSite)
 
 evalExpr :: Expr -> Evaluation Expr
-evalExpr expr = do
-    ex <- evalExpr' expr
-    if expr ^. hasLens @Meta % #focused
-        then pure ex
-            <&> hasLens @Meta % #focusedNodeValues
-            %~ (ExprNode (ex & hasLens @Meta % #focusedNodeValues .~ mempty) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
-        else pure ex
+evalExpr expr
+    = do
+        ex <- evalExpr' expr
+        if expr ^. hasLens @Meta % #focused
+            then pure ex
+                <&> hasLens @Meta % #focusedNodeValues
+                %~ (Hidden (ExprNode (ex
+                                      & hasLens @Meta % #focusedNodeValues
+                                      .~ mempty)) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
+            else pure ex
   where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     evalExpr' v@(Variable meta identifier) = do
@@ -219,9 +219,10 @@ runEval cursorOffset fuel eval
                         uniplate
                         (_Abstraction % _1 % #reified .~ Nothing)
     collectNodeValues
-        = foldOf $ foldVL (template @a @Meta) % #focusedNodeValues
+        = fmap (view _Hidden)
+        . foldOf (foldVL (template @a @Meta) % #focusedNodeValues)
 
-splitFocusedNodeValues :: Has Meta n => n -> (Seq Node, n)
+splitFocusedNodeValues :: Has Meta n => n -> (Seq (Hidden Node), n)
 splitFocusedNodeValues = hasLens @Meta % #focusedNodeValues <<.~ mempty
 
 reportAnyTypeErrors :: MonadWriter Internal.EvaluationOutput f

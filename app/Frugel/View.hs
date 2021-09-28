@@ -3,6 +3,8 @@
 
 module Frugel.View where
 
+import qualified Data.Sequence as Seq
+
 import Frugel          hiding ( Model(..) )
 import Frugel.View.Elements
 import Frugel.View.Rendering
@@ -107,7 +109,9 @@ evaluatedView Model{..}
                      , span_ [ class_ "card-header-vertical-padding" ]
                              [ text (show (focusedNodeValueIndex + 1)
                                      <> " of "
-                                     <> show (length focusedNodeValues))
+                                     <> show (Seq.length
+                                              $ view #focusedNodeValues
+                                                     evaluationOutput))
                              ]
                      , button_ [ class_ "card-header-icon"
                                , onClick (FocusedNodeValueIndexAction Increment)
@@ -120,8 +124,10 @@ evaluatedView Model{..}
                        . reAnnotateS toStandardAnnotation
                        . layoutPretty defaultLayoutOptions
                        . annPretty
+                       . capTree (Only 10)
                        . fromMaybe (last focusedNodeValues)
-                       $ preview (ix focusedNodeValueIndex) focusedNodeValues -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                       . Seq.lookup focusedNodeValueIndex
+                       $ view #focusedNodeValues evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
                      ]
               ])
              evaluationOutput)
