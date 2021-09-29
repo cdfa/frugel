@@ -3,6 +3,7 @@
   , "^Spec.main$"
   , "^Frugel.Action.*"
   , "^Control.ValidEnumerable.*"
+  , "^Control.Limited.*"
   , "^Optics.Writer.*"
   , "^Scout.Node.*"
   , "^Paths_.*"

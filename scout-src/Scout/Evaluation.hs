@@ -1,28 +1,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Scout.Evaluation where
 
-import Control.Lens.Plated
 import Control.Limited
--- Use of lazy writer is important for preserving laziness of evaluation
-import Control.Monad.Writer hiding ( Sum )
 
 import Data.Data
 import Data.Data.Lens
 import Data.Has
 import Data.Hidden
 import qualified Data.Map as Map
-import qualified Data.Map.Monoidal as Map.Monoidal
 import Data.MultiSet    ( MultiSet )
 import qualified Data.MultiSet as MultiSet
-import Data.Semigroup   ( Max(..) )
 
 import Frugel           hiding ( group )
 
@@ -36,17 +29,17 @@ import qualified Scout.Internal.Program
 import Scout.Node
 import Scout.Program
 
--- The reader being on top of the writer is important, because this allows for working over the result and errors without evaluating something (I think). This is exactly what liftedFunction does
--- LimiterT is outside ScopedEvaluation to preserve sharing in EvaluationEnv (having the values in the env be function would turn the evaluation into call-by-name instead of call-by-need)
-type Evaluation = ReaderT EvaluationEnv (LimiterT ScopedEvaluation)
+-- Evaluation output is saved in Meta and is handled manually.
+-- It is possible to use a Writer as well, but this can lead to unexpectedly discarded output (due to preserving laziness) and focused node values would need to be handled manually anyway.
+type Evaluation = ReaderT EvaluationEnv Limiter
 
--- Carries Evaluation to be preserve laziness of evaluation
 -- Map also stores number of times an argument is shadowed for normalising (\f x -> f x)(\f x -> f x) to \x1 x -> x1 x
-type EvaluationEnv = Map Identifier (Either (ScopedEvaluation Expr) Int)
+type EvaluationEnv = Map Identifier (Either Expr Int)
 
-evalCstrSite :: CstrSite -> Evaluation (EvaluationEnv, CstrSite)
+evalCstrSite :: CstrSite
+    -> Evaluation (MultiSet EvaluationError, EvaluationEnv, CstrSite)
 evalCstrSite cstrSite = do
-    newEnv <- evalScope
+    (errors, newEnv) <- evalScope
         $ toListOf
             (_CstrSite
              % folded
@@ -58,101 +51,94 @@ evalCstrSite cstrSite = do
             ExprNode e -> ExprNode <$> evalExpr e
             DeclNode _ -> pure $ DeclNode elidedDecl
             WhereNode _ -> pure $ WhereNode elidedWhereClause
-    pure (newEnv, newCstrSite)
+    pure (errors, newEnv, newCstrSite)
 
 evalExpr :: Expr -> Evaluation Expr
-evalExpr expr
-    = do
-        ex <- evalExpr' expr
-        if expr ^. hasLens @Meta % #focused
-            then pure ex
-                <&> hasLens @Meta % #focusedNodeValues
-                %~ (Hidden (ExprNode (ex
-                                      & hasLens @Meta % #focusedNodeValues
-                                      .~ mempty)) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
-            else pure ex
+evalExpr expr = do
+    ex <- evalExpr' expr
+    if expr ^. hasLens @Meta % #focused
+        then pure ex
+            <&> hasLens @Meta % #evaluationOutput % #focusedNodeValues
+            %~ (Hidden (ExprNode
+                            (ex & hasLens @Meta % #evaluationOutput .~ mempty)) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
+        else pure ex
   where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     evalExpr' v@(Variable meta identifier) = do
         valueBinding <- asks $ Map.lookup identifier
-        case valueBinding of
-            Nothing -> writerFragment' #errors (singleExprNodeCstrSite v)
-                . MultiSet.singleton
-                $ UnboundVariableError identifier
-            -- It's important that `i` is not yet inspected until after `pure`, because it's dependent on any binders that might be reported and evaluation will diverge (also due to mdo at Abstraction case)
-            Just (Right i) ->
-                pure . Variable meta $ numberedIdentifier identifier i
-            Just (Left value) -> lift2 value
+        pure $ case valueBinding of
+            Nothing -> withErrors
+                (MultiSet.singleton $ UnboundVariableError identifier)
+                (singleExprNodeCstrSite v)
+            Just (Right i) -> Variable meta $ numberedIdentifier identifier i
+            Just (Left value) -> value
     evalExpr' (Application meta f x) = do
-        -- "Catch" errors to preserve laziness in evaluation of unapplied function. If ef is a function, the errors will be raised when liftedFunction evaluates the body, so only force errors in case ef is not a function
-        ((efValues, ef), errors) <- mapReaderT (mapLimiterT (pure . runWriter))
-            . fmap splitFocusedNodeValues
-            $ evalExpr f
+        (efData, ef) <- splitEvaluationOutput <$> evalExpr f
         case ef of
             Abstraction
                 AbstractionMeta{reified = Just (Hidden reifiedFunction)}
                 _
-                _ -> draw successfulApplication >>= maybe applicationStub pure
-                <&> hasLens @Meta % #focusedNodeValues %~ (efValues <>)
+                _ -> (hasLens @Meta % #evaluationOutput %~ (efData <>))
+                . fromMaybe applicationStub
+                <$> draw successfulApplication
               where
                 applicationStub
-                    = writerFragment' #errors placeholder
-                    . MultiSet.singleton
-                    . OutOfFuelError
-                    $ Application meta ef x
+                    = withErrors (MultiSet.singleton . OutOfFuelError
+                                  $ Application meta ef x)
+                                 placeholder
                 placeholder
                     = exprCstrSite'
                     $ fromList [ Right . ExprNode $ Application meta ef x ]
                 successfulApplication = do
                     fuel <- askLimit
                     Limited
-                        <.> mapReaderT (reifiedFunction . usingLimiterT fuel)
+                        <.> mapReaderT (reifiedFunction . usingLimiter fuel)
                         $ evalExpr x
-            _ -> do
-                tell errors
-                (exValues, ex) <- splitFocusedNodeValues
-                    <$> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
-                let newMeta
-                        = meta
-                        & hasLens @Meta % #focusedNodeValues
-                        .~ efValues <> exValues
-                Application newMeta <$> reportAnyTypeErrors Function ef ?? ex
-    evalExpr' (Abstraction meta n e) = mdo
+            _ -> Application newMeta checkedEf <$> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
+              where
+                newMeta
+                    = meta
+                    & #standardMeta % #evaluationOutput
+                    .~ (efData & #errors %~ (errors <>))
+                (checkedEf, errors) = reportAnyTypeErrors Function ef
+    evalExpr' (Abstraction meta n e) = do
         reifiedFunction <- asks $ \env x ->
             usingReaderT (Map.insert n (Left x) env) $ evalExpr e
-        (ex, Max i) <- listening (#binders % at n % to (fromMaybe 0))
-            . local (Map.insert n $ Right i) -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
-            $ evalExpr e
-        tellFragment #binders . Map.Monoidal.singleton n . Max $ succ i
-        pure
-            $ Abstraction (meta & #reified ?~ Hidden reifiedFunction)
-                          (numberedIdentifier n i)
-                          ex
+        Abstraction (meta & #reified ?~ Hidden reifiedFunction)
+                    (numberedIdentifier n 0)
+            -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
+            <$> local (Map.insert n $ Right 0) (evalExpr e)
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
-        ex <- evalExpr x
-        ey <- evalExpr y
-        uncurry (Sum meta)
-            <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
+        (ex, exErrors) <- reportAnyTypeErrors Integer <$> evalExpr x
+        (ey, eyErrors) <- reportAnyTypeErrors Integer <$> evalExpr y
+        pure . withErrors (exErrors <> eyErrors) $ Sum meta ex ey
         -- case (ex, ey) of
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
         --     _ -> uncurry sum'
         --         <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
-    evalExpr' (ExprCstrSite meta cstrSite)
-        = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
+    evalExpr' (ExprCstrSite meta cstrSite) = do
+        (errors, _, eCstrSite) <- evalCstrSite cstrSite
+        pure . withErrors errors $ ExprCstrSite meta eCstrSite
 
-evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, Maybe WhereClause)
-evalWhereClause (WhereClause _ decls) = (, Nothing) <$> evalScope decls
-evalWhereClause (WhereCstrSite meta cstrSite)
-    = second (Just . WhereCstrSite meta) <$> evalCstrSite cstrSite
+evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
+evalWhereClause (WhereClause _ decls) = do
+    (errors, newEnv) <- evalScope decls
+    pure ( newEnv
+         , elidedWhereClause
+           & hasLens @Meta % #evaluationOutput % #errors .~ errors
+         )
+evalWhereClause (WhereCstrSite meta cstrSite) = do
+    (errors, newEnv, eCstrSite) <- evalCstrSite cstrSite
+    pure (newEnv, withErrors errors $ WhereCstrSite meta eCstrSite)
 
-evalScope :: Foldable t => t Decl -> Evaluation EvaluationEnv
+evalScope :: Foldable t
+    => t Decl
+    -> Evaluation (MultiSet EvaluationError, EvaluationEnv)
 evalScope decls = do
-    tellFragment #errors . MultiSet.fromList
-        $ map ConflictingDefinitionsError repeated
     newEnv <- asks computeNewEnv
-    fuel <- askLimit
-    pure $ usingLimiter fuel newEnv
+    lift ((MultiSet.fromList $ map ConflictingDefinitionsError repeated, )
+          <$> newEnv)
   where
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
@@ -169,37 +155,33 @@ evalScope decls = do
           where
             successfulEvaluation = do
                 iteratedEnv <- newEnv
-                fuel <- askLimit
-                pure
-                    . Limited
-                    . Left
-                    . usingLimiterT fuel
-                    . usingReaderT iteratedEnv
-                    $ evalExpr e
+                Limited <.> Left <.> usingReaderT iteratedEnv $ evalExpr e
             evaluationStub
-                = writerFragment'
-                    #errors
-                    (exprCstrSite' $ fromList [ Right $ ExprNode e ])
-                . MultiSet.singleton
-                $ OutOfFuelError e
+                = withErrors (MultiSet.singleton (OutOfFuelError e))
+                . exprCstrSite'
+                $ fromList [ Right $ ExprNode e ]
 
 evalProgram :: Program -> Evaluation Program
-evalProgram program = case program of
-    Program{..} -> do
-        evaluatedWhereClause <- traverse evalWhereClause whereClause
-        newEnv <- asks $ \env -> maybe env fst evaluatedWhereClause
-        newExpr <- local (const newEnv) $ evalExpr expr
-        pure
-            $ program
-            & #expr .~ newExpr
-            & #whereClause .~ Nothing
-            & programMeta % #standardMeta % #interstitialWhitespace .~ [ "" ]
-    ProgramCstrSite meta cstrSite ->
-        ProgramCstrSite meta . snd <$> evalCstrSite cstrSite
+evalProgram program@Program{..} = do
+    evaluatedWhereClause <- traverse evalWhereClause whereClause
+    (newEnv, eWhereClauseData) <- asks $ \env -> maybe
+        (env, mempty)
+        (second . view $ hasLens @Meta % #evaluationOutput)
+        evaluatedWhereClause
+    newExpr <- local (const newEnv) $ evalExpr expr
+    pure
+        $ program
+        & #expr .~ newExpr
+        & #whereClause .~ Nothing
+        & programMeta % #standardMeta
+        %~ (#interstitialWhitespace .~ [ "" ])
+        . (#evaluationOutput .~ eWhereClauseData)
+evalProgram (ProgramCstrSite meta cstrSite) = do
+    (errors, _, eCstrSite) <- evalCstrSite cstrSite
+    pure . withErrors errors $ ProgramCstrSite meta eCstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
-runEval :: forall a.
-    (Data a, Decomposable a, NodeOf a ~ Node)
+runEval :: (Data a, Decomposable a, NodeOf a ~ Node)
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
@@ -207,34 +189,37 @@ runEval :: forall a.
     -> (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval
     = removeReifiedFunctions
-    . (\(n, output) -> (n, (view #errors output, collectNodeValues n)))
-    . runWriter
-    . usingLimiterT fuel
+    . (\n -> ( removeEvaluationOutput n
+             , (MultiSet.fromOccurMap
+                . removeEvaluationOutput
+                . MultiSet.toMap -- unwrap and rewrap MultiSet newtype because of Data MultiSet instance hiding it's contents to optics
+                . view #errors)
+               &&& (fmap (view _Hidden) . view #focusedNodeValues)
+               $ collectNodeValues n
+             ))
+    . usingLimiter fuel
     . usingReaderT mempty
     . eval
     . maybe id focusNodeUnderCursor cursorOffset
   where
     removeReifiedFunctions
-        = transformOnOf (template @_ @Expr)
-                        uniplate
-                        (_Abstraction % _1 % #reified .~ Nothing)
-    collectNodeValues
-        = fmap (view _Hidden)
-        . foldOf (foldVL (template @a @Meta) % #focusedNodeValues)
+        = traversalVL (template @_ @AbstractionMeta) % #reified .~ Nothing
+    removeEvaluationOutput :: Data a => a -> a
+    removeEvaluationOutput
+        = traversalVL (template @_ @Meta) % #evaluationOutput .~ mempty
+    collectNodeValues = foldOf (foldVL (template @_ @Meta) % #evaluationOutput)
 
-splitFocusedNodeValues :: Has Meta n => n -> (Seq (Hidden Node), n)
-splitFocusedNodeValues = hasLens @Meta % #focusedNodeValues <<.~ mempty
+splitEvaluationOutput :: Has Meta n => n -> (EvaluationOutput, n)
+splitEvaluationOutput = hasLens @Meta % #evaluationOutput <<.~ mempty
 
-reportAnyTypeErrors :: MonadWriter Internal.EvaluationOutput f
-    => ExpectedType
-    -> Expr
-    -> f Expr
-reportAnyTypeErrors expectedType e
-    = maybe (pure e)
-            (writerFragment' #errors (singleExprNodeCstrSite e)
-             . MultiSet.singleton
-             . TypeError)
-    $ typeCheck e expectedType
+withErrors :: Has Meta n => MultiSet EvaluationError -> n -> n
+withErrors errors = hasLens @Meta % #evaluationOutput % #errors %~ (errors <>)
+
+reportAnyTypeErrors :: ExpectedType -> Expr -> (Expr, MultiSet EvaluationError)
+reportAnyTypeErrors expectedType expr
+    = maybe (expr, mempty) (\err -> ( singleExprNodeCstrSite expr
+                                    , MultiSet.singleton $ TypeError err
+                                    )) $ typeCheck expr expectedType
 
 typeCheck :: Expr -> ExpectedType -> Maybe TypeError
 typeCheck e expectedType = case (e, expectedType) of

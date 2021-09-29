@@ -11,6 +11,6 @@ import Control.Limited
 
 import Scout.Error
 import Scout.Evaluation
-import Scout.Node
+import Scout.Node     hiding ( EvaluationOutput(..) )
 import Scout.PrettyPrinting
 import Scout.Program

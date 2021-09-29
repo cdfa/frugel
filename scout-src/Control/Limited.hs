@@ -56,13 +56,6 @@ instance Monad m => MonadLimiter (LimiterT m) where
             else (Just . unLimited) <.> LimiterT . local predLimit
                 $ unLimiterT limited
 
--- instance MonadReader r m => MonadReader r (LimiterT m)
-instance MonadWriter w m => MonadWriter w (LimiterT m) where
-    writer = LimiterT . writer
-    listen = mapLimiterT listen
-    pass = mapLimiterT pass
-    tell = LimiterT . tell
-
 instance MonadLimiter m => MonadLimiter (ReaderT r m) where
     askLimit = lift askLimit
     draw = mapReaderT draw

@@ -20,6 +20,11 @@ module Scout.Node
     , AbstractionMeta(AbstractionMeta)
     , ExprMeta(ExprMeta)
     , Meta(Meta)
+    , ReifiedFunction
+    , EvaluationOutput(EvaluationOutput)
+    , EvaluationError(..)
+    , TypeError(..)
+    , ExpectedType(..)
     , _Identifier
     , _Abstraction
     , _Application
@@ -33,10 +38,6 @@ module Scout.Node
     , _WhereClause
     , _WhereCstrSite
     , _WhereNode
-    , ScopedEvaluation
-    , EvaluationError(..)
-    , TypeError(..)
-    , ExpectedType(..)
     , exprMeta
     , declMeta
     , whereClauseMeta

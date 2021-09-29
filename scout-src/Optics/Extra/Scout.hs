@@ -3,8 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Optics.Extra.Scout
-    ( module Optics.Writer
-    , module Optics.Extra.Scout
+    ( module Optics.Extra.Scout
     , module Optics.Extra.Frugel
     ) where
 
@@ -12,9 +11,7 @@ import Data.Has
 
 import GHC.Exts
 
-import Optics.At.Orphans ()
 import Optics.Extra.Frugel
-import Optics.Writer
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet
 -- data instead of newtype because of existential quantification

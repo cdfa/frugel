@@ -78,9 +78,7 @@ library scout
       Data.Validity.Extra
       Data.Whitespace
       Frugel.CstrSite.ValidEnumerable
-      Optics.At.Orphans
       Optics.Extra.Scout
-      Optics.Writer
       PrettyPrinting.Expr
       Scout
       Scout.Error
@@ -118,7 +116,6 @@ library scout
     , it-has
     , lens
     , megaparsec >=9.0.1 && <9.1
-    , monoidal-containers
     , mtl
     , multiset
     , optics ==0.4.*
