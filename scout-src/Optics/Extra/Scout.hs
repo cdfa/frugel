@@ -9,8 +9,6 @@ module Optics.Extra.Scout
 
 import Data.Has
 
-import GHC.Exts
-
 import Optics.Extra.Frugel
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet
@@ -38,9 +36,6 @@ concatByPrism p = concatBy (preview p) (review p)
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
 
-_NonEmpty :: (IsList l, Item l ~ a) => Prism' l (NonEmpty a)
-_NonEmpty = prism' fromFoldable (nonEmpty . toList)
-
 infixr 4 <<.~, <<%~
 
 (<<%~) :: PermeableOptic k a
@@ -56,3 +51,19 @@ o <<%~ f = passthrough o $ \a -> (a, f a)
     -> s
     -> (ViewResult k a, t)
 o <<.~ b = o <<%~ const b
+
+afailing' :: ( Is k An_AffineTraversal
+             , Is k A_Traversal
+             , Is l An_AffineTraversal
+             , Is l A_Traversal
+             )
+    => Optic k is s s a b
+    -> Optic l js s s a b
+    -> AffineTraversal s s a b
+afailing' firstOptic secondOptic
+    = atraversal
+        (either (matching secondOptic) Right . matching firstOptic)
+        (\s b -> fromMaybe s
+         $ failover firstOptic (const b) s <|> failover secondOptic (const b) s)
+
+infixl 3 `afailing'`

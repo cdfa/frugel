@@ -24,7 +24,8 @@
         "stylesheet",
         "traversers",
         "uncurry",
-        "vdom"
+        "vdom",
+        "WHNF"
     ],
     "cSpell.ignoreWords": [
         "accum",

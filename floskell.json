@@ -1,7 +1,7 @@
 {
     "style": "cramer",
     "extensions": ["OverloadedLabels"],
-    "fixities": [],
+    "fixities": ["infixr 8 .:."],
     "formatting": {
         "op": {
             ",": {

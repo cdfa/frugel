@@ -31,3 +31,14 @@ data EvaluationOutput
 makeFieldLabelsNoPrefix ''Model
 
 makeFieldLabelsNoPrefix ''EvaluationOutput
+
+instance LabelOptic "selectedNodeValue" An_AffineTraversal Model Model Node Node where
+    labelOptic = atraversal matcher updater
+      where
+        matcher model@Model{..}
+            = matching (selectedNodeValue' focusedNodeValueIndex) model
+        updater model@Model{..}
+            = flip (set $ selectedNodeValue' focusedNodeValueIndex) model
+        selectedNodeValue' :: Int -> AffineTraversal' Model Node
+        selectedNodeValue' i
+            = #evaluationOutput % #focusedNodeValues % (ix i `afailing'` _last)

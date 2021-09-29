@@ -159,6 +159,7 @@ executable frugel-exe
     , aeson
     , composition
     , frugel
+    , lens
     , miso >=1.8.0.0 && <1.9
     , multiset
     , pretty-show

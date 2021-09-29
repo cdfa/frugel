@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -8,6 +9,8 @@ module Main where
 import Control.Concurrent
 import Control.ValidEnumerable
 
+import Data.Composition
+import Data.Data.Lens
 import Data.Sized
 
 import Frugel
@@ -67,7 +70,13 @@ updateModel evalThreadVar action model'
         sub sink
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
     updateModel' (FocusedNodeValueIndexAction indexAction) model
-        = Left . noEff $ model & #focusedNodeValueIndex %~ case indexAction of
+        = Left . effectSub (hideSelectedNodeValue newModel) $ \sink -> liftIO
+        . bracketNonTermination evalThreadVar
+        . unsafeEvaluateSelectedNodeValue sink
+        $ #partiallyEvaluated .~ False
+        $ newModel
+      where
+        newModel = model & #focusedNodeValueIndex %~ case indexAction of
             Increment -> min
                 (lengthOf (#evaluationOutput % #focusedNodeValues % folded)
                           model
@@ -75,16 +84,14 @@ updateModel evalThreadVar action model'
                 . succ
             Decrement -> max 0 . pred
     updateModel' (ChangeFuelLimit newLimit) model
-        = Left . uncurry effectSub . over _2 (liftIO .)
-        $ reEvaluate evalThreadVar
-                     (prettyPrint $ toFrugelModel newModel)
-                     newModel
-      where
-        newModel = model & #fuelLimit .~ max 0 newLimit
+        = Left . reEvaluateModel evalThreadVar
+        $ model & #fuelLimit .~ max 0 newLimit
     -- reEvaluate to update type error locations
     updateModel' PrettyPrint model
-        = Left . uncurry effectSub . over _2 (liftIO .)
-        $ reEvaluate evalThreadVar (prettyPrint $ toFrugelModel model) model
+        = Left
+        $ reEvaluateFrugelModel evalThreadVar
+                                (prettyPrint $ toFrugelModel model)
+                                model
     -- Move action also cause reEvaluation, because value of expression under the cursor may need to be updated
     updateModel' (GenericAction genericAction)
                  model = Left $ case editResult of
@@ -106,6 +113,16 @@ updateModel evalThreadVar action model'
             EvaluationFinished m -> m
             NewProgramGenerated m -> m
 
+reEvaluateModel :: MVar (Maybe ThreadId) -> Model -> Effect Action Model
+reEvaluateModel evalThreadVar model
+    = reEvaluateFrugelModel evalThreadVar (toFrugelModel model) model
+
+reEvaluateFrugelModel :: MVar (Maybe ThreadId)
+    -> Frugel.Model Program
+    -> Model
+    -> Effect Action Model
+reEvaluateFrugelModel = uncurry effectSub . over _2 (liftIO .) .:. reEvaluate
+
 reEvaluate :: MVar (Maybe ThreadId)
     -> Frugel.Model Program
     -> Model
@@ -114,13 +131,36 @@ reEvaluate :: MVar (Maybe ThreadId)
          -> IO ()
        )
 reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit}
-    = (partialFromFrugelModel (Only fuelLimit) model newFrugelModel, \sink -> do
-        threadId <- myThreadId
-        modifyMVar_ evalThreadVar
-            $ \i -> Just threadId <$ traverse killThread i
-        let newModel@Model{errors} = unsafeFromFrugelModel model newFrugelModel
-        seq (length errors) -- force errors to force all expressions
-            . sink
-            . AsyncAction 2
-            $ EvaluationFinished newModel
-        void $ swapMVar evalThreadVar Nothing)
+    = (partialFromFrugelModel (Only fuelLimit) model newFrugelModel, \sink ->
+    bracketNonTermination evalThreadVar $ do
+        let newModel = unsafeFromFrugelModel model newFrugelModel
+        -- safe because inside bracketNonTermination
+        unsafeEvaluateTopExpression sink newModel
+        -- force selected node value separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
+        unsafeEvaluateSelectedNodeValue sink
+            $ #version +~ 1
+            $ #partiallyEvaluated .~ False
+            $ newModel)
+
+bracketNonTermination :: MVar (Maybe ThreadId) -> IO () -> IO ()
+bracketNonTermination evalThreadVar action = do
+    threadId <- myThreadId
+    modifyMVar_ evalThreadVar $ \i -> Just threadId <$ traverse killThread i
+    action
+    void $ swapMVar evalThreadVar Nothing
+
+-- force errors to force full evaluation
+unsafeEvaluateTopExpression :: Sink Action -> Model -> IO ()
+unsafeEvaluateTopExpression sink model@Model{..}
+    = seq (length errors) . sink . AsyncAction 2 . EvaluationFinished
+    $ hideSelectedNodeValue model
+
+unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
+unsafeEvaluateSelectedNodeValue sink model
+    = seq (lengthOf (#selectedNodeValue
+                     % to (capTree 10)
+                     % traversalVL (template @_ @Identifier))
+                    model)
+    . sink
+    . AsyncAction 2
+    $ EvaluationFinished model

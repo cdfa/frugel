@@ -54,7 +54,6 @@ partialFromFrugelModel fuel
                   Infinity -> False
             , evaluationOutput = EvaluationOutput { .. }
             , fuelLimit = fuelLimit scoutModel
-            , focusedNodeValueIndex
             , ..
             }
   where
@@ -68,3 +67,11 @@ updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->
 toFrugelModel :: Model -> Frugel.Model Program
 toFrugelModel Model{..}
     = Frugel.Model { errors = toListOf (folded % _FrugelError) errors, .. }
+
+hideSelectedNodeValue :: Model -> Model
+hideSelectedNodeValue
+    = (#partiallyEvaluated .~ True)
+    . (#selectedNodeValue .~ evaluationPlaceHolder)
+  where
+    evaluationPlaceHolder
+        = ExprNode . exprCstrSite' . toCstrSite . one $ Left "Evaluating..."

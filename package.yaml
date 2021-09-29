@@ -111,6 +111,7 @@ executables:
       - QuickCheck
       - multiset
       - composition
+      - lens
     when:
       - condition: impl(ghcjs)
         then:

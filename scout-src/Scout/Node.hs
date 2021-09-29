@@ -59,7 +59,6 @@ module Scout.Node
     ) where
 
 import Control.Lens.Plated
-import Control.Limited
 
 import Data.Alphanumeric
 import Data.Char
@@ -141,27 +140,27 @@ liftNestedCstrSiteOuterWhitespace
                  . spanl isWhitespaceItem)
                 item
 
-capTree :: Limit -> Node -> Node
-capTree (Only 0) n = case n of
+capTree :: Int -> Node -> Node
+capTree 0 n = case n of
     ExprNode _ -> ExprNode elidedExpr
     DeclNode _ -> DeclNode elidedDecl
     WhereNode _ -> WhereNode elidedWhereClause
-capTree limit n = case n of
-    ExprNode expr -> ExprNode $ capExprTree limit expr
-    DeclNode decl -> DeclNode $ capDecl limit decl
+capTree depth n = case n of
+    ExprNode expr -> ExprNode $ capExprTree depth expr
+    DeclNode decl -> DeclNode $ capDecl depth decl
     WhereNode whereClause -> WhereNode
-        $ _WhereClause % _2 % mapped %~ capDecl limit
-        $ capCstrSiteNodes limit whereClause
+        $ _WhereClause % _2 % mapped %~ capDecl depth
+        $ capCstrSiteNodes depth whereClause
   where
-    capExprTree (Only 0) _ = elidedExpr
-    capExprTree limit' expr
+    capExprTree 0 _ = elidedExpr
+    capExprTree depth' expr
         = expr
-        & traversalVL uniplate %~ capExprTree (predLimit limit')
-        & capCstrSiteNodes limit'
-    capDecl limit'
-        = #value %~ capExprTree (predLimit limit') . capCstrSiteNodes limit'
-    capCstrSiteNodes limit'
-        = traversalVL (template @_ @Node) %~ capTree (predLimit limit')
+        & traversalVL uniplate %~ capExprTree (pred depth')
+        & capCstrSiteNodes depth'
+    capDecl depth'
+        = #value %~ capExprTree (pred depth') . capCstrSiteNodes depth'
+    capCstrSiteNodes depth'
+        = traversalVL (template @_ @Node) %~ capTree (pred depth')
 
 elidedExpr :: Expr
 elidedExpr = set (hasLens @Meta % #elided) True $ exprCstrSite' mempty
@@ -239,4 +238,17 @@ evalTest
                                  fact2 = \n = (is0 n) 1 (mul n (fact3 (pred n)))
                                  fact3 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
                                  infiniteRecursion = infiniteRecursion|]
+                 ]
+
+nonTerminationSafetyTest :: CstrSite
+nonTerminationSafetyTest
+    = toCstrSite [ Left [str|(getNumber (k 1)) (getNumber evilWHNF)
+                                                   where
+                                                     getNumber = \inspectMe = inspectMe false
+                                                     evilWHNF = \b = b (o o) 0
+                                                     k = \x = \y = x
+                                                     o = \x = x x
+                                                     false = \x = \y = y
+                                                     0 = \f = \x = x
+                                                     1 = \f = \x = f x|]
                  ]

@@ -77,7 +77,7 @@ errorsView Model{..}
           errors
 
 evaluatedView :: Model -> View Action
-evaluatedView Model{..}
+evaluatedView model@Model{..}
     = div_
         [ class_ "card" ]
         ([ div_ [ class_ "card-header" ]
@@ -97,8 +97,8 @@ evaluatedView Model{..}
                 ]
          ]
          ++ foldMapOf
-             (#focusedNodeValues % _NonEmpty)
-             (\focusedNodeValues ->
+             #selectedNodeValue
+             (\selectedNodeValue ->
               [ div_ [ class_ "card-header" ]
                      [ p_ [ class_ "card-header-title" ]
                           [ "Focused node value" ]
@@ -124,13 +124,10 @@ evaluatedView Model{..}
                        . reAnnotateS toStandardAnnotation
                        . layoutPretty defaultLayoutOptions
                        . annPretty
-                       . capTree (Only 10)
-                       . fromMaybe (last focusedNodeValues)
-                       . Seq.lookup focusedNodeValueIndex
-                       $ view #focusedNodeValues evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                       $ capTree 10 selectedNodeValue
                      ]
               ])
-             evaluationOutput)
+             model)
 
 -- webPrint :: Miso.ToMisoString a => a -> View action
 -- webPrint x = pre_ [] [ text $ Miso.ms x ]
