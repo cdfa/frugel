@@ -11,6 +11,7 @@ import Control.ValidEnumerable
 
 import Data.Composition
 import Data.Data.Lens
+import qualified Data.Sequence          as Seq
 import Data.Sized
 
 import Frugel
@@ -77,12 +78,10 @@ updateModel evalThreadVar action model'
         $ newModel
       where
         newModel = model & #focusedNodeValueIndex %~ case indexAction of
-            Increment -> min
-                (lengthOf (#evaluationOutput % #focusedNodeValues % folded)
-                          model
-                 - 1)
-                . succ
-            Decrement -> max 0 . pred
+            Increment -> min (focusNodeValuesCount - 1) . succ
+            Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
+        focusNodeValuesCount
+            = Seq.length $ view (#evaluationOutput % #focusedNodeValues) model
     updateModel' (ChangeFuelLimit newLimit) model
         = Left . reEvaluateModel evalThreadVar
         $ model & #fuelLimit .~ max 0 newLimit
