@@ -46,7 +46,6 @@ hsPkgs.shellFor {
   tools = {
     cabal = "3.4.0.0";
     hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
-    haskell-language-server = "latest";
     stan = "latest";
   };
   buildInputs = with pkgs; [
@@ -64,6 +63,15 @@ hsPkgs.shellFor {
           version = "latest";
         }
     ).components.exes.refactor
+    (
+      pkgs.haskell-nix.hackage-package
+        {
+          compiler-nix-name = ghc;
+          name = "haskell-language-server";
+          version = "latest";
+          configureArgs = "-frename";
+        }
+    ).components.exes.haskell-language-server
   ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs; });
   withHoogle = false;
   exactDeps = false;
