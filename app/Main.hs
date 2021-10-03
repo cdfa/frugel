@@ -47,7 +47,10 @@ main = runApp $ do
             , logLevel = Off -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
             }
 
-updateModel :: MVar (Maybe ThreadId) -> Action -> Model -> Effect Action Model
+updateModel :: MVar (Maybe (ThreadId, Integer))
+    -> Action
+    -> Model
+    -> Effect Action Model
 updateModel evalThreadVar action model'
     = either id (effectSub model') $ updateModel' action model'
   where
@@ -66,7 +69,8 @@ updateModel evalThreadVar action model'
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
     updateModel' (FocusedNodeValueIndexAction indexAction) model
         = Left . effectSub (hideSelectedNodeValue newModel) $ \sink -> liftIO
-        . bracketNonTermination evalThreadVar
+        . bracketNonTermination (view #editableDataVersion newModel)
+                                evalThreadVar
         . unsafeEvaluateSelectedNodeValue sink
         $ #partiallyEvaluated .~ False
         $ newModel
@@ -108,41 +112,50 @@ updateModel evalThreadVar action model'
             EvaluationFinished m -> m
             NewProgramGenerated m -> m
 
-reEvaluateModel :: MVar (Maybe ThreadId) -> Model -> Effect Action Model
+reEvaluateModel
+    :: MVar (Maybe (ThreadId, Integer)) -> Model -> Effect Action Model
 reEvaluateModel evalThreadVar model
     = reEvaluateFrugelModel evalThreadVar (toFrugelModel model) model
 
-reEvaluateFrugelModel :: MVar (Maybe ThreadId)
+reEvaluateFrugelModel :: MVar (Maybe (ThreadId, Integer))
     -> Frugel.Model Program
     -> Model
     -> Effect Action Model
 reEvaluateFrugelModel = uncurry effectSub . over _2 (liftIO .) .:. reEvaluate
 
-reEvaluate :: MVar (Maybe ThreadId)
+reEvaluate :: MVar (Maybe (ThreadId, Integer))
     -> Frugel.Model Program
     -> Model
     -> ( Model
        , Sink Action
          -> IO ()
        )
-reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit}
+reEvaluate evalThreadVar
+           newFrugelModel
+           model@Model{fuelLimit, editableDataVersion}
     = (partialFromFrugelModel (Only fuelLimit) model newFrugelModel, \sink ->
-    bracketNonTermination evalThreadVar $ do
-        let newModel = unsafeFromFrugelModel model newFrugelModel
+    bracketNonTermination (succ editableDataVersion) evalThreadVar $ do
+        let newModel = fromFrugelModel model newFrugelModel
         -- safe because inside bracketNonTermination
         unsafeEvaluateTopExpression sink newModel
         -- force selected node value separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
         unsafeEvaluateSelectedNodeValue sink
-            $ #version +~ 1
             $ #partiallyEvaluated .~ False
             $ newModel)
 
-bracketNonTermination :: MVar (Maybe ThreadId) -> IO () -> IO ()
-bracketNonTermination evalThreadVar action = do
+bracketNonTermination
+    :: Integer -> MVar (Maybe (ThreadId, Integer)) -> IO () -> IO ()
+bracketNonTermination version evalThreadVar action = do
     threadId <- myThreadId
-    modifyMVar_ evalThreadVar $ \i -> Just threadId <$ traverse killThread i
-    action
-    void $ swapMVar evalThreadVar Nothing
+    outdated <- modifyMVar evalThreadVar $ \v -> case v of
+        Just (runningId, runningVersion)
+            | version > runningVersion ->
+                (Just (threadId, version), False) <$ killThread runningId
+        Just _ -> pure (v, True)
+        Nothing -> pure (Just (threadId, version), False)
+    unless outdated $ do
+        u <- action
+        void $ swapMVar evalThreadVar $ seq u Nothing
 
 -- force errors to force full evaluation
 unsafeEvaluateTopExpression :: Sink Action -> Model -> IO ()
