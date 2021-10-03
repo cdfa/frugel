@@ -15,8 +15,8 @@ import Scout.Internal.Model
 -- Assumes program terminates
 initialModel :: Program -> Model
 initialModel programCstrSite
-    = unsafeFromFrugelModel
-        Model { version = 0
+    = fromFrugelModel
+        Model { editableDataVersion = 0
               , fuelLimit = initialFuelLimit
               , focusedNodeValueIndex = 0
               , errors = []
@@ -39,14 +39,16 @@ initialFuelLimit :: Int
 initialFuelLimit = 10
 
 -- Assumes program terminates
-unsafeFromFrugelModel :: Model -> Frugel.Model Program -> Model
-unsafeFromFrugelModel = partialFromFrugelModel Infinity
+fromFrugelModel :: Model -> Frugel.Model Program -> Model
+fromFrugelModel = partialFromFrugelModel Infinity
 
 partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> Model
-partialFromFrugelModel fuel
-                       scoutModel@Model{version, focusedNodeValueIndex}
-                       Frugel.Model{..}
-    = Model { errors = map fromFrugelError errors
+partialFromFrugelModel
+    fuel
+    scoutModel@Model{editableDataVersion, focusedNodeValueIndex}
+    Frugel.Model{..}
+    = Model { editableDataVersion = editableDataVersion + 1
+            , errors = map fromFrugelError errors
                   ++ map (uncurry $ flip EvaluationError)
                          (toOccurList evalErrors)
             , partiallyEvaluated = case fuel of

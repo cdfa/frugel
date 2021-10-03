@@ -78,56 +78,53 @@ errorsView Model{..}
 
 evaluatedView :: Model -> View Action
 evaluatedView model@Model{..}
-    = div_
-        [ class_ "card" ]
-        ([ div_ [ class_ "card-header" ]
-                [ p_ [ class_ "card-header-title" ]
-                     [ if partiallyEvaluated then "Evaluating..." else "Result"
-                     ]
+    = div_ [ class_ "card" ]
+    $ [ div_ [ class_ "card-header" ]
+             [ p_ [ class_ "card-header-title" ]
+                  [ if partiallyEvaluated then "Evaluating..." else "Result" ]
+             ]
+      , div_ [ class_ "card-header" ]
+             [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
+      , div_ [ class_ "card-content" ]
+             [ div_ [ class_ "content" ]
+               . renderDocStream
+               . reAnnotateS toStandardAnnotation
+               . layoutPretty defaultLayoutOptions
+               . unsafePrettyProgram
+               $ view #evaluated evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+             ]
+      ]
+    ++ foldMapOf
+        #selectedNodeValue
+        (\selectedNodeValue ->
+         [ div_ [ class_ "card-header" ]
+                [ p_ [ class_ "card-header-title" ] [ "Focused node value" ]
+                , button_ [ class_ "card-header-icon"
+                          , onClick (FocusedNodeValueIndexAction Decrement)
+                          ]
+                          [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
+                , span_ [ class_ "card-header-vertical-padding" ]
+                        [ text (show (focusedNodeValueIndex + 1)
+                                <> " of "
+                                <> show (Seq.length
+                                         $ view #focusedNodeValues
+                                                evaluationOutput))
+                        ]
+                , button_ [ class_ "card-header-icon"
+                          , onClick (FocusedNodeValueIndexAction Increment)
+                          ]
+                          [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
                 ]
-         , div_ [ class_ "card-header" ]
-                [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
          , div_ [ class_ "card-content" ]
                 [ div_ [ class_ "content" ]
                   . renderDocStream
                   . reAnnotateS toStandardAnnotation
                   . layoutPretty defaultLayoutOptions
-                  . unsafePrettyProgram
-                  $ view #evaluated evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+                  . annPretty
+                  $ capTree 10 selectedNodeValue
                 ]
-         ]
-         ++ foldMapOf
-             #selectedNodeValue
-             (\selectedNodeValue ->
-              [ div_ [ class_ "card-header" ]
-                     [ p_ [ class_ "card-header-title" ]
-                          [ "Focused node value" ]
-                     , button_ [ class_ "card-header-icon"
-                               , onClick (FocusedNodeValueIndexAction Decrement)
-                               ]
-                               [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
-                     , span_ [ class_ "card-header-vertical-padding" ]
-                             [ text (show (focusedNodeValueIndex + 1)
-                                     <> " of "
-                                     <> show (Seq.length
-                                              $ view #focusedNodeValues
-                                                     evaluationOutput))
-                             ]
-                     , button_ [ class_ "card-header-icon"
-                               , onClick (FocusedNodeValueIndexAction Increment)
-                               ]
-                               [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
-                     ]
-              , div_ [ class_ "card-content" ]
-                     [ div_ [ class_ "content" ]
-                       . renderDocStream
-                       . reAnnotateS toStandardAnnotation
-                       . layoutPretty defaultLayoutOptions
-                       . annPretty
-                       $ capTree 10 selectedNodeValue
-                     ]
-              ])
-             model)
+         ])
+        model
 
 -- webPrint :: Miso.ToMisoString a => a -> View action
 -- webPrint x = pre_ [] [ text $ Miso.ms x ]

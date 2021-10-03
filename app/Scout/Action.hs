@@ -11,7 +11,7 @@ data Action
     | Log String
     | PrettyPrint
     | GenericAction GenericAction
-    | AsyncAction Int AsyncAction
+    | AsyncAction AsyncAction
     | FocusedNodeValueIndexAction FocusedNodeValueIndexAction
     | ChangeFuelLimit Int
 

@@ -13,7 +13,7 @@ import Optics.Extra.Scout
 import Scout
 
 data Model
-    = Model { version :: Integer
+    = Model { editableDataVersion :: Integer
             , cursorOffset :: Int
             , program :: Program
             , errors :: [Error]

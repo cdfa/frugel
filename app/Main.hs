@@ -51,11 +51,8 @@ main = runApp $ do
             }
 
 updateModel :: MVar (Maybe ThreadId) -> Action -> Model -> Effect Action Model
-
--- If the action causes a pure update to the model, increment the version, but don't change it otherwise
 updateModel evalThreadVar action model'
-    = either (_Effect % _1 % #version %~ succ) (effectSub model')
-    $ updateModel' action model'
+    = either id (effectSub model') $ updateModel' action model'
   where
     updateModel' Init _ = Right . const $ focus "code-root"
     updateModel' GenerateRandom model = Right $ \sink -> liftIO $ do
@@ -67,7 +64,7 @@ updateModel evalThreadVar action model'
                 $ toFrugelModel model
         let (preEvaluationModel, sub)
                 = reEvaluate evalThreadVar newFrugelModel model
-        sink . AsyncAction 1 $ NewProgramGenerated preEvaluationModel
+        sink . AsyncAction $ NewProgramGenerated preEvaluationModel
         sub sink
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
     updateModel' (FocusedNodeValueIndexAction indexAction) model
@@ -77,9 +74,12 @@ updateModel evalThreadVar action model'
         $ #partiallyEvaluated .~ False
         $ newModel
       where
-        newModel = model & #focusedNodeValueIndex %~ case indexAction of
-            Increment -> min (focusNodeValuesCount - 1) . succ
-            Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
+        newModel
+            = model
+            & #editableDataVersion +~ 1
+            & #focusedNodeValueIndex %~ case indexAction of
+                Increment -> min (focusNodeValuesCount - 1) . succ
+                Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
         focusNodeValuesCount
             = Seq.length $ view (#evaluationOutput % #focusedNodeValues) model
     updateModel' (ChangeFuelLimit newLimit) model
@@ -101,14 +101,13 @@ updateModel evalThreadVar action model'
       where
         (editResult, newFrugelModel)
             = Frugel.updateModel genericAction $ toFrugelModel model
-    updateModel' (AsyncAction versionIncrement asyncAction) model
-        = if view #version newModel > view #version model
-          then Left . noEff
-              $ #version -~ 1
-              $ newModel -- newModel version was already higher, don't increment again in updateModel
+    updateModel' (AsyncAction asyncAction) model
+        = if view #editableDataVersion newModel
+              == view #editableDataVersion model
+          then Left $ noEff newModel
           else Right . const $ pure ()
       where
-        newModel = #version +~ toInteger versionIncrement $ case asyncAction of
+        newModel = case asyncAction of
             EvaluationFinished m -> m
             NewProgramGenerated m -> m
 
@@ -151,7 +150,7 @@ bracketNonTermination evalThreadVar action = do
 -- force errors to force full evaluation
 unsafeEvaluateTopExpression :: Sink Action -> Model -> IO ()
 unsafeEvaluateTopExpression sink model@Model{..}
-    = seq (length errors) . sink . AsyncAction 2 . EvaluationFinished
+    = seq (length errors) . sink . AsyncAction . EvaluationFinished
     $ hideSelectedNodeValue model
 
 unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
@@ -161,5 +160,5 @@ unsafeEvaluateSelectedNodeValue sink model
                      % traversalVL (template @_ @Identifier))
                     model)
     . sink
-    . AsyncAction 2
+    . AsyncAction
     $ EvaluationFinished model
