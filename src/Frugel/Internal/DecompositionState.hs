@@ -1,18 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
-
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Internal.DecompositionState
     ( ModificationStatus(..)
     , DecompositionState(DecompositionState)
-    , DecompositionMonad
+    , Decomposition
     , initialDecompositionState
     , _Todo
     , _Success
@@ -32,7 +29,7 @@ data DecompositionState
                          }
     deriving ( Show )
 
-type DecompositionMonad m = StateT DecompositionState m
+type Decomposition m = StateT DecompositionState m
 
 makePrisms ''ModificationStatus
 

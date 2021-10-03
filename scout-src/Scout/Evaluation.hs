@@ -238,7 +238,8 @@ numberedIdentifier identifier i
 
 focusNodeUnderCursor :: (Decomposable n, NodeOf n ~ Node) => Int -> n -> n
 focusNodeUnderCursor cursorOffset n
-    = fromRight n $ modifyNodeAt' (const $ pure . focusNode) cursorOffset n
+    = fromRight n
+    $ traverseChildNodeAt (const $ pure . focusNode) cursorOffset n
   where
     focusNode :: (IsNode n, NodeOf n ~ Node) => n -> n
     focusNode = Unsafe.fromJust . preview nodePrism . focus . review nodePrism -- safe because of optics laws and that hasLens @Meta @(NodeOf n) can not change what type of node it is

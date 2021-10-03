@@ -309,112 +309,121 @@ instance DisplayProjection Decl
 instance DisplayProjection WhereClause
 
 instance Decomposable Node where
-    traverseComponents mapChar mapNode = \case
-        ExprNode expr -> ExprNode <$> traverseComponents mapChar mapNode expr
-        DeclNode decl -> DeclNode <$> traverseComponents mapChar mapNode decl
-        WhereNode whereClause ->
-            WhereNode <$> traverseComponents mapChar mapNode whereClause
+    traverseComponents traverseChar traverseNode = \case
+        ExprNode expr ->
+            ExprNode <$> traverseComponents traverseChar traverseNode expr
+        DeclNode decl ->
+            DeclNode <$> traverseComponents traverseChar traverseNode decl
+        WhereNode whereClause -> WhereNode
+            <$> traverseComponents traverseChar traverseNode whereClause
 
 instance Decomposable Identifier where
     conservativelyDecompose _ _ = Nothing
-    traverseComponents mapChar _ identifier@(Identifier _)
+    traverseComponents traverseChar _ identifier@(Identifier _)
         = traverseOf (_Identifier % traversed % #unAlphanumeric)
-                     mapChar
+                     traverseChar
                      identifier
 
 instance Decomposable Expr where
-    traverseComponents mapChar mapNode e
+    traverseComponents traverseChar traverseNode e
         | e ^. exprMeta % #parenthesisLevels > 0
             = chainDisJoint e
             $ Disjoint
-                [ keyWordCharTraversal mapChar '('
-                , whitespaceFragmentTraverser _head mapChar
+                [ keyWordCharTraversal traverseChar '('
+                , whitespaceFragmentTraverser _head traverseChar
                 , Traverser'
                       (refracting (exprMeta % #parenthesisLevels)
                                   (subtracting 1)
                        % refracting
                            (exprMeta % #standardMeta % #interstitialWhitespace)
                            (_tail % _init))
-                      mapNode
-                , whitespaceFragmentTraverser _last mapChar
-                , keyWordCharTraversal mapChar ')'
+                      traverseNode
+                , whitespaceFragmentTraverser _last traverseChar
+                , keyWordCharTraversal traverseChar ')'
                 ]
-    traverseComponents mapChar mapNode e
+    traverseComponents traverseChar traverseNode e
         = chainDisJoint e
         . Disjoint
-        . intersperseWhitespaceTraversers mapChar e
+        . intersperseWhitespaceTraversers traverseChar e
         $ case e of
             -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
             Variable{} -> [ Traverser' (_Variable % _2)
-                            $ traverseComponents mapChar mapNode
+                            $ traverseComponents traverseChar traverseNode
                           ]
-            Abstraction{} -> [ keyWordCharTraversal mapChar '\\'
+            Abstraction{} -> [ keyWordCharTraversal traverseChar '\\'
                              , Traverser' (_Abstraction % _2)
-                               $ traverseComponents mapChar mapNode
-                             , keyWordCharTraversal mapChar '='
-                             , Traverser' (_Abstraction % _3) mapNode
+                               $ traverseComponents traverseChar traverseNode
+                             , keyWordCharTraversal traverseChar '='
+                             , Traverser' (_Abstraction % _3) traverseNode
                              ]
-            Application{} -> [ Traverser' (_Application % _2) mapNode
-                             , Traverser' (_Application % _3) mapNode
+            Application{} -> [ Traverser' (_Application % _2) traverseNode
+                             , Traverser' (_Application % _3) traverseNode
                              ]
-            Sum{} -> [ Traverser' (_Sum % _2) mapNode
-                     , keyWordCharTraversal mapChar '+'
-                     , Traverser' (_Sum % _3) mapNode
+            Sum{} -> [ Traverser' (_Sum % _2) traverseNode
+                     , keyWordCharTraversal traverseChar '+'
+                     , Traverser' (_Sum % _3) traverseNode
                      ]
             ExprCstrSite{} -> [ Traverser' (_ExprCstrSite % _2)
-                                $ traverseComponents mapChar mapNode
+                                $ traverseComponents traverseChar traverseNode
                               ]
 
 instance Decomposable Decl where
-    traverseComponents mapChar mapNode decl@Decl{}
+    traverseComponents traverseChar traverseNode decl@Decl{}
         = chainDisJoint decl . Disjoint
         $ intersperseWhitespaceTraversers
-            mapChar
+            traverseChar
             decl
-            [ Traverser' #name (traverseComponents mapChar mapNode)
-            , keyWordCharTraversal mapChar '='
-            , Traverser' #value mapNode
+            [ Traverser' #name (traverseComponents traverseChar traverseNode)
+            , keyWordCharTraversal traverseChar '='
+            , Traverser' #value traverseNode
             ]
-    traverseComponents mapChar mapNode (DeclCstrSite meta materials)
-        = DeclCstrSite meta <$> traverseComponents mapChar mapNode materials
+    traverseComponents traverseChar traverseNode (DeclCstrSite meta materials)
+        = DeclCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 instance Decomposable WhereClause where
-    traverseComponents mapChar mapNode whereClause@(WhereClause _ decls)
+    traverseComponents traverseChar
+                       traverseNode
+                       whereClause@(WhereClause _ decls)
         = chainDisJoint whereClause . Disjoint
         $ intersperseWhitespaceTraversers
-            mapChar
+            traverseChar
             whereClause
-            (Traverser' (castOptic united) (<$ traverse_ @[] mapChar "where")
-             : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) mapNode)
+            (Traverser' (castOptic united)
+                        (<$ traverse_ @[] traverseChar "where")
+             : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) traverseNode)
                     (toList decls))
-    traverseComponents mapChar mapNode (WhereCstrSite meta materials)
-        = WhereCstrSite meta <$> traverseComponents mapChar mapNode materials
+    traverseComponents traverseChar traverseNode (WhereCstrSite meta materials)
+        = WhereCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 keyWordCharTraversal
     :: (Is A_Lens k, Functor f) => (t -> f b) -> t -> Traverser' f k NoIx a
-keyWordCharTraversal mapChar c = Traverser' (castOptic united) (<$ mapChar c)
+keyWordCharTraversal traverseChar c
+    = Traverser' (castOptic united) (<$ traverseChar c)
 
 intersperseWhitespaceTraversers :: (Applicative f, Has Meta n)
     => (Char -> f Char)
     -> n
     -> [Traverser' f An_AffineTraversal NoIx n]
     -> [Traverser' f An_AffineTraversal NoIx n]
-intersperseWhitespaceTraversers mapChar n traversers
-    = interleave [ traversers
-                 , imap (\i _ -> whitespaceFragmentTraverser (ix i) mapChar)
-                   $ view (hasLens @Meta % #interstitialWhitespace) n
-                 ]
+intersperseWhitespaceTraversers traverseChar n traversers
+    = interleave
+        [ traversers
+        , imap (\i _ -> whitespaceFragmentTraverser (ix i) traverseChar)
+          $ view (hasLens @Meta % #interstitialWhitespace) n
+        ]
 
 whitespaceFragmentTraverser
     :: (Has Meta s, Is l An_AffineTraversal, Applicative f)
     => Optic' l is [Text] Text
     -> (Char -> f Char)
     -> Traverser' f An_AffineTraversal is s
-whitespaceFragmentTraverser selector mapChar
+whitespaceFragmentTraverser selector traverseChar
     = Traverser' (hasLens @Meta
                   % #interstitialWhitespace
                   % castOptic @An_AffineTraversal selector)
-                 (unpacked % traversed %%~ mapChar)
+                 (unpacked % traversed %%~ traverseChar)
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int

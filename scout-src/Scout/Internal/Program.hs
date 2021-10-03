@@ -181,18 +181,21 @@ unsafePrettyProgram Program{..}
 
 instance Decomposable Program where
     conservativelyDecompose _ _ = Nothing
-    traverseComponents mapChar mapNode program@Program{}
+    traverseComponents traverseChar traverseNode program@Program{}
         = chainDisJoint program
         $ Disjoint (intersperseWhitespaceTraversers
-                        mapChar
+                        traverseChar
                         program
-                        [ Traverser' #expr mapNode
-                        , Traverser' (#whereClause % _Just) mapNode
+                        [ Traverser' #expr traverseNode
+                        , Traverser' (#whereClause % _Just) traverseNode
                         ]
                     :> Traverser' (#meta % #trailingWhitespace)
-                                  (unpacked % traversed %%~ mapChar))
-    traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
-        = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
+                                  (unpacked % traversed %%~ traverseChar))
+    traverseComponents traverseChar
+                       traverseNode
+                       (ProgramCstrSite meta materials)
+        = ProgramCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 instance DisplayProjection Program
 

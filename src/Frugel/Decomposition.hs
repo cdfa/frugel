@@ -1,19 +1,28 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Frugel.Decomposition
-    ( module Frugel.Decomposition
+    ( Decomposition
+    , Decomposable(..)
+    , ModificationStatus(..)
     , _Success
     , _Todo
     , initialDecompositionState
-    , DecompositionMonad
-    , ModificationStatus(..)
+    , textLength
+    , decompose
+    , traverseNodeAt
+    , traverseChildNodeAt
+    , runDecomposition
     ) where
 
 import Control.Monad.Except
@@ -49,8 +58,9 @@ class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
 instance (Decomposable n, IsNode n, n ~ NodeOf n)
     => Decomposable (ACstrSite n) where
     conservativelyDecompose _ _ = Nothing
-    traverseComponents mapChar mapNode
-        = traverseOf (_CstrSite % traversed) $ bitraverse mapChar mapNode
+    traverseComponents traverseChar' traverseNode'
+        = traverseOf (_CstrSite % traversed)
+        $ bitraverse traverseChar' traverseNode'
 
 decompose :: Decomposable n => n -> ACstrSite (NodeOf n)
 decompose n
@@ -72,104 +82,96 @@ step = do
     when (textOffset /= -1) (#textOffset -= 1)
     when (textOffset > 0) (#cstrSiteOffset += 1)
 
-modifyNodeAt :: forall m' p.
-    (MonadError (InternalError p) m', Decomposable p, CstrSiteNode p)
-    => (Int -> ACstrSite (NodeOf p) -> m' (ACstrSite (NodeOf p)))
+traverseNodeAt :: forall m p.
+    (MonadError (InternalError p) m, Decomposable p, CstrSiteNode p)
+    => (Int -> ACstrSite (NodeOf p) -> m (ACstrSite (NodeOf p)))
     -> Int
     -> p
-    -> m' p
-modifyNodeAt f cursorOffset program
-    = runModification >>= \(newProgram, decompositionState) ->
-    if | view #textOffset decompositionState
-           > 0 -> throwError $ DecompositionFailed cursorOffset
-       | Todo <- view #modificationStatus decompositionState ->
-           throwError $ ASTModificationNotPerformed cursorOffset
-       | otherwise -> pure newProgram
+    -> m p
+traverseNodeAt f cursorOffset program
+    = runDecomposition cursorOffset
+                       (traverseNode @CstrSiteNode transform program)
   where
-    runModification
-        = runStateT (mapNode program) $ initialDecompositionState cursorOffset
-    mapChar c = c <$ step -- trace (show c) step
-    mapNode :: (Decomposable n, CstrSiteNode n, NodeOf n ~ NodeOf p)
+    transform :: (Decomposable n, CstrSiteNode n, NodeOf n ~ NodeOf p)
         => n
-        -> DecompositionMonad m' n
-    mapNode n = do
-        -- t <- guse #textOffset
-        -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
-        ifM (guses #textOffset (< 0)) (pure n) -- node is located after cursor
-            $ do
-                #cstrSiteOffset += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
-                withLocal #cstrSiteOffset 0 $ do
-                    newNode <- traverseComponents mapChar mapNode n
-                    -- t <- guse #textOffset
-                    -- c <- guse #cstrSiteOffset
-                    -- traceM
-                    --     ("post "
-                    --      <> take 20 (show n)
-                    --      <> " t: "
-                    --      <> show t
-                    --      <> " c: "
-                    --      <> show c)
-                    ifM (guses #textOffset (<= 0)
-                         &&^ guses #modificationStatus (isn't _Success))
-                        ((setCstrSite <$> transform n
-                          ?? n <* assign #modificationStatus Success)
-                         `catchError` const (pure n))
-                        (pure newNode)
-    transform :: (Decomposable n, NodeOf n ~ NodeOf p)
-        => n
-        -> DecompositionMonad m' (ACstrSite (NodeOf n))
+        -> Decomposition m n
     transform n = do
         cstrSiteOffset <- use #cstrSiteOffset
-        lift $ case conservativelyDecompose cstrSiteOffset n of
-            Just (cstrSiteOffset', cstrSite) -> f cstrSiteOffset' cstrSite
-                `catchError` const (f cstrSiteOffset $ decompose n)
-            _ -> f cstrSiteOffset $ decompose n
+        lift
+            $ flip setCstrSite n
+            <$> case conservativelyDecompose cstrSiteOffset n of
+                Just (cstrSiteOffset', cstrSite) -> f cstrSiteOffset' cstrSite
+                    `catchError` const (f cstrSiteOffset $ decompose n)
+                _ -> f cstrSiteOffset $ decompose n
 
-modifyNodeAt' :: forall m' p.
-    (MonadError (InternalError p) m', Decomposable p)
-    => (forall n. (NodeOf n ~ NodeOf p, IsNode n) => Int -> n -> m' n)
+traverseChildNodeAt :: forall m p.
+    (MonadError (InternalError p) m, Decomposable p)
+    => (forall n. (NodeOf n ~ NodeOf p, IsNode n) => Int -> n -> m n)
     -> Int
     -> p
-    -> m' p
-modifyNodeAt' f cursorOffset program
-    = runModification >>= \(newProgram, decompositionState) ->
-    if | view #textOffset decompositionState
-           > 0 -> throwError $ DecompositionFailed cursorOffset
-       | Todo <- view #modificationStatus decompositionState ->
-           throwError $ ASTModificationNotPerformed cursorOffset
-       | otherwise -> pure newProgram
+    -> m p
+traverseChildNodeAt f cursorOffset program
+    = runDecomposition cursorOffset
+                       (traverseComponents traverseChar
+                                           (traverseNode @IsNode transform)
+                                           program)
   where
-    runModification
-        = runStateT (traverseComponents mapChar mapNode program)
-        $ initialDecompositionState cursorOffset
-    mapChar c = c <$ step -- trace (show c) step
-    mapNode :: (Decomposable n, NodeOf n ~ NodeOf p, IsNode n)
-        => n
-        -> DecompositionMonad m' n
-    mapNode n = do
-        -- t <- guse #textOffset
-        -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
-        ifM (guses #textOffset (< 0)) (pure n) -- node is located after cursor
-            $ do
-                #cstrSiteOffset += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
-                withLocal #cstrSiteOffset 0 $ do
-                    newNode <- traverseComponents mapChar mapNode n
-                    -- t <- guse #textOffset
-                    -- c <- guse #cstrSiteOffset
-                    -- traceM
-                    --     ("post "
-                    --      <> take 20 (show n)
-                    --      <> " t: "
-                    --      <> show t
-                    --      <> " c: "
-                    --      <> show c)
-                    ifM (guses #textOffset (<= 0)
-                         &&^ guses #modificationStatus (isn't _Success))
-                        ((transform n <* assign #modificationStatus Success)
-                         `catchError` const (pure n))
-                        (pure newNode)
-    transform
-        :: (NodeOf n ~ NodeOf p, IsNode n) => n -> DecompositionMonad m' n
+    transform :: (NodeOf n ~ NodeOf p, IsNode n) => n -> Decomposition m n
     transform n = do
         cstrSiteOffset <- use #cstrSiteOffset
         lift $ f cstrSiteOffset n
+
+runDecomposition :: MonadError (InternalError p) m
+    => Int
+    -> StateT DecompositionState m b
+    -> m b
+runDecomposition cursorOffset decomposition
+    = runStateT decomposition (initialDecompositionState cursorOffset)
+    >>= \(x, finalState) ->
+    if | view #textOffset finalState
+           > 0 -> throwError $ DecompositionFailed cursorOffset
+       | Todo <- view #modificationStatus finalState ->
+           throwError $ ASTModificationNotPerformed cursorOffset
+       | otherwise -> pure x
+
+traverseChar :: MonadState DecompositionState f => a -> f a
+traverseChar c = c <$ step -- trace (show c) step
+
+traverseNode :: forall (c :: Type
+                        -> Constraint) m e n.
+    ( MonadError e m
+    , MonadState DecompositionState m
+    , Decomposable n
+    , c n
+    , forall n'.
+      IsNode n'
+      => c n'
+    )
+    => (forall n'. (Decomposable n', c n', NodeOf n' ~ NodeOf n) => n' -> m n')
+    -> n
+    -> m n
+traverseNode f n
+    =
+    -- do
+    -- t <- guse #textOffset
+    -- traceM ("pre " <> take 20 (show n) <> " " <> show t)
+    ifM (guses #textOffset (< 0)) (pure n) -- node is located after cursor
+    $ do
+        #cstrSiteOffset
+            += 1 -- At the moment, the construction site offset passed to `f` is immediately after a node where applying `f` failed. This is not a good default.
+        withLocal #cstrSiteOffset 0 $ do
+            newNode <- traverseComponents traverseChar (traverseNode @c f) n
+            -- t <- guse #textOffset
+            -- c <- guse #cstrSiteOffset
+            -- traceM
+            --     ("post "
+            --      <> take 20 (show n)
+            --      <> " t: "
+            --      <> show t
+            --      <> " c: "
+            --      <> show c)
+            ifM (guses #textOffset (<= 0)
+                 &&^ guses #modificationStatus (isn't _Success))
+                ((f n <* assign #modificationStatus Success)
+                 `catchError` const (pure n))
+                (pure newNode)
