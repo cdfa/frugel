@@ -21,6 +21,7 @@ initialModel p
               , focusedNodeValueIndex = 0
               , errors = []
               , partiallyEvaluated = False
+              , selectedNodeValueRenderDepth = 10
               , evaluationOutput = EvaluationOutput { evaluated = program
                                                     , focusedNodeValues = mempty
                                                     }
@@ -43,10 +44,12 @@ fromFrugelModel :: Model -> Frugel.Model Program -> Model
 fromFrugelModel = partialFromFrugelModel Infinity
 
 partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> Model
-partialFromFrugelModel
-    fuel
-    scoutModel@Model{editableDataVersion, focusedNodeValueIndex}
-    Frugel.Model{..}
+partialFromFrugelModel fuel
+                       scoutModel@Model{ editableDataVersion
+                                       , focusedNodeValueIndex
+                                       , selectedNodeValueRenderDepth
+                                       }
+                       Frugel.Model{..}
     = Model { editableDataVersion = editableDataVersion + 1
             , errors = map fromFrugelError errors
                   ++ map (uncurry $ flip EvaluationError)

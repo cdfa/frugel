@@ -14,6 +14,7 @@ data Action
     | AsyncAction AsyncAction
     | FocusedNodeValueIndexAction FocusedNodeValueIndexAction
     | ChangeFuelLimit Int
+    | ChangeSelectedNodeValueRenderDepth Int
 
 data AsyncAction = EvaluationFinished Model | NewProgramGenerated Model
 

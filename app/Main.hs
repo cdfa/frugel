@@ -83,6 +83,19 @@ updateModel evalThreadVar action model'
                 Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
         focusNodeValuesCount
             = Seq.length $ view (#evaluationOutput % #focusedNodeValues) model
+    updateModel' (ChangeSelectedNodeValueRenderDepth newDepth) model
+        = Left . effectSub newModel $ \sink -> liftIO
+        . bracketNonTermination (view #editableDataVersion newModel)
+                                evalThreadVar
+        . unsafeEvaluateSelectedNodeValue sink
+        $ #partiallyEvaluated .~ False
+        $ newModel
+      where
+        newModel
+            = model
+            & #editableDataVersion +~ 1
+            & #partiallyEvaluated .~ True
+            & #selectedNodeValueRenderDepth .~ newDepth
     updateModel' (ChangeFuelLimit newLimit) model
         = Left . reEvaluateModel evalThreadVar
         $ model & #fuelLimit .~ max 0 newLimit
@@ -164,9 +177,9 @@ unsafeEvaluateTopExpression sink model@Model{..}
     $ hideSelectedNodeValue model
 
 unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
-unsafeEvaluateSelectedNodeValue sink model
+unsafeEvaluateSelectedNodeValue sink model@Model{..}
     = seq (lengthOf (#selectedNodeValue
-                     % to (capTree 10)
+                     % to (capTree selectedNodeValueRenderDepth)
                      % traversalVL (template @_ @Identifier))
                     model)
     . sink

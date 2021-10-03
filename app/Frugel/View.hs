@@ -46,7 +46,7 @@ instructionsView Model{..}
            , br_ []
            , text "Fuel limit for evaluation following each keystroke "
            , input_ [ type_ "number"
-                    , value_ $ Miso.ms $ show @String fuelLimit
+                    , value_ . Miso.ms $ show @String fuelLimit
                     , onChange (\value -> ChangeFuelLimit
                                     (fromMaybe fuelLimit . readMaybe
                                      $ Miso.fromMisoString value))
@@ -98,7 +98,17 @@ evaluatedView model@Model{..}
         #selectedNodeValue
         (\selectedNodeValue ->
          [ div_ [ class_ "card-header" ]
-                [ p_ [ class_ "card-header-title" ] [ "Focused node value" ]
+                [ p_ [ class_ "card-header-title" ]
+                     [ "Focused node value up to depth: "
+                     , input_ [ type_ "number"
+                              , value_ . Miso.ms
+                                $ show @String selectedNodeValueRenderDepth
+                              , onChange (\value ->
+                                          ChangeSelectedNodeValueRenderDepth
+                                              (fromMaybe fuelLimit . readMaybe
+                                               $ Miso.fromMisoString value))
+                              ]
+                     ]
                 , button_ [ class_ "card-header-icon"
                           , onClick (FocusedNodeValueIndexAction Decrement)
                           ]
@@ -121,7 +131,7 @@ evaluatedView model@Model{..}
                   . reAnnotateS toStandardAnnotation
                   . layoutPretty defaultLayoutOptions
                   . annPretty
-                  $ capTree 10 selectedNodeValue
+                  $ capTree selectedNodeValueRenderDepth selectedNodeValue
                 ]
          ])
         model
