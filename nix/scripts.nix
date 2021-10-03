@@ -1,7 +1,11 @@
-{ pkgs }: {
+{ pkgs }:
+let
+  stack = "${pkgs.stack}/bin/stack";
+in
+{
   reload-script = pkgs.writeShellScriptBin "reload" ''
     ${pkgs.ghcid}/bin/ghcid -c '\
-        ${pkgs.stack}/bin/stack repl\
+        ${stack} repl\
         --only-main\
         --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
         '\
@@ -9,7 +13,7 @@
         --restart=package.yaml\
         -r -W
   '';
-  build-lib-script = pkgs.writeShellScriptBin "build-lib" "${pkgs.stack}/bin/stack build --fast frugel:lib --ghc-options -fdefer-type-errors";
-  repl-script = pkgs.writeShellScriptBin "repl" "${pkgs.stack}/bin/stack repl --ghci-options '+RTS -N -RTS -fdefer-type-errors'";
-  regen-hie-script = pkgs.writeShellScriptBin "regen-hie" "${pkgs.stack}/bin/stack build --fast --test --no-run-tests --ghc-options '-fwrite-ide-info -hiedir=.hie'";
+  build-lib-script = pkgs.writeShellScriptBin "build-lib" "${stack} build --fast frugel:lib --ghc-options -fdefer-type-errors";
+  repl-script = pkgs.writeShellScriptBin "repl" "${stack} repl --ghci-options '+RTS -N -RTS -fdefer-type-errors'";
+  regen-hie-script = pkgs.writeShellScriptBin "regen-hie" "echo \"\" | ${stack} repl --ghc-options '-fwrite-ide-info -hiedir=.hie' test/Spec.hs && mv .hie/Main.hie .hie/Spec.hie && echo \"\" | ${stack} repl --ghc-options '-fwrite-ide-info -hiedir=.hie'";
 }

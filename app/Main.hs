@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
@@ -32,8 +31,6 @@ import qualified Scout.Internal.Model
 import Scout.Model
 
 import Test.QuickCheck.Gen
-
-makePrisms ''Effect
 
 -- Entry point for a miso application
 main :: IO ()
