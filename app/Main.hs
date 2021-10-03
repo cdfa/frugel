@@ -92,7 +92,7 @@ updateModel evalThreadVar action model'
         $ reEvaluateFrugelModel evalThreadVar
                                 (prettyPrint $ toFrugelModel model)
                                 model
-    -- Move action also cause reEvaluation, because value of expression under the cursor may need to be updated
+    -- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
     updateModel' (GenericAction genericAction)
                  model = Left $ case editResult of
         Success -> uncurry effectSub . over _2 (liftIO .)
