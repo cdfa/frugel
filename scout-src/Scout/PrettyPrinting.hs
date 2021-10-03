@@ -9,8 +9,6 @@ import Data.Has
 
 import Frugel.DisplayProjection
 
-import GHC.Generics       ( Associativity(..) )
-
 import Optics
 
 import PrettyPrinting.Expr
@@ -49,35 +47,25 @@ instance AnnotatedPretty Node where
 instance AnnotatedPretty Identifier where
     annPretty (Identifier name) = pretty name
 
--- In theory, having this as top-level definition caches the work in makeExprPrettyPrinter, but I'm not sure it actually does
-exprPrettyPrinter :: Expr -> Doc PrettyAnnotation
-exprPrettyPrinter = makeExprPrettyPrinter parens annPretty'
-  where
-    annPretty' _ prettyBinary
-        = prettyNodeWithMeta "<ExprNode>"
-        $ parenthesizeExprFromMeta parens annPretty'''
-      where
-        prettyBinary' associativity left right
-            = bimap (checkExistingParens left) (checkExistingParens right)
-            $ prettyBinary associativity left right
-        checkExistingParens expr parensExpr
-            = if expr ^. exprMeta % #parenthesisLevels > 0
-              then annPretty expr
-              else parensExpr
-        annPretty''' (Variable _ n) = annPretty n
-        annPretty''' (Abstraction _ arg expr)
-            = (backslash <> annPretty arg) `nestingLine` equals
-            <+> annPretty expr
-        annPretty''' (Application _ function arg)
-            = uncurry nestingLine $ prettyBinary' LeftAssociative function arg
-        annPretty''' (Sum _ left right)
-            = (\(prettyLeft, prettyRight) -> prettyLeft `nestingLine` "+"
-               <+> prettyRight) $ prettyBinary' LeftAssociative left right
-        annPretty''' e@(ExprCstrSite _ contents)
-            = prettyCstrSite (ExprNode e) annPretty contents
-
 instance AnnotatedPretty Expr where
-    annPretty = exprPrettyPrinter
+    annPretty
+        = prettyNodeWithMeta "<ExprNode>" . parenthesizeExprFromMeta parens
+        $ \expr -> case expr of
+            Variable _ n -> annPretty n
+            Abstraction _ arg subExp -> backslash
+                <> annPretty arg `nestingLine` equals
+                <+> annPretty (prettyUnary expr subExp)
+            Application _ function arg -> uncurry nestingLine
+                $ both %~ annPretty
+                $ prettyBinary expr function arg
+            Sum _ left right ->
+                (\(left', right') -> annPretty left' `nestingLine` "+"
+                 <+> annPretty right') $ prettyBinary expr left right
+            ExprCstrSite _ contents ->
+                prettyCstrSite (ExprNode expr) annPretty contents
+      where
+        (prettyUnary, prettyBinary)
+            = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
 
 instance AnnotatedPretty Decl where
     annPretty = prettyNodeWithMeta "<DeclNode>" annPretty'

@@ -217,6 +217,12 @@ declNodeTest
 sumTest :: CstrSite
 sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
+parensInsertTest :: Expr
+parensInsertTest
+    = application' (application' (unsafeVariable "n")
+                                 (unsafeAbstraction "x" $ unsafeVariable "x"))
+                   (application' (unsafeVariable "y") (sum' (unsafeVariable "z") (unsafeVariable "w")))
+
 evalTest :: CstrSite
 evalTest
     = toCstrSite [ Left [str|fact2 (succ (succ 1))
@@ -229,12 +235,12 @@ evalTest
                                  false = \x = \y = y
                                  0 = \f = \x = x
                                  1 = \f = \x = f x
-                                 succ = \n = \f = \x = f(n f x)
-                                 pred = \n = \f = \x = n(\g = \h = h (g f)) (\u = x) (\u =u)
-                                 mul = \m = \n = \f = m(n f)
+                                 succ = \n = \f = \x = f (n f x)
+                                 pred = \n = \f = \x = n (\g = \h = h (g f)) (\u = x) (\u = u)
+                                 mul = \m = \n = \f = m (n f)
                                  is0 = \n = n (\x = false) true
-                                 Y = \f = (\x = f (x x))(\x = f(x x))
-                                 fact = Y(\f = \n = (is0 n) 1 (mul n (f (pred n))))
+                                 Y = \f = (\x = f (x x)) (\x = f (x x))
+                                 fact = Y (\f = \n = (is0 n) 1 (mul n (f (pred n))))
                                  fact2 = \n = (is0 n) 1 (mul n (fact3 (pred n)))
                                  fact3 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
                                  infiniteRecursion = infiniteRecursion|]

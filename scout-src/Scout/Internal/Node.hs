@@ -39,6 +39,8 @@ import Data.Whitespace
 import Frugel
 import Frugel.CstrSite.ValidEnumerable ()
 
+import GHC.Generics              ( Associativity(..) )
+
 import Generic.Data
 
 import Numeric.Optics
@@ -189,28 +191,6 @@ instance Has Meta Expr where
     getter e = (standardMeta :: ExprMeta -> Meta) $ getter e
     modifier = over (exprMeta % #standardMeta)
 
--- Note that expressions may have the precedence of literals when parenthesized
-instance Expression Expr where
-    precedence Abstraction{} = 3
-    precedence Application{} = 2
-    precedence Sum{} = 1
-    precedence Variable{} = 0
-    precedence ExprCstrSite{} = 0
-    fixity Abstraction{} = Just Prefix
-    fixity Application{} = Just Infix
-    fixity Sum{} = Just Infix
-    fixity Variable{} = Nothing
-    fixity ExprCstrSite{} = Nothing
-
-parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
-parenthesizeExprFromMeta parenthesize prettyExpr x
-    | parenthesisLevels > 0
-        = nTimes parenthesisLevels parenthesize
-        $ prettyExpr (x & exprMeta % #parenthesisLevels .~ 0)
-  where
-    parenthesisLevels = x ^. exprMeta % #parenthesisLevels
-parenthesizeExprFromMeta _ prettyExpr x = prettyExpr x
-
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
@@ -240,6 +220,28 @@ defaultMeta n
            , focused = False
            , evaluationOutput = mempty
            }
+
+-- Note that expressions may have the precedence of literals when parenthesized
+instance Expression Expr where
+    precedence Abstraction{} = 3
+    precedence Sum{} = 2
+    precedence Application{} = 1
+    precedence Variable{} = 0
+    precedence ExprCstrSite{} = 0
+    fixity Abstraction{} = Just Prefix
+    fixity Application{} = Just Infix
+    fixity Sum{} = Just Infix
+    fixity Variable{} = Nothing
+    fixity ExprCstrSite{} = Nothing
+    associativity Application{} = Just LeftAssociative
+    associativity Sum{} = Just LeftAssociative
+    associativity Abstraction{} = Nothing
+    associativity Variable{} = Nothing
+    associativity ExprCstrSite{} = Nothing
+
+parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
+parenthesizeExprFromMeta parenthesize prettyExpr x
+    = nTimes (x ^. exprMeta % #parenthesisLevels) parenthesize $ prettyExpr x
 
 instance IsNode Node
 

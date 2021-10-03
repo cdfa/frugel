@@ -14,7 +14,7 @@ import Scout.Internal.Model
 
 -- Assumes program terminates
 initialModel :: Program -> Model
-initialModel programCstrSite
+initialModel p
     = fromFrugelModel
         Model { editableDataVersion = 0
               , fuelLimit = initialFuelLimit
@@ -31,7 +31,7 @@ initialModel programCstrSite
     frugelModel@Frugel.Model{..}
         = Frugel.prettyPrint -- pretty print twice, because program may not be fully parsed (and then it's only parsed but not pretty-printed)
         . Frugel.prettyPrint
-        $ Frugel.initialModel programCstrSite
+        $ Frugel.initialModel p
 
 -- Currently, the largest limiting factor on this is that rendering big partially evaluated programs
 -- Otherwise it could be 20, which is still to low for real-world programs. To make partial evaluation useful for those, the editor could present iteratively further evaluated programs
