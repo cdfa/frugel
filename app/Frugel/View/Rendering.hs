@@ -107,4 +107,4 @@ encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views
     Cursor -> caret [] []
-    Elided -> div_ [] views
+    Elided -> codeSpan [] views
