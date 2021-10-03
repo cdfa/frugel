@@ -49,33 +49,35 @@ instance AnnotatedPretty Node where
 instance AnnotatedPretty Identifier where
     annPretty (Identifier name) = pretty name
 
-instance AnnotatedPretty Expr where
-    annPretty
+-- In theory, having this as top-level definition caches the work in makeExprPrettyPrinter, but I'm not sure it actually does
+exprPrettyPrinter :: Expr -> Doc PrettyAnnotation
+exprPrettyPrinter = makeExprPrettyPrinter parens annPretty'
+  where
+    annPretty' _ prettyBinary
         = prettyNodeWithMeta "<ExprNode>"
-        $ makeExprPrettyPrinter parens annPretty'
+        $ parenthesizeExprFromMeta parens annPretty'''
       where
-        annPretty' _ prettyBinary
-            = parenthesizeExprFromMeta parens annPretty'''
-          where
-            prettyBinary' associativity left right
-                = bimap (checkExistingParens left) (checkExistingParens right)
-                $ prettyBinary associativity left right
-            checkExistingParens expr parensExpr
-                = if expr ^. exprMeta % #parenthesisLevels > 0
-                  then annPretty expr
-                  else parensExpr
-            annPretty''' (Variable _ n) = annPretty n
-            annPretty''' (Abstraction _ arg expr)
-                = (backslash <> annPretty arg) `nestingLine` equals
-                <+> annPretty expr
-            annPretty''' (Application _ function arg)
-                = uncurry nestingLine
-                $ prettyBinary' LeftAssociative function arg
-            annPretty''' (Sum _ left right)
-                = (\(prettyLeft, prettyRight) -> prettyLeft `nestingLine` "+"
-                   <+> prettyRight) $ prettyBinary' LeftAssociative left right
-            annPretty''' e@(ExprCstrSite _ contents)
-                = prettyCstrSite (ExprNode e) annPretty contents
+        prettyBinary' associativity left right
+            = bimap (checkExistingParens left) (checkExistingParens right)
+            $ prettyBinary associativity left right
+        checkExistingParens expr parensExpr
+            = if expr ^. exprMeta % #parenthesisLevels > 0
+              then annPretty expr
+              else parensExpr
+        annPretty''' (Variable _ n) = annPretty n
+        annPretty''' (Abstraction _ arg expr)
+            = (backslash <> annPretty arg) `nestingLine` equals
+            <+> annPretty expr
+        annPretty''' (Application _ function arg)
+            = uncurry nestingLine $ prettyBinary' LeftAssociative function arg
+        annPretty''' (Sum _ left right)
+            = (\(prettyLeft, prettyRight) -> prettyLeft `nestingLine` "+"
+               <+> prettyRight) $ prettyBinary' LeftAssociative left right
+        annPretty''' e@(ExprCstrSite _ contents)
+            = prettyCstrSite (ExprNode e) annPretty contents
+
+instance AnnotatedPretty Expr where
+    annPretty = exprPrettyPrinter
 
 instance AnnotatedPretty Decl where
     annPretty = prettyNodeWithMeta "<DeclNode>" annPretty'

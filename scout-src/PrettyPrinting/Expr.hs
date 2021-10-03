@@ -31,26 +31,29 @@ makeExprPrettyPrinter :: Expression e
     -> e -- expression
     -> s -- pretty printed expression with minimal parentheses
 
-makeExprPrettyPrinter parenthesized prettyPrint e = prettyPrint' e
+makeExprPrettyPrinter parenthesized prettyPrint = prettyPrint'
   where
-    prettyPrint' = prettyPrint prettyPrintUnary prettyPrintBinary
-    opPrecedence = precedence e
-    prettyPrintUnary opFixity subExp
-        = parenthesize (succ opPrecedence)
-                       (fixity subExp == Just opFixity)
-                       subExp
-    prettyPrintBinary associativity left right
-        = (\(maxLeftPrecedence, maxRightPrecedence) ->
-           ( parenthesize maxLeftPrecedence (fixity left == Just Postfix) left
-           , parenthesize maxRightPrecedence
-                          (fixity right == Just Prefix)
-                          right
-           )) $ maxPrecedenceByAssociativity associativity
-    maxPrecedenceByAssociativity = \case
-        LeftAssociative -> (succ opPrecedence, opPrecedence)
-        RightAssociative -> (opPrecedence, succ opPrecedence)
-        NotAssociative -> (opPrecedence, opPrecedence)
-    parenthesize maxPrecedence fixityObviatesParens subExp
-        = if precedence subExp >= maxPrecedence && not fixityObviatesParens
-          then parenthesized $ prettyPrint' subExp
-          else prettyPrint' subExp
+    prettyPrint' e = prettyPrint prettyPrintUnary prettyPrintBinary e
+      where
+        opPrecedence = precedence e
+        prettyPrintUnary opFixity subExp
+            = parenthesize (succ opPrecedence)
+                           (fixity subExp == Just opFixity)
+                           subExp
+        prettyPrintBinary associativity left right
+            = (\(maxLeftPrecedence, maxRightPrecedence) ->
+               ( parenthesize maxLeftPrecedence
+                              (fixity left == Just Postfix)
+                              left
+               , parenthesize maxRightPrecedence
+                              (fixity right == Just Prefix)
+                              right
+               )) $ maxPrecedenceByAssociativity associativity
+        maxPrecedenceByAssociativity = \case
+            LeftAssociative -> (succ opPrecedence, opPrecedence)
+            RightAssociative -> (opPrecedence, succ opPrecedence)
+            NotAssociative -> (opPrecedence, opPrecedence)
+        parenthesize maxPrecedence fixityObviatesParens subExp
+            = if precedence subExp >= maxPrecedence && not fixityObviatesParens
+              then parenthesized $ prettyPrint' subExp
+              else prettyPrint' subExp
