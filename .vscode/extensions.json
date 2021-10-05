@@ -2,6 +2,6 @@
     "recommendations": [
         "justusadam.language-haskell",
         "haskell.haskell",
-        "rubymaniac.vscode-direnv"
+        "cab404.vscode-direnv"
     ]
 }
