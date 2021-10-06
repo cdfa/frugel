@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -24,7 +25,7 @@ import Optics.Extra.Scout
 import Relude           ( group )
 import qualified Relude.Unsafe as Unsafe
 
-import qualified Scout.Internal.Node as Internal
+import qualified Scout.Internal.Node as Node
 import qualified Scout.Internal.Program
 import Scout.Node
 import Scout.Program
@@ -67,25 +68,21 @@ evalExpr expr = do
     evalExpr' v@(Variable meta identifier) = do
         valueBinding <- asks $ Map.lookup identifier
         pure $ case valueBinding of
-            Nothing -> withErrors
-                (MultiSet.singleton $ UnboundVariableError identifier)
-                (singleExprNodeCstrSite v)
+            Nothing -> addError (UnboundVariableError identifier)
+                $ singleExprNodeCstrSite v
             Just (Right i) -> Variable meta $ numberedIdentifier identifier i
             Just (Left value) -> value
     evalExpr' (Application meta f x) = do
         (efData, ef) <- splitEvaluationOutput <$> evalExpr f
-        case ef of
+        withEvaluationOutput efData <$> case ef of
             Abstraction
                 AbstractionMeta{reified = Just (Hidden reifiedFunction)}
                 _
-                _ -> (hasLens @Meta % #evaluationOutput %~ (efData <>))
-                . fromMaybe applicationStub
-                <$> draw successfulApplication
+                _ -> fromMaybe applicationStub <$> draw successfulApplication
               where
                 applicationStub
-                    = withErrors (MultiSet.singleton . OutOfFuelError
-                                  $ Application meta ef x)
-                                 placeholder
+                    = addError (OutOfFuelError $ Application meta ef x)
+                               placeholder
                 placeholder
                     = exprCstrSite'
                     $ fromList [ Right . ExprNode $ Application meta ef x ]
@@ -94,12 +91,10 @@ evalExpr expr = do
                     Limited
                         <.> mapReaderT (reifiedFunction . usingLimiter fuel)
                         $ evalExpr x
-            _ -> Application newMeta checkedEf <$> evalExpr x -- this makes application strict when there is a type error. Even though this is not "in line" with normal evaluation I do think it's better this way in a practical sense, especially because evaluation is error tolerant
+            _ -> withEvaluationOutput (mempty { Node.errors })
+                . Application meta checkedEf
+                <$> evalExpr x
               where
-                newMeta
-                    = meta
-                    & #standardMeta % #evaluationOutput
-                    .~ (efData & #errors %~ (errors <>))
                 (checkedEf, errors) = reportAnyTypeErrors Function ef
     evalExpr' (Abstraction meta n e) = do
         reifiedFunction <- asks $ \env x ->
@@ -112,14 +107,18 @@ evalExpr expr = do
     evalExpr' (Sum meta x y) = do
         (ex, exErrors) <- reportAnyTypeErrors Integer <$> evalExpr x
         (ey, eyErrors) <- reportAnyTypeErrors Integer <$> evalExpr y
-        pure . withErrors (exErrors <> eyErrors) $ Sum meta ex ey
+        pure
+            . withEvaluationOutput
+                (mempty { Node.errors = exErrors <> eyErrors })
+            $ Sum meta ex ey
         -- case (ex, ey) of
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
         --     _ -> uncurry sum'
         --         <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
     evalExpr' (ExprCstrSite meta cstrSite) = do
         (errors, _, eCstrSite) <- evalCstrSite cstrSite
-        pure . withErrors errors $ ExprCstrSite meta eCstrSite
+        pure . withEvaluationOutput (mempty { Node.errors })
+            $ ExprCstrSite meta eCstrSite
 
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
 evalWhereClause (WhereClause _ decls) = do
@@ -130,7 +129,10 @@ evalWhereClause (WhereClause _ decls) = do
          )
 evalWhereClause (WhereCstrSite meta cstrSite) = do
     (errors, newEnv, eCstrSite) <- evalCstrSite cstrSite
-    pure (newEnv, withErrors errors $ WhereCstrSite meta eCstrSite)
+    pure ( newEnv
+         , withEvaluationOutput (mempty { Node.errors })
+           $ WhereCstrSite meta eCstrSite
+         )
 
 evalScope :: Foldable t
     => t Decl
@@ -157,8 +159,7 @@ evalScope decls = do
                 iteratedEnv <- newEnv
                 Limited <.> Left <.> usingReaderT iteratedEnv $ evalExpr e
             evaluationStub
-                = withErrors (MultiSet.singleton (OutOfFuelError e))
-                . exprCstrSite'
+                = addError (OutOfFuelError e) . exprCstrSite'
                 $ fromList [ Right $ ExprNode e ]
 
 evalProgram :: Program -> Evaluation Program
@@ -178,7 +179,8 @@ evalProgram program@Program{..} = do
         . (#evaluationOutput .~ eWhereClauseData)
 evalProgram (ProgramCstrSite meta cstrSite) = do
     (errors, _, eCstrSite) <- evalCstrSite cstrSite
-    pure . withErrors errors $ ProgramCstrSite meta eCstrSite
+    pure . withEvaluationOutput (mempty { Node.errors })
+        $ ProgramCstrSite meta eCstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
 runEval :: (Data a, Decomposable a, NodeOf a ~ Node)
@@ -212,8 +214,12 @@ runEval cursorOffset fuel eval
 splitEvaluationOutput :: Has Meta n => n -> (EvaluationOutput, n)
 splitEvaluationOutput = hasLens @Meta % #evaluationOutput <<.~ mempty
 
-withErrors :: Has Meta n => MultiSet EvaluationError -> n -> n
-withErrors errors = hasLens @Meta % #evaluationOutput % #errors %~ (errors <>)
+addError :: Has Meta n => EvaluationError -> n -> n
+addError e
+    = withEvaluationOutput (mempty { Node.errors = MultiSet.singleton e })
+
+withEvaluationOutput :: Has Meta n => EvaluationOutput -> n -> n
+withEvaluationOutput output = hasLens @Meta % #evaluationOutput %~ (output <>)
 
 reportAnyTypeErrors :: ExpectedType -> Expr -> (Expr, MultiSet EvaluationError)
 reportAnyTypeErrors expectedType expr

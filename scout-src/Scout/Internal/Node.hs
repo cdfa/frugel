@@ -129,8 +129,7 @@ data EvaluationOutput
                        , focusedNodeValues :: Seq (Hidden Node)
                        }
     deriving ( Eq, Ord, Show, Generic, Data )
-    deriving Semigroup via (Generically EvaluationOutput)
-    deriving Monoid via (Generically EvaluationOutput)
+    deriving ( Semigroup, Monoid ) via (Generically EvaluationOutput)
 
 -- This lives here because of dependency on Expr
 data EvaluationError
