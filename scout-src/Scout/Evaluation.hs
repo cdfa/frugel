@@ -10,21 +10,25 @@ module Scout.Evaluation where
 
 import Control.Limited
 
+import Data.Alphanumeric
+import Data.Char              ( isDigit )
 import Data.Data
 import Data.Data.Lens
 import Data.Has
 import Data.Hidden
-import qualified Data.Map as Map
-import Data.MultiSet    ( MultiSet )
+import qualified Data.Map     as Map
+import Data.MultiSet          ( MultiSet )
 import qualified Data.MultiSet as MultiSet
 
-import Frugel           hiding ( group )
+import Frugel                 hiding ( group )
 
 import Optics.Extra.Scout
 
-import Relude           ( group )
+import Relude                 ( group )
 import qualified Relude.Unsafe as Unsafe
 
+import Scout.Internal.EvaluationEnv ( EvaluationEnv(EvaluationEnv) )
+import qualified Scout.Internal.EvaluationEnv
 import qualified Scout.Internal.Node as Node
 import qualified Scout.Internal.Program
 import Scout.Node
@@ -33,9 +37,6 @@ import Scout.Program
 -- Evaluation output is saved in Meta and is handled manually.
 -- It is possible to use a Writer as well, but this can lead to unexpectedly discarded output (due to preserving laziness) and focused node values would need to be handled manually anyway.
 type Evaluation = ReaderT EvaluationEnv Limiter
-
--- Map also stores number of times an argument is shadowed for normalising (\f x -> f x)(\f x -> f x) to \x1 x -> x1 x
-type EvaluationEnv = Map Identifier (Either Expr Int)
 
 evalCstrSite :: CstrSite
     -> Evaluation (MultiSet EvaluationError, EvaluationEnv, CstrSite)
@@ -57,21 +58,22 @@ evalCstrSite cstrSite = do
 evalExpr :: Expr -> Evaluation Expr
 evalExpr expr = do
     ex <- evalExpr' expr
-    if expr ^. hasLens @Meta % #focused
-        then pure ex
-            <&> hasLens @Meta % #evaluationOutput % #focusedNodeValues
-            %~ (Hidden (ExprNode
-                            (ex & hasLens @Meta % #evaluationOutput .~ mempty)) :<) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
-        else pure ex
+    pure
+        $ if expr ^. hasLens @Meta % #focused
+          then ex
+              & hasLens @Meta % #evaluationOutput % #focusedNodeValues
+              %~ (Hidden (ExprNode (ex
+                                    & hasLens @Meta % #evaluationOutput
+                                    .~ mempty)) <|) -- removing the focused node values from the reported expression prevents double reports due to use of template in collecting reports
+          else ex
   where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
-    evalExpr' v@(Variable meta identifier) = do
-        valueBinding <- asks $ Map.lookup identifier
-        pure $ case valueBinding of
-            Nothing -> addError (UnboundVariableError identifier)
-                $ singleExprNodeCstrSite v
-            Just (Right i) -> Variable meta $ numberedIdentifier identifier i
-            Just (Left value) -> value
+    evalExpr' v@(Variable _ identifier)
+        = fromMaybe variableStub <$> gview (#valueEnv % at identifier)
+      where
+        variableStub
+            = addError (UnboundVariableError identifier)
+            $ singleExprNodeCstrSite v
     evalExpr' (Application meta f x) = do
         (efData, ef) <- splitEvaluationOutput <$> evalExpr f
         withEvaluationOutput efData <$> case ef of
@@ -80,29 +82,38 @@ evalExpr expr = do
                 _
                 _ -> fromMaybe applicationStub <$> draw successfulApplication
               where
-                applicationStub
-                    = addError (OutOfFuelError $ Application meta ef x)
-                               placeholder
-                placeholder
-                    = exprCstrSite'
-                    $ fromList [ Right . ExprNode $ Application meta ef x ]
                 successfulApplication = do
-                    fuel <- askLimit
-                    Limited
-                        <.> mapReaderT (reifiedFunction . usingLimiter fuel)
-                        $ evalExpr x
+                    ex <- evalExpr x
+                    Limited <$> magnify #shadowingEnv (reifiedFunction ex)
+                applicationStub = addError (OutOfFuelError newApp) placeholder
+                placeholder
+                    = exprCstrSite' $ fromList [ Right $ ExprNode newApp ]
+                -- x is elided because it contains unEvaluated expressions (and renameShadowedVariables needs them evaluated)
+                newApp
+                    = Application meta ef
+                    $ hasLens @Meta % #elided .~ True
+                    $ elidedExpr
+            Abstraction{} -> error
+                "Internal evaluation error: object language function was missing meta language function"
             _ -> withEvaluationOutput (mempty { Node.errors })
                 . Application meta checkedEf
                 <$> evalExpr x
               where
                 (checkedEf, errors) = reportAnyTypeErrors Function ef
     evalExpr' (Abstraction meta n e) = do
-        reifiedFunction <- asks $ \env x ->
-            usingReaderT (Map.insert n (Left x) env) $ evalExpr e
-        Abstraction (meta & #reified ?~ Hidden reifiedFunction)
-                    (numberedIdentifier n 0)
+        reifiedFunction <- gviews #valueEnv $ \env x -> do
+            ex <- magnify
+                (to $ \shadowingEnv ->
+                 EvaluationEnv { valueEnv = Map.insert n x env, shadowingEnv })
+                $ evalExpr e
+            -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
+            renameShadowedVariables ex
+        Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
             -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
-            <$> local (Map.insert n $ Right 0) (evalExpr e)
+            <$> local ((#valueEnv % at n ?~ variable' n)
+                        -- these values only show up in the result if the abstraction is above all function applications, so there will be no substitution issues and we can use 0
+                       . (#shadowingEnv % at n ?~ 0))
+                      (evalExpr e)
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
         (ex, exErrors) <- reportAnyTypeErrors Integer <$> evalExpr x
@@ -145,22 +156,30 @@ evalScope decls = do
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
         $ toListOf (folded % #name) decls
-    computeNewEnv env = newEnv
+    computeNewEnv env@EvaluationEnv{..}
+        = flip (set #valueEnv) withUpdatedShadowingEnv <$> newValueEnv
       where
-        newEnv
-            = mappend env
-            <$> traverse
-                evalExpr'
-                (fromList (decls ^.. folded % ((,) <$^> #name <*^> #value)))
-        evalExpr' e
-            = fromMaybe (Left evaluationStub) <$> draw successfulEvaluation
+        withUpdatedShadowingEnv
+            = env
+            & #shadowingEnv
+            .~ shadowingEnv
+            <> fromList (zip (decls ^.. folded % #name) $ repeat 0)
+        newValueEnv
+            = mappend valueEnv . fromList
+            <$> traverse evalDecl
+                         (decls ^.. folded % ((,) <$^> #name <*^> #value))
+        evalDecl (name, value)
+            = (name, ) . fromMaybe evaluationStub <$> draw successfulEvaluation
           where
             successfulEvaluation = do
-                iteratedEnv <- newEnv
-                Limited <.> Left <.> usingReaderT iteratedEnv $ evalExpr e
+                iteratedEnv <- newValueEnv
+                Limited
+                    <.> usingReaderT
+                        (withUpdatedShadowingEnv & #valueEnv .~ iteratedEnv)
+                    $ evalExpr value
             evaluationStub
-                = addError (OutOfFuelError e) . exprCstrSite'
-                $ fromList [ Right $ ExprNode e ]
+                = addError (OutOfFuelError $ variable' name) . exprCstrSite'
+                $ fromList [ Right . ExprNode $ variable' name ]
 
 evalProgram :: Program -> Evaluation Program
 evalProgram program@Program{..} = do
@@ -191,14 +210,13 @@ runEval :: (Data a, Decomposable a, NodeOf a ~ Node)
     -> (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval
     = removeReifiedFunctions
-    . (\n -> ( removeEvaluationOutput n
-             , (MultiSet.fromOccurMap
-                . removeEvaluationOutput
-                . MultiSet.toMap -- unwrap and rewrap MultiSet newtype because of Data MultiSet instance hiding it's contents to optics
-                . view #errors)
-               &&& (fmap (view _Hidden) . view #focusedNodeValues)
-               $ collectNodeValues n
-             ))
+    . (removeEvaluationOutput
+       &&& (MultiSet.fromOccurMap
+            . removeEvaluationOutput
+            . MultiSet.toMap -- unwrap and rewrap MultiSet newtype because of Data MultiSet instance hiding it's contents to optics
+            . view #errors
+            &&& view (#focusedNodeValues % mapping _Hidden))
+       . collectEvaluationOutput)
     . usingLimiter fuel
     . usingReaderT mempty
     . eval
@@ -209,7 +227,8 @@ runEval cursorOffset fuel eval
     removeEvaluationOutput :: Data a => a -> a
     removeEvaluationOutput
         = traversalVL (template @_ @Meta) % #evaluationOutput .~ mempty
-    collectNodeValues = foldOf (foldVL (template @_ @Meta) % #evaluationOutput)
+    collectEvaluationOutput
+        = foldOf (foldVL (template @_ @Meta) % #evaluationOutput)
 
 splitEvaluationOutput :: Has Meta n => n -> (EvaluationOutput, n)
 splitEvaluationOutput = hasLens @Meta % #evaluationOutput <<.~ mempty
@@ -242,6 +261,7 @@ numberedIdentifier identifier 0 = identifier
 numberedIdentifier identifier i
     = identifier <> Unsafe.fromJust (identifier' $ show i) -- safe because i is integer
 
+ -- we don't need to traverse the root node, because it's value is the result of evaluation (and we wouldn't be able to reuse traverseChildNodeAt machinery, because Program is not a Node)
 focusNodeUnderCursor :: (Decomposable n, NodeOf n ~ Node) => Int -> n -> n
 focusNodeUnderCursor cursorOffset n
     = fromRight n
@@ -251,3 +271,72 @@ focusNodeUnderCursor cursorOffset n
     focusNode = Unsafe.fromJust . preview nodePrism . focus . review nodePrism -- safe because of optics laws and that hasLens @Meta @(NodeOf n) can not change what type of node it is
     focus :: Has Meta n => n -> n
     focus = hasLens @Meta % #focused .~ True
+
+renameShadowedVariables :: Expr -> ReaderT ShadowingEnv Limiter Expr
+renameShadowedVariables expr = case expr of
+    Abstraction
+        absMeta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+        name
+        _ -> do
+        newMeta <- absMeta
+            & hasLens @Meta
+            % #evaluationOutput
+            % (#errors % traversalVL template `adjoin` focusedExprs)
+            %%~ renameShadowedVariables
+        suffix <- asks $ freshSuffix name
+        let newIdentifier = numberedIdentifier name suffix
+        Abstraction newMeta newIdentifier
+            <$> local (at name ?~ suffix)
+                      (reifiedFunction $ variable' newIdentifier)
+    Abstraction{} -> error
+        "Internal evaluation error: object language function was missing meta language function"
+    ExprCstrSite meta (Right (ExprNode (Variable varMeta n)) :< Empty)
+        | meta ^. hasLens @Meta % #evaluationOutput % #errors
+            == MultiSet.singleton (UnboundVariableError n) -> do
+                suffix <- asks $ freshSuffix n
+                let newIdentifier = numberedIdentifier n suffix
+                let newMeta
+                        = meta
+                        & hasLens @Meta % #evaluationOutput
+                        %~ (#errors
+                            .~ MultiSet.singleton
+                                (UnboundVariableError newIdentifier))
+                        . (#focusedNodeValues
+                           % traversed
+                           % _Hidden
+                           % _ExprNode
+                           % _Variable
+                           % _2
+                           .~ newIdentifier)
+                pure . ExprCstrSite newMeta . one . Right . ExprNode
+                    $ Variable varMeta newIdentifier
+    _ -> expr
+        & traversalVL uniplate
+        `adjoin` (hasLens @Meta % #evaluationOutput % focusedExprs)
+        %%~ renameShadowedVariables
+  where
+    focusedExprs
+        = #focusedNodeValues % traversed % _Hidden % traversalVL template
+
+freshSuffix :: Identifier -> Map Identifier Int -> Int
+freshSuffix original env
+    = Unsafe.fromJust -- safe because suffixRange is infinite
+    . getFirst
+    $ foldMap (\x -> First . maybe (Just x) (const Nothing)
+               $ Map.lookup (numberedIdentifier original x) env) suffixRange
+  where
+    suffixRange
+        = enumFrom . maybe suffixRangeStartDefault succ
+        $ Map.lookup original env
+    suffixRangeStartDefault
+        = if null trailingDigits
+            || and ((>) <$> readMaybe trailingDigits <*> Map.lookup trimmed env)
+            then 0
+            else 1
+    (trimmed, trailingDigits)
+        = swap
+        $ (_Identifier % _UnNonEmpty)
+        `passthrough` (swap
+                       . second (map unAlphanumeric)
+                       . spanEnd (isDigit . unAlphanumeric))
+        $ original

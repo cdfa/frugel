@@ -2,16 +2,26 @@
 
 module EvaluationSpec ( spec ) where
 
+import Data.Alphanumeric
+import Data.Char
 import Data.Data
-import Data.MultiSet  hiding ( fromList )
+import Data.GenValidity.Map   ()
+import qualified Data.Map     as Map
+import Data.MultiSet          ( MultiSet, fromOccurList )
+import Data.NonNegative.GenValidity ()
+import qualified Data.Set     as Set
 
 import Frugel.Decomposition
 
-import Prelude        hiding ( one )
+import Optics.Extra.Scout
+
+import Prelude                hiding ( one )
 
 import Scout
 
+import Test.QuickCheck
 import Test.Syd
+import Test.Syd.Validity
 
 i :: Expr
 i = unsafeAbstraction "x" $ unsafeVariable "x"
@@ -41,7 +51,9 @@ spec = describe "Evaluation" $ do
     expectedIntSpec
     unBoundVariableSpec
     cstrSiteSpec
-    substitutionCaptureAvoidanceSpec
+    abstractionRenamingSpec
+    freeVariableRenamingSpec
+    freshSuffixSpec
 
 -- Simple test
 simpleEvalSpec :: Spec
@@ -156,12 +168,62 @@ cstrSiteSpec
                      [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
                )
 
-substitutionCaptureAvoidanceSpec :: Spec
-substitutionCaptureAvoidanceSpec
-    = xit "renames variables to prevent them being incorrectly captured when substituted into an abstraction normal form"
-    $ runEval' evalExpr (application' (one "f") (one "f"))
-    `shouldBe` (one "x1", mempty)
+abstractionRenamingSpec :: Spec
+abstractionRenamingSpec
+    = it "renames binders to prevent them from capturing variables in expressions substituted into them"
+    $ runEval' evalExpr (application' (one "f" "x") (one "f" "x"))
+    `shouldBe` (one "x" "x1", mempty)
   where
-    one fName
-        = unsafeAbstraction fName . unsafeAbstraction "x"
-        $ application' (unsafeVariable fName) (unsafeVariable "x")
+    one f x
+        = unsafeAbstraction f . unsafeAbstraction x
+        $ application' (unsafeVariable f) (unsafeVariable x)
+
+freeVariableRenamingSpec :: Spec
+freeVariableRenamingSpec
+    = it "renames free variables to prevent them from being captured by a binder they are substituted into"
+    $ runEval' evalExpr (application' k $ unsafeVariable "y")
+    `shouldBe` ( unsafeAbstraction "y" . singleExprNodeCstrSite
+                 $ unsafeVariable "y1"
+               , fromOccurList
+                     [ (UnboundVariableError $ unsafeIdentifier "y1", 1) ]
+               )
+
+-- identifiers sizes reduced to increase environment sizes
+freshSuffixSpec :: Spec
+freshSuffixSpec = modifyMaxSize (* 5) . describe "fresh variable generation" $ do
+    it "does not rename a variable when it is not in the environment"
+        . forallIdentifiers
+        $ \v ->
+        forAllShrink (suchThat genValid (not . Map.member v)) shrinkValid
+        $ \env -> freshSuffix v (getNonNegative <$> env) `shouldBe` 0
+    it "adds a number larger than the number of times the variable was encountered if the variable was already in the environment"
+        . forAllValid
+        $ \x -> forallIdentifiers $ \v -> forAllShrink
+            (Map.insert v x <$> genValid)
+            (filter (Map.member v) . shrinkValid)
+        $ \env -> freshSuffix v (getNonNegative <$> env)
+        `shouldSatisfy` (> getNonNegative x)
+    -- maxSuccess increased to catch `freshSuffix (unsafeIdentifier  "x1") $ fromList [(unsafeIdentifier "x", 1)] `shouldSatisfy` (> 0)`
+    modifyMaxSuccess (* 100)
+        . it "never renames to a variable already in the environment"
+        . forallIdentifiers
+        $ \v -> forAllValid $ \env -> freshSuffix v (getNonNegative <$> env)
+        `shouldSatisfy` (not
+                         . flip Set.member (allGeneratedIdentifiers env)
+                         . numberedIdentifier v)
+  where
+    forallIdentifiers
+        = forAllSized (`div` 10)
+        $ suchThat genValid
+                   (not . isDigit . unAlphanumeric . head . view _Identifier)
+    allGeneratedIdentifiers
+        = Map.foldMapWithKey $ \identifier (NonNegative x) -> fromList
+        $ map (numberedIdentifier identifier) [ 0 .. x ]
+
+forAllSized :: (Show a, Testable prop, GenValid a)
+    => (Int -> Int)
+    -> Gen a
+    -> (a -> prop)
+    -> Property
+forAllSized resizer gen
+    = forAllShrink (sized $ flip resize gen . resizer) shrinkValid

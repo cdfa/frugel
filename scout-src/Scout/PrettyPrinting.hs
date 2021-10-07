@@ -45,7 +45,7 @@ instance AnnotatedPretty Node where
     annPretty (WhereNode w) = annPretty w
 
 instance AnnotatedPretty Identifier where
-    annPretty (Identifier name) = pretty name
+    annPretty = pretty
 
 instance AnnotatedPretty Expr where
     annPretty

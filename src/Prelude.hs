@@ -65,6 +65,9 @@ spanMaybe p xs@(x : xs') = case p x of
     Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
     Nothing -> ([], xs)
 
+spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p = swap . bimap reverse reverse . span p . reverse
+
 -- Modified from https://hackage.haskell.org/package/hledger-lib-1.20.4/docs/src/Hledger.Utils.html#splitAtElement
 -- >>> splitOn ' ' " switch   the accumulator to the other mode   "
 -- ["","switch","","","the","accumulator","to","the","other","mode","","",""]

@@ -21,6 +21,7 @@ module Scout.Node
     , ExprMeta(ExprMeta)
     , Meta(Meta)
     , ReifiedFunction
+    , ShadowingEnv
     , EvaluationOutput(EvaluationOutput)
     , EvaluationError(..)
     , TypeError(..)
@@ -219,9 +220,11 @@ sumTest = toCstrSite [ Right . ExprNode $ unsafeVariable "x", Left "+ y x" ]
 
 parensInsertTest :: Expr
 parensInsertTest
-    = application' (application' (unsafeVariable "n")
-                                 (unsafeAbstraction "x" $ unsafeVariable "x"))
-                   (application' (unsafeVariable "y") (sum' (unsafeVariable "z") (unsafeVariable "w")))
+    = application'
+        (application' (unsafeVariable "n")
+                      (unsafeAbstraction "x" $ unsafeVariable "x"))
+        (application' (unsafeVariable "y")
+                      (sum' (unsafeVariable "z") (unsafeVariable "w")))
 
 evalTest :: CstrSite
 evalTest

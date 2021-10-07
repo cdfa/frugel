@@ -83,6 +83,7 @@ library scout
       Scout
       Scout.Error
       Scout.Evaluation
+      Scout.Internal.EvaluationEnv
       Scout.Internal.Node
       Scout.Internal.Program
       Scout.Lexing
@@ -183,6 +184,7 @@ test-suite frugel-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Data.NonNegative.GenValidity
       EvaluationSpec
   hs-source-dirs:
       test
@@ -193,8 +195,12 @@ test-suite frugel-test
       DeriveGeneric
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base-noprelude >=4.7 && <5
+      QuickCheck
+    , base-noprelude >=4.7 && <5
+    , containers
     , frugel
+    , genvalidity
+    , genvalidity-containers
     , genvalidity-sydtest
     , multiset
     , relude >=1.0.0.0

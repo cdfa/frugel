@@ -37,7 +37,7 @@ initialModel p
 -- Currently, the largest limiting factor on this is that rendering big partially evaluated programs
 -- Otherwise it could be 20, which is still to low for real-world programs. To make partial evaluation useful for those, the editor could present iteratively further evaluated programs
 initialFuelLimit :: Int
-initialFuelLimit = 10
+initialFuelLimit = 3
 
 -- Assumes program terminates
 fromFrugelModel :: Model -> Frugel.Model Program -> Model

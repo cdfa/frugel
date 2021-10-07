@@ -137,8 +137,12 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - base-noprelude >= 4.7 && < 5
+      - containers
       - frugel
       - scout
+      - QuickCheck
+      - genvalidity
+      - genvalidity-containers
       - sydtest
       - genvalidity-sydtest
       - multiset

@@ -9,6 +9,8 @@ module Optics.Extra.Scout
 
 import Data.Has
 
+import GHC.Exts
+
 import Optics.Extra.Frugel
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet
@@ -35,6 +37,11 @@ concatByPrism p = concatBy (preview p) (review p)
 
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
+
+-- _NonEmpty :: IsList l => Prism' l (NonEmpty (Item l))
+-- _NonEmpty = prism' fromFoldable (nonEmpty . toList)
+_UnNonEmpty :: IsList l => Lens' (NonEmpty (Item l)) l
+_UnNonEmpty = lens fromFoldable (\s b -> fromMaybe s . nonEmpty $ toList b)
 
 infixr 4 <<.~, <<%~
 

@@ -13,8 +13,7 @@ import Test.Syd.Validity.GenValidity
 main :: IO ()
 main = sydTest $ do
     describe "GenValid instance for the AST" $ do
-        modifyMaxSize (const 500) $ genValidSpec @(Sized 500 Program)
-        genValidSpec @(Sized 80 Program)
+        modifyMaxSize (const 100) $ genValidSpec @(Sized 100 Program)
         genValidSpec @ProgramMeta
         genValidSpec @Meta
         genValidSpec @CstrSite
