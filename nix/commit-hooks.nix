@@ -1,8 +1,8 @@
 { pkgs, weeder }:
 let
-  inherit (import ./scripts.nix { inherit pkgs;}) regen-hie-script;
+  inherit (import ./scripts.nix { inherit pkgs; }) regen-hie-script;
 in
- with pkgs;
+with pkgs;
 {
   floskellHook = {
     enable = false;
@@ -31,7 +31,6 @@ in
     enable = false;
     name = "weeder";
     description = "Check dead code";
-    # Generating the .hie files with stack repl will fail when both Main.hs and Spec.hs are passed. Not much that can be done about it I think
     entry = "${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie > /dev/null 2> /dev/null ; ${weeder}/bin/weeder'";
     files = "\\.l?hs$";
     pass_filenames = false;
