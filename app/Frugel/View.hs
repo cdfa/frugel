@@ -114,11 +114,14 @@ evaluatedView model@Model{..}
                           ]
                           [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
                 , span_ [ class_ "card-header-vertical-padding" ]
-                        [ text (show (focusedNodeValueIndex + 1)
-                                <> " of "
-                                <> show (Seq.length
-                                         $ view #focusedNodeValues
-                                                evaluationOutput))
+                        [ let focusedNodeValuesCount
+                                  = Seq.length
+                                  $ view #focusedNodeValues evaluationOutput
+                          in text
+                             $ show (min focusedNodeValuesCount
+                                         (focusedNodeValueIndex + 1))
+                             <> " of "
+                             <> show focusedNodeValuesCount
                         ]
                 , button_ [ class_ "card-header-icon"
                           , onClick (FocusedNodeValueIndexAction Increment)
