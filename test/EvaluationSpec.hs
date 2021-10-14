@@ -35,7 +35,7 @@ s
     $ application' (application' (unsafeVariable "f") (unsafeVariable "x"))
                    (application' (unsafeVariable "g") (unsafeVariable "x"))
 
-runEval' :: (Data a, NodeOf a ~ Node, Decomposable a)
+runEval' :: (Data a, NodeOf a ~ Node, Decomposable a, Unbound a)
     => (a -> Evaluation a)
     -> a
     -> (a, MultiSet EvaluationError)
@@ -52,7 +52,7 @@ spec = describe "Evaluation" $ do
     unBoundVariableSpec
     cstrSiteSpec
     abstractionRenamingSpec
-    freeVariableRenamingSpec
+    freeVariableCaptureAvoidanceSpec
     freshSuffixSpec
 
 -- Simple test
@@ -91,12 +91,12 @@ lazinessSpec
 -- also tests laziness
 shadowingSpec :: Spec
 shadowingSpec
-    = it "handles variable shadowing, e.g. `(\\x = \\x = x) ⊥` evaluates to `\\x = x`"
+    = it "handles variable shadowing, e.g. `(\\x = \\x = x) q` evaluates to `\\x = x`"
     $ runEval' evalExpr
                (application' (unsafeAbstraction "x"
                               $ unsafeAbstraction "x"
                               $ unsafeVariable "x")
-                             (error "should not be evaluated"))
+                             (unsafeVariable "q"))
     `shouldBe` (unsafeAbstraction "x" $ unsafeVariable "x", fromOccurList [])
 
 partialApplicationSpec :: Spec
@@ -178,14 +178,14 @@ abstractionRenamingSpec
         = unsafeAbstraction f . unsafeAbstraction x
         $ application' (unsafeVariable f) (unsafeVariable x)
 
-freeVariableRenamingSpec :: Spec
-freeVariableRenamingSpec
-    = it "renames free variables to prevent them from being captured by a binder they are substituted into"
+freeVariableCaptureAvoidanceSpec :: Spec
+freeVariableCaptureAvoidanceSpec
+    = it "renames binders to prevent them from capturing free variables"
     $ runEval' evalExpr (application' k $ unsafeVariable "y")
-    `shouldBe` ( unsafeAbstraction "y" . singleExprNodeCstrSite
-                 $ unsafeVariable "y1"
+    `shouldBe` ( unsafeAbstraction "y1" . singleExprNodeCstrSite
+                 $ unsafeVariable "y"
                , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "y1", 1) ]
+                     [ (UnboundVariableError $ unsafeIdentifier "y", 1) ]
                )
 
 -- identifiers sizes reduced to increase environment sizes

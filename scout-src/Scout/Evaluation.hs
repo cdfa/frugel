@@ -28,11 +28,12 @@ import Relude                 ( group )
 import qualified Relude.Unsafe as Unsafe
 
 import Scout.Internal.EvaluationEnv ( EvaluationEnv(EvaluationEnv) )
-import qualified Scout.Internal.EvaluationEnv
+import qualified Scout.Internal.EvaluationEnv as EvaluationEnv
 import qualified Scout.Internal.Node as Node
 import qualified Scout.Internal.Program
 import Scout.Node
 import Scout.Program
+import Scout.Unbound
 
 -- Evaluation output is saved in Meta and is handled manually.
 -- It is possible to use a Writer as well, but this can lead to unexpectedly discarded output (due to preserving laziness) and focused node values would need to be handled manually anyway.
@@ -202,13 +203,13 @@ evalProgram (ProgramCstrSite meta cstrSite) = do
         $ ProgramCstrSite meta eCstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
-runEval :: (Data a, Decomposable a, NodeOf a ~ Node)
+runEval :: (Data a, Decomposable a, NodeOf a ~ Node, Unbound a)
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
     -> a
     -> (a, (MultiSet EvaluationError, Seq Node))
-runEval cursorOffset fuel eval
+runEval cursorOffset fuel eval x
     = removeReifiedFunctions
     . (removeEvaluationOutput
        &&& (MultiSet.fromOccurMap
@@ -218,9 +219,11 @@ runEval cursorOffset fuel eval
             &&& view (#focusedNodeValues % mapping _Hidden))
        . collectEvaluationOutput)
     . usingLimiter fuel
-    . usingReaderT mempty
+    . usingReaderT (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
+                                 $ freeVariables mempty x
+                           })
     . eval
-    . maybe id focusNodeUnderCursor cursorOffset
+    $ maybe id focusNodeUnderCursor cursorOffset x
   where
     removeReifiedFunctions
         = traversalVL (template @_ @AbstractionMeta) % #reified .~ Nothing
@@ -273,7 +276,7 @@ focusNodeUnderCursor cursorOffset n
     focus = hasLens @Meta % #focused .~ True
 
 renameShadowedVariables :: Expr -> ReaderT ShadowingEnv Limiter Expr
-renameShadowedVariables expr = case expr of
+renameShadowedVariables = \case
     Abstraction
         absMeta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
         name
@@ -290,27 +293,7 @@ renameShadowedVariables expr = case expr of
                       (reifiedFunction $ variable' newIdentifier)
     Abstraction{} -> error
         "Internal evaluation error: object language function was missing meta language function"
-    ExprCstrSite meta (Right (ExprNode (Variable varMeta n)) :< Empty)
-        | meta ^. hasLens @Meta % #evaluationOutput % #errors
-            == MultiSet.singleton (UnboundVariableError n) -> do
-                suffix <- asks $ freshSuffix n
-                let newIdentifier = numberedIdentifier n suffix
-                let newMeta
-                        = meta
-                        & hasLens @Meta % #evaluationOutput
-                        %~ (#errors
-                            .~ MultiSet.singleton
-                                (UnboundVariableError newIdentifier))
-                        . (#focusedNodeValues
-                           % traversed
-                           % _Hidden
-                           % _ExprNode
-                           % _Variable
-                           % _2
-                           .~ newIdentifier)
-                pure . ExprCstrSite newMeta . one . Right . ExprNode
-                    $ Variable varMeta newIdentifier
-    _ -> expr
+    expr -> expr
         & traversalVL uniplate
         `adjoin` (hasLens @Meta % #evaluationOutput % focusedExprs)
         %%~ renameShadowedVariables

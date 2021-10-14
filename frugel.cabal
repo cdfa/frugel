@@ -95,6 +95,7 @@ library scout
       Scout.Parsing.Whitespace
       Scout.PrettyPrinting
       Scout.Program
+      Scout.Unbound
   hs-source-dirs:
       scout-src
   default-extensions:

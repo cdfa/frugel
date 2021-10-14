@@ -173,6 +173,9 @@ elidedWhereClause :: WhereClause
 elidedWhereClause
     = set (whereClauseMeta % #elided) True $ whereCstrSite' mempty
 
+whereClauseBindees :: WhereClause -> [Identifier]
+whereClauseBindees = toListOf $ _WhereClause % _2 % folded % #name
+
 type CstrSite' = [Either String Node]
 
 toCstrSite :: CstrSite' -> CstrSite
