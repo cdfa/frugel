@@ -117,11 +117,16 @@ evalExpr expr = do
                       (evalExpr e)
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
-        (ex, exErrors) <- reportAnyTypeErrors Integer <$> evalExpr x
-        (ey, eyErrors) <- reportAnyTypeErrors Integer <$> evalExpr y
+        (exData, (ex, exErrors)) <- second (reportAnyTypeErrors Integer)
+            . splitEvaluationOutput
+            <$> evalExpr x
+        (eyData, (ey, eyErrors)) <- second (reportAnyTypeErrors Integer)
+            . splitEvaluationOutput
+            <$> evalExpr y
         pure
             . withEvaluationOutput
                 (mempty { Node.errors = exErrors <> eyErrors })
+            . withEvaluationOutput (exData <> eyData)
             $ Sum meta ex ey
         -- case (ex, ey) of
         --     (LitN a, LitN b) -> pure $ LitN (a + b)
