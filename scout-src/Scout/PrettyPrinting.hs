@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,7 +10,7 @@ import Data.Has
 
 import Frugel.DisplayProjection
 
-import Optics
+import Optics.Extra.Scout
 
 import PrettyPrinting.Expr
 
@@ -48,9 +49,8 @@ instance AnnotatedPretty Identifier where
     annPretty = pretty
 
 instance AnnotatedPretty Expr where
-    annPretty
-        = prettyNodeWithMeta "<ExprNode>" . parenthesizeExprFromMeta parens
-        $ \expr -> case expr of
+    annPretty = prettyNodeWithMeta . parenthesizeExprFromMeta parens $ \expr ->
+        case expr of
             Variable _ n -> annPretty n
             Abstraction _ arg subExp -> backslash
                 <> annPretty arg `nestingLine` equals
@@ -68,26 +68,22 @@ instance AnnotatedPretty Expr where
             = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
 
 instance AnnotatedPretty Decl where
-    annPretty = prettyNodeWithMeta "<DeclNode>" annPretty'
-      where
-        annPretty' Decl{..}
-            = annPretty name `nestingLine` equals <+> annPretty value
-        annPretty' d@(DeclCstrSite _ contents)
-            = prettyCstrSite (DeclNode d) annPretty contents
+    annPretty = prettyNodeWithMeta $ \case
+        Decl{..} -> annPretty name `nestingLine` equals <+> annPretty value
+        d@(DeclCstrSite _ contents) ->
+            prettyCstrSite (DeclNode d) annPretty contents
 
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
-    annPretty = prettyNodeWithMeta "<WhereClauseNode>" annPretty'
-      where
-        annPretty' (WhereClause _ decls)
-            = "where" <> nest 2 (line <> vsep (map annPretty $ toList decls))
-        annPretty' whereClause@(WhereCstrSite _ contents)
-            = prettyCstrSite (WhereNode whereClause) annPretty contents
+    annPretty = prettyNodeWithMeta $ \case
+        (WhereClause _ decls) -> "where"
+            <> nest 2 (line <> vsep (map annPretty $ toList decls))
+        whereClause@(WhereCstrSite _ contents) ->
+            prettyCstrSite (WhereNode whereClause) annPretty contents
 
-prettyNodeWithMeta :: Has Meta n
-    => Doc PrettyAnnotation
-    -> (n -> Doc PrettyAnnotation)
-    -> n
-    -> Doc PrettyAnnotation
-prettyNodeWithMeta stub prettyNode n
-    = if getter @Meta n ^. #elided then annotate Elided' stub else prettyNode n
+prettyNodeWithMeta
+    :: Has Meta n => (n -> Doc PrettyAnnotation) -> n -> Doc PrettyAnnotation
+prettyNodeWithMeta prettyNode n
+    = maybe (prettyNode n) (annotate Elided' . angles . viaShow)
+    . guarded (== EvaluationDeferred)
+    $ view (hasLens @Meta % #evaluationStatus) n

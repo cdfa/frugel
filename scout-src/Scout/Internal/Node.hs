@@ -107,15 +107,17 @@ data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
 -- Meta had it's own modules someday, but the introduction of focusedNodeValues requires it's in here. Until there is time to pull in data-diverse
 data Meta
     = Meta { interstitialWhitespace :: [Text] -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
-             -- If elided == True, the node with this metadata may not have been processed by a previous operation and a dummy result should be used
              -- The various node type should really be made parametric using hypertypes (https://github.com/lamdu/hypertypes), but there are higher priority tasks atm.
              -- ATM this is only set to true by evaluation and obeyed by pretty printing (not standard rendering)
-           , elided :: Bool
+           , evaluationStatus :: EvaluationStatus
              -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
            , focused :: Bool
              -- Used to keep track of the values of all evaluation output resulting from evaluating this expression to weak-head normal form
            , evaluationOutput :: EvaluationOutput
            }
+    deriving ( Eq, Ord, Show, Generic, Data )
+
+data EvaluationStatus = Evaluated | EvaluationDeferred | OutOfFuel
     deriving ( Eq, Ord, Show, Generic, Data )
 
 type ReifiedFunction = Expr -> ReaderT ShadowingEnv Limiter Expr
@@ -164,6 +166,8 @@ makePrisms ''WhereClause
 makeFieldLabelsNoPrefix ''ExprMeta
 
 makeFieldLabelsNoPrefix ''Meta
+
+makePrisms ''EvaluationStatus
 
 makeFieldLabelsNoPrefix ''EvaluationOutput
 
@@ -221,7 +225,7 @@ defaultExprMeta n
 defaultMeta :: Int -> Meta
 defaultMeta n
     = Meta { interstitialWhitespace = replicate n ""
-           , elided = False
+           , evaluationStatus = Evaluated
            , focused = False
            , evaluationOutput = mempty
            }
@@ -514,6 +518,8 @@ instance Validity Meta where
                     . interstitialWhitespace
                   ]
 
+instance Validity EvaluationStatus
+
 instance Validity EvaluationOutput where
     validate _ = valid
 
@@ -676,6 +682,6 @@ enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
 enumerateValidMeta n
     = pay
     $ Meta <$> vectorOf n enumerateWhitespace
-    <*> pure False
+    <*> pure Evaluated
     <*> pure False
     <*> pure mempty

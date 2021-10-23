@@ -8,10 +8,12 @@
 
 module Scout.Evaluation where
 
+import Control.Lens.Plated
 import Control.Limited
 
 import Data.Alphanumeric
 import Data.Char              ( isDigit )
+import Data.Constrained
 import Data.Data
 import Data.Data.Lens
 import Data.Has
@@ -52,8 +54,7 @@ evalCstrSite cstrSite = do
     newCstrSite <- local (const newEnv)
         $ cstrSite & _CstrSite % traversed % _Right %%~ \case
             ExprNode e -> ExprNode <$> evalExpr e
-            DeclNode _ -> pure $ DeclNode elidedDecl
-            WhereNode _ -> pure $ WhereNode elidedWhereClause
+            n -> pure $ deferEvaluation n
     pure (errors, newEnv, newCstrSite)
 
 evalExpr :: Expr -> Evaluation Expr
@@ -92,12 +93,13 @@ evalExpr expr = do
                 -- x is elided because it contains unEvaluated expressions (and renameShadowedVariables needs them evaluated)
                 newApp
                     = Application meta ef
-                    $ hasLens @Meta % #elided .~ True
-                    $ elidedExpr
+                    $ hasLens @Meta % #evaluationStatus .~ OutOfFuel
+                    $ x
             Abstraction{} -> error
                 "Internal evaluation error: object language function was missing meta language function"
             _ -> withEvaluationOutput (mempty { Node.errors })
                 . Application meta checkedEf
+                . deferEvaluation
                 <$> evalExpr x
               where
                 (checkedEf, errors) = reportAnyTypeErrors Function ef
@@ -110,10 +112,11 @@ evalExpr expr = do
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
             renameShadowedVariables ex
         Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
+            . deferEvaluation
             -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
-            <$> local ((#valueEnv % at n ?~ variable' n)
-                        -- these values only show up in the result if the abstraction is above all function applications, so there will be no substitution issues and we can use 0
-                       . (#shadowingEnv % at n ?~ 0))
+            <$> local (chain [ #valueEnv % at n ?~ variable' n
+                             , #shadowingEnv % at n ?~ 0
+                             ])
                       (evalExpr e)
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
@@ -137,12 +140,26 @@ evalExpr expr = do
         pure . withEvaluationOutput (mempty { Node.errors })
             $ ExprCstrSite meta eCstrSite
 
+normaliseExpr :: Expr -> Expr
+normaliseExpr
+    = transformOf (traverseOf
+                   $ traversalVL uniplate
+                   `adjoin` (hasLens @Meta
+                             % #evaluationOutput
+                             % #focusedNodeValues
+                             % traversed
+                             % _Hidden
+                             % traversalVL template))
+    $ hasLens @Meta % #evaluationStatus %~ \case
+        EvaluationDeferred -> Evaluated
+        status -> status
+
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
-evalWhereClause (WhereClause _ decls) = do
+evalWhereClause (WhereClause meta decls) = do
     (errors, newEnv) <- evalScope decls
     pure ( newEnv
-         , elidedWhereClause
-           & hasLens @Meta % #evaluationOutput % #errors .~ errors
+         , withEvaluationOutput (mempty { Node.errors })
+           $ WhereClause meta decls
          )
 evalWhereClause (WhereCstrSite meta cstrSite) = do
     (errors, newEnv, eCstrSite) <- evalCstrSite cstrSite
@@ -151,6 +168,7 @@ evalWhereClause (WhereCstrSite meta cstrSite) = do
            $ WhereCstrSite meta eCstrSite
          )
 
+-- todo: return evaluated decls
 evalScope :: Foldable t
     => t Decl
     -> Evaluation (MultiSet EvaluationError, EvaluationEnv)
@@ -188,27 +206,28 @@ evalScope decls = do
                 $ fromList [ Right . ExprNode $ variable' name ]
 
 evalProgram :: Program -> Evaluation Program
-evalProgram program@Program{..} = do
-    evaluatedWhereClause <- traverse evalWhereClause whereClause
+evalProgram Program{..} = do
+    eWhereClause <- traverse evalWhereClause whereClause
     (newEnv, eWhereClauseData) <- asks $ \env -> maybe
         (env, mempty)
         (second . view $ hasLens @Meta % #evaluationOutput)
-        evaluatedWhereClause
+        eWhereClause
     newExpr <- local (const newEnv) $ evalExpr expr
-    pure
-        $ program
-        & #expr .~ newExpr
-        & #whereClause .~ Nothing
-        & programMeta % #standardMeta
-        %~ (#interstitialWhitespace .~ [ "" ])
-        . (#evaluationOutput .~ eWhereClauseData)
+    pure Program { meta = meta
+                       & #standardMeta
+                       %~ chain [ #interstitialWhitespace .~ [ "" ]
+                                , #evaluationOutput .~ eWhereClauseData
+                                ]
+                 , expr = newExpr
+                 , whereClause = Nothing
+                 }
 evalProgram (ProgramCstrSite meta cstrSite) = do
     (errors, _, eCstrSite) <- evalCstrSite cstrSite
     pure . withEvaluationOutput (mempty { Node.errors })
         $ ProgramCstrSite meta eCstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
-runEval :: (Data a, Decomposable a, NodeOf a ~ Node, Unbound a)
+runEval :: (Data a, Decomposable a, NodeOf a ~ Node, Unbound a, Has Meta a)
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
@@ -223,6 +242,7 @@ runEval cursorOffset fuel eval x
             . view #errors
             &&& view (#focusedNodeValues % mapping _Hidden))
        . collectEvaluationOutput)
+    . normaliseAllExpressions
     . usingLimiter fuel
     . usingReaderT (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
                                  $ freeVariables mempty x
@@ -230,13 +250,17 @@ runEval cursorOffset fuel eval x
     . eval
     $ maybe id focusNodeUnderCursor cursorOffset x
   where
+    normaliseAllExpressions = traversalVL (template @_ @Expr) %~ normaliseExpr
     removeReifiedFunctions
         = traversalVL (template @_ @AbstractionMeta) % #reified .~ Nothing
     removeEvaluationOutput :: Data a => a -> a
     removeEvaluationOutput
         = traversalVL (template @_ @Meta) % #evaluationOutput .~ mempty
+    collectEvaluationOutput :: (Has Meta a, Data a) => a -> EvaluationOutput
     collectEvaluationOutput
-        = foldOf (foldVL (template @_ @Meta) % #evaluationOutput)
+        = foldOf (allEvaluated
+                  % _UnConstrained (castOptic @A_Getter $ hasLens @Meta)
+                  % #evaluationOutput)
 
 splitEvaluationOutput :: Has Meta n => n -> (EvaluationOutput, n)
 splitEvaluationOutput = hasLens @Meta % #evaluationOutput <<.~ mempty
@@ -293,7 +317,7 @@ renameShadowedVariables = \case
             %%~ renameShadowedVariables
         suffix <- asks $ freshSuffix name
         let newIdentifier = numberedIdentifier name suffix
-        Abstraction newMeta newIdentifier
+        Abstraction newMeta newIdentifier . deferEvaluation
             <$> local (at name ?~ suffix)
                       (reifiedFunction $ variable' newIdentifier)
     Abstraction{} -> error

@@ -24,7 +24,7 @@ instance Eq (Hidden a) where
     _ == _ = True -- What is hidden should not matter
 
 instance Show (Hidden a) where
-    show _ = error "attempt to show hidden value"
+    show _ = "Hidden"
 
 instance Ord (Hidden a) where
     _ <= _ = True

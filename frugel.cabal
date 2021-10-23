@@ -73,12 +73,14 @@ library scout
       Control.ValidEnumerable.Access
       Control.ValidEnumerable.Class
       Data.Alphanumeric
+      Data.Constrained
       Data.Hidden
       Data.Sized
       Data.Validity.Extra
       Data.Whitespace
       Frugel.CstrSite.ValidEnumerable
       Optics.Extra.Scout
+      Optics.Intro
       PrettyPrinting.Expr
       Scout
       Scout.Error

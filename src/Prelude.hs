@@ -46,6 +46,9 @@ nTimes :: Int -> (a -> a) -> a -> a
 nTimes 0 _ x = x
 nTimes n f x = f (nTimes (n - 1) f x)
 
+chain :: Foldable t => t (a -> a) -> a -> a
+chain = foldr (.) id
+
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
 concatBy :: Monoid b => (a -> Maybe b) -> (b -> a) -> [a] -> [a]

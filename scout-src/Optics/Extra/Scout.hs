@@ -1,10 +1,13 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Optics.Extra.Scout
     ( module Optics.Extra.Scout
     , module Optics.Extra.Frugel
+    , module Optics.Intro
     ) where
 
 import Data.Has
@@ -12,6 +15,7 @@ import Data.Has
 import GHC.Exts
 
 import Optics.Extra.Frugel
+import Optics.Intro
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet
 -- data instead of newtype because of existential quantification
@@ -74,3 +78,6 @@ afailing' firstOptic secondOptic
          $ failover firstOptic (const b) s <|> failover secondOptic (const b) s)
 
 infixl 3 `afailing'`
+
+cosmosOf :: forall k a. Is k A_Fold => Optic' k NoIx a a -> Fold a a
+cosmosOf l = simple `summing` castOptic @A_Fold l % cosmosOf l

@@ -9,7 +9,6 @@ import Control.Concurrent
 import Control.ValidEnumerable
 
 import Data.Composition
-import Data.Data.Lens
 import qualified Data.Sequence          as Seq
 import Data.Sized
 
@@ -180,7 +179,7 @@ unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
 unsafeEvaluateSelectedNodeValue sink model@Model{..}
     = seq (lengthOf (#selectedNodeValue
                      % to (capTree selectedNodeValueRenderDepth)
-                     % traversalVL (template @_ @Identifier))
+                     % allEvaluated)
                     model)
     . sink
     . AsyncAction
