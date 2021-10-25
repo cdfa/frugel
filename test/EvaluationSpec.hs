@@ -1,4 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module EvaluationSpec ( spec ) where
 
@@ -22,6 +24,7 @@ import Scout
 import Test.QuickCheck
 import Test.Syd
 import Test.Syd.Validity
+import Data.Has
 
 i :: Expr
 i = unsafeAbstraction "x" $ unsafeVariable "x"
@@ -35,7 +38,12 @@ s
     $ application' (application' (unsafeVariable "f") (unsafeVariable "x"))
                    (application' (unsafeVariable "g") (unsafeVariable "x"))
 
-runEval' :: (Data a, NodeOf a ~ Node, Decomposable a, Unbound a)
+runEval' :: (Decomposable a
+           , NodeOf a ~ Node
+           , Unbound a
+           , LabelOptic' "exprMeta" An_AffineFold a ExprMeta
+           , Has Meta a
+           , Data a)
     => (a -> Evaluation a)
     -> a
     -> (a, MultiSet EvaluationError)

@@ -1,12 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Scout.Node
     ( module Scout.Node
@@ -42,8 +37,6 @@ module Scout.Node
     , _WhereCstrSite
     , _WhereNode
     , exprMeta
-    , declMeta
-    , whereClauseMeta
     , exprCstrSite'
     , declCstrSite'
     , whereCstrSite'
@@ -61,13 +54,10 @@ module Scout.Node
     , enumerateValidMeta
     ) where
 
-import qualified Control.Lens as Lens
 import Control.Lens.Plated
 
 import Data.Alphanumeric
 import Data.Char
-import Data.Constrained
-import Data.Data
 import Data.Data.Lens
 import Data.Has
 import Data.Sequence       ( spanl, spanr )
@@ -148,7 +138,7 @@ liftNestedCstrSiteOuterWhitespace
                 item
 
 capTree :: Int -> Node -> Node
-capTree 0 n = deferEvaluation n
+capTree 0 n = elide n
 capTree depth n = case n of
     ExprNode expr -> ExprNode $ capExprTree depth expr
     DeclNode decl -> DeclNode $ capDecl depth decl
@@ -156,7 +146,7 @@ capTree depth n = case n of
         $ _WhereClause % _2 % mapped %~ capDecl depth
         $ capCstrSiteNodes depth whereClause
   where
-    capExprTree 0 expr = deferEvaluation expr
+    capExprTree 0 expr = elide expr
     capExprTree depth' expr
         = expr
         & traversalVL uniplate %~ capExprTree (pred depth')
@@ -166,30 +156,11 @@ capTree depth n = case n of
     capCstrSiteNodes depth'
         = traversalVL (template @_ @Node) %~ capTree (pred depth')
 
-deferEvaluation :: Has Meta n => n -> n
-deferEvaluation = hasLens @Meta % #evaluationStatus .~ EvaluationDeferred
+elide :: Has Meta n => n -> n
+elide = hasLens @Meta % #elided .~ True
 
-allEvaluated :: (Data a, Has Meta a) => Fold a (Constrained (Data & Has Meta))
-allEvaluated
-    = to Constrained
-    % Optics.cosmosOf
-        (nodeChildren
-         % filtered (fromConstrained
-                     $ is
-                     $ hasLens @Meta % #evaluationStatus % _Evaluated))
-
-nodeChildren :: Fold (Constrained (Data & Has Meta))
-                     (Constrained (Data & Has Meta))
-nodeChildren = foldVL nodeChildrenVL
-
--- todo: make constraint polymorphic
--- This is really only a Fold, which would require Contravariant f, but this would prevent us from converting it to an Optics.Fold, because is missing this constraint. See https://github.com/well-typed/optics/pull/430/files#diff-81356dac5fca95d32be302d894215ef1aa40f424d1232307c4124bd2ccbd5613
-nodeChildrenVL :: Applicative f
-    => Lens.LensLike' f
-                      (Constrained (Data & Has Meta))
-                      (Constrained (Data & Has Meta))
-nodeChildrenVL f (Constrained a)
-    = Constrained <$> (template @_ @Expr) (\e -> e <$ f (Constrained e)) a
+deferEvaluation :: Has ExprMeta n => n -> n
+deferEvaluation = hasLens @ExprMeta % #evaluationStatus .~ EvaluationDeferred
 
 whereClauseBindees :: WhereClause -> [Identifier]
 whereClauseBindees = toListOf $ _WhereClause % _2 % folded % #name

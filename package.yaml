@@ -90,6 +90,10 @@ internal-libraries:
       - dictionary-sharing
       - generic-data ^>= 0.8.0.0
       - Interpolation
+      # Until https://github.com/well-typed/optics/pull/430/files# is merged
+      - optics-core ^>= 0.4
+      - profunctors
+      - indexed-profunctors
 
 executables:
   frugel-exe:
@@ -146,6 +150,7 @@ tests:
       - sydtest
       - genvalidity-sydtest
       - multiset
+      - it-has
     when:
       - condition: impl(ghcjs)
         buildable: false

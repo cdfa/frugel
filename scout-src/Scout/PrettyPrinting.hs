@@ -49,8 +49,11 @@ instance AnnotatedPretty Identifier where
     annPretty = pretty
 
 instance AnnotatedPretty Expr where
-    annPretty = prettyNodeWithMeta . parenthesizeExprFromMeta parens $ \expr ->
-        case expr of
+    annPretty
+        = stubIfEvaluated
+        . prettyNodeWithMeta "<ExprNode>"
+        . parenthesizeExprFromMeta parens
+        $ \expr -> case expr of
             Variable _ n -> annPretty n
             Abstraction _ arg subExp -> backslash
                 <> annPretty arg `nestingLine` equals
@@ -66,24 +69,29 @@ instance AnnotatedPretty Expr where
       where
         (prettyUnary, prettyBinary)
             = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
+        stubIfEvaluated prettyNode n
+            = maybe (prettyNode n) (annotate Elided' . angles . viaShow)
+            . guarded (/= Evaluated)
+            $ view (hasLens @ExprMeta % #evaluationStatus) n
 
 instance AnnotatedPretty Decl where
-    annPretty = prettyNodeWithMeta $ \case
+    annPretty = prettyNodeWithMeta "<DeclNode>" $ \case
         Decl{..} -> annPretty name `nestingLine` equals <+> annPretty value
         d@(DeclCstrSite _ contents) ->
             prettyCstrSite (DeclNode d) annPretty contents
 
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
-    annPretty = prettyNodeWithMeta $ \case
+    annPretty = prettyNodeWithMeta "<WhereNode>" $ \case
         (WhereClause _ decls) -> "where"
             <> nest 2 (line <> vsep (map annPretty $ toList decls))
         whereClause@(WhereCstrSite _ contents) ->
             prettyCstrSite (WhereNode whereClause) annPretty contents
 
-prettyNodeWithMeta
-    :: Has Meta n => (n -> Doc PrettyAnnotation) -> n -> Doc PrettyAnnotation
-prettyNodeWithMeta prettyNode n
-    = maybe (prettyNode n) (annotate Elided' . angles . viaShow)
-    . guarded (== EvaluationDeferred)
-    $ view (hasLens @Meta % #evaluationStatus) n
+prettyNodeWithMeta :: Has Meta n
+    => Doc PrettyAnnotation
+    -> (n -> Doc PrettyAnnotation)
+    -> n
+    -> Doc PrettyAnnotation
+prettyNodeWithMeta stub prettyNode n
+    = if getter @Meta n ^. #elided then annotate Elided' stub else prettyNode n

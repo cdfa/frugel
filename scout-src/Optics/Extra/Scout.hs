@@ -8,14 +8,16 @@ module Optics.Extra.Scout
     ( module Optics.Extra.Scout
     , module Optics.Extra.Frugel
     , module Optics.Intro
+    , module Optics.ReadOnly.VL
     ) where
 
 import Data.Has
 
 import GHC.Exts
 
-import Optics.Extra.Frugel
+import Optics.Extra.Frugel hiding ( foldVL )
 import Optics.Intro
+import Optics.ReadOnly.VL
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet
 -- data instead of newtype because of existential quantification

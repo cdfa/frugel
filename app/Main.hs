@@ -179,7 +179,7 @@ unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
 unsafeEvaluateSelectedNodeValue sink model@Model{..}
     = seq (lengthOf (#selectedNodeValue
                      % to (capTree selectedNodeValueRenderDepth)
-                     % allEvaluated)
+                     % allEvaluatedChildren)
                     model)
     . sink
     . AsyncAction

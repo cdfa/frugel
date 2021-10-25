@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -53,8 +54,10 @@ evalCstrSite cstrSite = do
             cstrSite
     newCstrSite <- local (const newEnv)
         $ cstrSite & _CstrSite % traversed % _Right %%~ \case
-            ExprNode e -> ExprNode <$> evalExpr e
-            n -> pure $ deferEvaluation n
+            ExprNode e -> ExprNode
+                . (hasLens @ExprMeta % #evaluationStatus .~ EvaluationDeferred)
+                <$> evalExpr e
+            n -> pure $ elide n
     pure (errors, newEnv, newCstrSite)
 
 evalExpr :: Expr -> Evaluation Expr
@@ -93,7 +96,7 @@ evalExpr expr = do
                 -- x is elided because it contains unEvaluated expressions (and renameShadowedVariables needs them evaluated)
                 newApp
                     = Application meta ef
-                    $ hasLens @Meta % #evaluationStatus .~ OutOfFuel
+                    $ hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel
                     $ x
             Abstraction{} -> error
                 "Internal evaluation error: object language function was missing meta language function"
@@ -150,7 +153,7 @@ normaliseExpr
                              % traversed
                              % _Hidden
                              % traversalVL template))
-    $ hasLens @Meta % #evaluationStatus %~ \case
+    $ hasLens @ExprMeta % #evaluationStatus %~ \case
         EvaluationDeferred -> Evaluated
         status -> status
 
@@ -227,7 +230,13 @@ evalProgram (ProgramCstrSite meta cstrSite) = do
         $ ProgramCstrSite meta eCstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
-runEval :: (Data a, Decomposable a, NodeOf a ~ Node, Unbound a, Has Meta a)
+runEval :: ( Decomposable a
+           , NodeOf a ~ Node
+           , Unbound a
+           , LabelOptic' "exprMeta" An_AffineFold a ExprMeta
+           , Has Meta a
+           , Data a
+           )
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
@@ -256,9 +265,15 @@ runEval cursorOffset fuel eval x
     removeEvaluationOutput :: Data a => a -> a
     removeEvaluationOutput
         = traversalVL (template @_ @Meta) % #evaluationOutput .~ mempty
-    collectEvaluationOutput :: (Has Meta a, Data a) => a -> EvaluationOutput
     collectEvaluationOutput
-        = foldOf (allEvaluated
+        :: ( LabelOptic' "exprMeta" An_AffineFold a ExprMeta
+           , Has Meta a
+           , Data a
+           )
+        => a
+        -> EvaluationOutput
+    collectEvaluationOutput
+        = foldOf (allEvaluatedChildren
                   % _UnConstrained (castOptic @A_Getter $ hasLens @Meta)
                   % #evaluationOutput)
 

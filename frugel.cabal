@@ -81,6 +81,7 @@ library scout
       Frugel.CstrSite.ValidEnumerable
       Optics.Extra.Scout
       Optics.Intro
+      Optics.ReadOnly.VL
       PrettyPrinting.Expr
       Scout
       Scout.Error
@@ -117,14 +118,17 @@ library scout
     , genvalidity
     , genvalidity-containers
     , genvalidity-text
+    , indexed-profunctors
     , it-has
     , lens
     , megaparsec >=9.0.1 && <9.1
     , mtl
     , multiset
     , optics ==0.4.*
+    , optics-core ==0.4.*
     , parser-combinators
     , prettyprinter >=1.7.0 && <1.8
+    , profunctors
     , relude >=1.0.0.0
     , size-based
     , testing-feat
@@ -205,6 +209,7 @@ test-suite frugel-test
     , genvalidity
     , genvalidity-containers
     , genvalidity-sydtest
+    , it-has
     , multiset
     , relude >=1.0.0.0
     , scout

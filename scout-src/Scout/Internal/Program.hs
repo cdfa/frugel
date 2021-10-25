@@ -105,6 +105,10 @@ deriving instance Show (Model Program)
 
 instance Editable Program
 
+-- until we use GADTs for meta
+instance LabelOptic "exprMeta" An_AffineFold Program Program ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
 instance DisplayProjection (Error Program) where
     renderDoc = \case
         ParseError e -> parseErrorPretty e

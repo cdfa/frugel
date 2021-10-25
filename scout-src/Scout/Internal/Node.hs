@@ -100,16 +100,20 @@ data AbstractionMeta
                       }
     deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
 
-data ExprMeta = ExprMeta { standardMeta :: Meta, parenthesisLevels :: Int }
+data ExprMeta
+    = ExprMeta { standardMeta :: Meta
+               , parenthesisLevels :: Int
+               , evaluationStatus :: EvaluationStatus
+               }
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
--- It would be nicer if a heterogeneous type list wou ld be used instead, especially since elided and focused are not used by core Frugel
+-- It would be nicer if GADTs would be used instead and the AST would be parametric in it's recursion (a la hypertypes), especially since elided and focused are not used by core Frugel
+-- This would prevent derivation of Generic though
 -- Meta had it's own modules someday, but the introduction of focusedNodeValues requires it's in here. Until there is time to pull in data-diverse
 data Meta
     = Meta { interstitialWhitespace :: [Text] -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
-             -- The various node type should really be made parametric using hypertypes (https://github.com/lamdu/hypertypes), but there are higher priority tasks atm.
              -- ATM this is only set to true by evaluation and obeyed by pretty printing (not standard rendering)
-           , evaluationStatus :: EvaluationStatus
+           , elided :: Bool
              -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
            , focused :: Bool
              -- Used to keep track of the values of all evaluation output resulting from evaluating this expression to weak-head normal form
@@ -167,9 +171,19 @@ makeFieldLabelsNoPrefix ''ExprMeta
 
 makeFieldLabelsNoPrefix ''Meta
 
-makePrisms ''EvaluationStatus
-
 makeFieldLabelsNoPrefix ''EvaluationOutput
+
+instance LabelOptic "exprMeta" An_AffineFold Node Node ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
+instance LabelOptic "exprMeta" An_AffineFold Expr Expr ExprMeta ExprMeta where
+    labelOptic = castOptic hasLens
+
+instance LabelOptic "exprMeta" An_AffineFold Decl Decl ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
+instance LabelOptic "exprMeta" An_AffineFold WhereClause WhereClause ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
 
 instance Has Meta Node where
     getter (ExprNode n) = getter n
@@ -203,11 +217,11 @@ instance Has Meta AbstractionMeta where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
-declMeta :: Lens' Decl Meta
-declMeta = hasLens
+-- declMeta :: Lens' Decl Meta
+-- declMeta = hasLens
 
-whereClauseMeta :: Lens' WhereClause Meta
-whereClauseMeta = hasLens
+-- whereClauseMeta :: Lens' WhereClause Meta
+-- whereClauseMeta = hasLens
 
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
@@ -220,12 +234,15 @@ whereCstrSite' = WhereCstrSite $ defaultMeta 0
 
 defaultExprMeta :: Int -> ExprMeta
 defaultExprMeta n
-    = ExprMeta { parenthesisLevels = 0, standardMeta = defaultMeta n }
+    = ExprMeta { parenthesisLevels = 0
+               , evaluationStatus = Evaluated
+               , standardMeta = defaultMeta n
+               }
 
 defaultMeta :: Int -> Meta
 defaultMeta n
     = Meta { interstitialWhitespace = replicate n ""
-           , evaluationStatus = Evaluated
+           , elided = False
            , focused = False
            , evaluationOutput = mempty
            }
@@ -589,6 +606,10 @@ instance GenValid Meta where
              $ interstitialWhitespace Unsafe.!! i)
         & fmap (flip (set #interstitialWhitespace) meta)
 
+instance GenUnchecked EvaluationStatus
+
+instance GenValid EvaluationStatus
+
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
 
@@ -668,6 +689,7 @@ enumerateValidExprMeta minimumWhitespaceFragments
     = pay
     $ (\meta' parenthesisWhitespace ->
        ExprMeta { parenthesisLevels = length parenthesisWhitespace
+                , evaluationStatus = Evaluated
                 , standardMeta = meta'
                       & #interstitialWhitespace
                       %~ (\whitespaceFragments -> map fst parenthesisWhitespace
@@ -682,6 +704,6 @@ enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
 enumerateValidMeta n
     = pay
     $ Meta <$> vectorOf n enumerateWhitespace
-    <*> pure Evaluated
+    <*> pure False
     <*> pure False
     <*> pure mempty
