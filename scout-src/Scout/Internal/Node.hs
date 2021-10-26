@@ -128,7 +128,7 @@ data EvaluationStatus
 
 type ReifiedFunction
     = ScopedEvaluation Expr
-    -> ReaderT ShadowingEnv (LimiterT ScopedEvaluation) Expr
+    -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)

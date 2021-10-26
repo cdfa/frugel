@@ -39,7 +39,7 @@ import Scout.Orphans.MultiSet ()
 import Scout.Program
 import Scout.Unbound
 
-type Evaluation = ReaderT EvaluationEnv (LimiterT ScopedEvaluation)
+type Evaluation = LimiterT (ReaderT EvaluationEnv ScopedEvaluation)
 
 evalCstrSite :: CstrSite -> Evaluation (EvaluationEnv, CstrSite)
 evalCstrSite cstrSite = do
@@ -111,7 +111,7 @@ evalExpr expr = do
                  EvaluationEnv { valueEnv = Map.insert n x env, shadowingEnv })
                 $ evalExpr e
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
-            mapReaderT (mapLimiterT (pure . runIdentity))
+            mapLimiterT (mapReaderT (pure . runIdentity))
                 $ renameShadowedVariables ex
         Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
             . deferEvaluation
@@ -135,7 +135,7 @@ evalExpr expr = do
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
 scope :: Evaluation Expr -> Evaluation (ScopedEvaluation Expr)
-scope = mapReaderT (mapLimiterT pure)
+scope = mapLimiterT $ mapReaderT pure
 
 normaliseExpr :: Expr -> ScopedEvaluation Expr
 normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
@@ -182,9 +182,10 @@ evalScope decls = do
             successfulEvaluation = do
                 iteratedEnv <- newValueEnv
                 Limited
-                    <.> mapLimiterT pure
-                    . usingReaderT
-                        (withUpdatedShadowingEnv & #valueEnv .~ iteratedEnv)
+                    <.> mapLimiterT
+                        (pure
+                         . usingReaderT (withUpdatedShadowingEnv
+                                         & #valueEnv .~ iteratedEnv))
                     $ evalExpr value
             evaluationStub
                 = writerFragment
@@ -217,15 +218,14 @@ runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
 runEval cursorOffset fuel eval x
     = removeReifiedFunctions
     . second (view #errors &&& view #focusedNodeValues)
-    $ runWriter
-        (normaliseAllExpressions
-         =<< (usingLimiterT fuel
-              . usingReaderT
-                  (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
-                                $ freeVariables mempty x
-                          })
-              . eval
-              $ maybe id focusNodeUnderCursor cursorOffset x))
+    $ runWriter (normaliseAllExpressions
+                 =<< (usingReaderT (mempty { EvaluationEnv.shadowingEnv
+                                                 = Map.fromSet (const 0)
+                                                 $ freeVariables mempty x
+                                           })
+                      . usingLimiterT fuel
+                      . eval
+                      $ maybe id focusNodeUnderCursor cursorOffset x))
   where
     normaliseAllExpressions = traversalVL (template @_ @Expr) %%~ normaliseExpr
     removeReifiedFunctions
@@ -266,7 +266,7 @@ focusNodeUnderCursor cursorOffset n
     focus = hasLens @Meta % #focused .~ True
 
 -- todo: apply to evaluation output and deferred evaluations
-renameShadowedVariables :: Expr -> ReaderT ShadowingEnv Limiter Expr
+renameShadowedVariables :: Expr -> LimiterT (Reader ShadowingEnv) Expr
 renameShadowedVariables = \case
     Abstraction meta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
                 name
@@ -274,8 +274,8 @@ renameShadowedVariables = \case
         suffix <- asks $ freshSuffix name
         let newIdentifier = numberedIdentifier name suffix
         Abstraction meta newIdentifier . deferEvaluation
-            <$> mapReaderT
-                (mapLimiterT pure)
+            <$> mapLimiterT
+                (mapReaderT pure)
                 (local (at name ?~ suffix)
                        (reifiedFunction . pure $ variable' newIdentifier))
     Abstraction{} -> error

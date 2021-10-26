@@ -26,6 +26,8 @@ module Control.Limited
 
 import Control.Monad.Writer
 
+import Optics
+
 import Prelude        hiding ( pass )
 
 data Limit = Infinity | Only Int
@@ -65,6 +67,14 @@ instance MonadWriter w m => MonadWriter w (LimiterT m) where
 instance MonadLimiter m => MonadLimiter (ReaderT r m) where
     askLimit = lift askLimit
     draw = mapReaderT draw
+
+instance MonadReader r m => MonadReader r (LimiterT m) where
+    ask = LimiterT . ReaderT $ const ask
+    local = mapLimiterT . local
+
+instance Magnify m n b a => Magnify (LimiterT m) (LimiterT n) b a where
+    magnify = mapLimiterT . magnify
+    magnifyMaybe = mapLimiterT . magnifyMaybe
 
 predLimit :: Limit -> Limit
 predLimit Infinity = Infinity
