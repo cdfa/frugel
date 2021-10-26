@@ -40,6 +40,14 @@ infixl 4 <<*>>
     :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
 (<<*>>) = liftA2 (<*>)
 
+lift2 :: forall (s :: (Type -> Type)
+                 -> Type
+                 -> Type) t m a.
+    (MonadTrans s, MonadTrans t, Monad (t m), Monad m)
+    => m a
+    -> s (t m) a
+lift2 = lift . lift
+
 -- From https://hackage.haskell.org/package/utility-ht-0.0.16/docs/src/Data.Function.HT.Private.html#nest
 {-# INLINE nTimes #-}
 nTimes :: Int -> (a -> a) -> a -> a

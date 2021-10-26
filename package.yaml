@@ -150,7 +150,6 @@ tests:
       - sydtest
       - genvalidity-sydtest
       - multiset
-      - it-has
     when:
       - condition: impl(ghcjs)
         buildable: false

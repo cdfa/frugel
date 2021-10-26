@@ -82,6 +82,7 @@ library scout
       Optics.Extra.Scout
       Optics.Intro
       Optics.ReadOnly.VL
+      Optics.Writer
       PrettyPrinting.Expr
       Scout
       Scout.Error
@@ -92,6 +93,7 @@ library scout
       Scout.Lexing
       Scout.Node
       Scout.Orphans.DisplayProjection
+      Scout.Orphans.MultiSet
       Scout.Orphans.Stream
       Scout.Parsing
       Scout.Parsing.Error
@@ -209,7 +211,6 @@ test-suite frugel-test
     , genvalidity
     , genvalidity-containers
     , genvalidity-sydtest
-    , it-has
     , multiset
     , relude >=1.0.0.0
     , scout

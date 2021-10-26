@@ -18,6 +18,7 @@
 module Scout.Internal.Node where
 
 import Control.Limited
+import Control.Monad.Writer      ( Writer )
 import Control.Sized
 import Control.ValidEnumerable
 
@@ -116,15 +117,22 @@ data Meta
            , elided :: Bool
              -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
            , focused :: Bool
-             -- Used to keep track of the values of all evaluation output resulting from evaluating this expression to weak-head normal form
-           , evaluationOutput :: EvaluationOutput
            }
     deriving ( Eq, Ord, Show, Generic, Data )
 
-data EvaluationStatus = Evaluated | EvaluationDeferred | OutOfFuel
+data EvaluationStatus
+    = Evaluated
+    | EvaluationDeferred (Hidden (ScopedEvaluation Expr))
+    | OutOfFuel
     deriving ( Eq, Ord, Show, Generic, Data )
 
-type ReifiedFunction = Expr -> ReaderT ShadowingEnv Limiter Expr
+type ReifiedFunction
+    = ScopedEvaluation Expr
+    -> ReaderT ShadowingEnv (LimiterT ScopedEvaluation) Expr
+
+-- For making explicit that something should not be given a environment, but gets it from it's scope
+-- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
+type ScopedEvaluation = Writer EvaluationOutput
 
 type ShadowingEnv = Map Identifier Int
 
@@ -134,7 +142,7 @@ data EvaluationOutput
     = EvaluationOutput { errors :: MultiSet EvaluationError
                          -- Hidden because we typically do not want to consider these nodes when using template/uniplate
                          -- Be careful with evaluating the Nodes completely because they may be infinitely large. Use capTree to cap them to a certain depth
-                       , focusedNodeValues :: Seq (Hidden Node)
+                       , focusedNodeValues :: Seq Node
                        }
     deriving ( Eq, Ord, Show, Generic, Data )
     deriving ( Semigroup, Monoid ) via (Generically EvaluationOutput)
@@ -219,10 +227,8 @@ exprMeta = hasLens
 
 -- declMeta :: Lens' Decl Meta
 -- declMeta = hasLens
-
 -- whereClauseMeta :: Lens' WhereClause Meta
 -- whereClauseMeta = hasLens
-
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
 
@@ -244,7 +250,6 @@ defaultMeta n
     = Meta { interstitialWhitespace = replicate n ""
            , elided = False
            , focused = False
-           , evaluationOutput = mempty
            }
 
 -- Note that expressions may have the precedence of literals when parenthesized
@@ -321,6 +326,10 @@ instance ToString Identifier where
 
 instance Pretty Identifier where
     pretty = pretty . toString
+
+instance Pretty EvaluationStatus where
+    pretty EvaluationDeferred{} = angles "EvaluationDeferred"
+    pretty status = angles $ viaShow status
 
 instance DisplayProjection Node where
     -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
@@ -606,9 +615,11 @@ instance GenValid Meta where
              $ interstitialWhitespace Unsafe.!! i)
         & fmap (flip (set #interstitialWhitespace) meta)
 
-instance GenUnchecked EvaluationStatus
-
-instance GenValid EvaluationStatus
+-- Not a proper GenValid instance, but generated nodes should not have random evaluation output
+-- Instance is primarily provided to be able to use shrinkValidStructurallyWithoutExtraFiltering
+instance GenValid EvaluationStatus where
+    genValid = pure Evaluated
+    shrinkValid = const []
 
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
@@ -703,7 +714,4 @@ enumerateValidExprMeta minimumWhitespaceFragments
 enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
 enumerateValidMeta n
     = pay
-    $ Meta <$> vectorOf n enumerateWhitespace
-    <*> pure False
-    <*> pure False
-    <*> pure mempty
+    $ Meta <$> vectorOf n enumerateWhitespace <*> pure False <*> pure False

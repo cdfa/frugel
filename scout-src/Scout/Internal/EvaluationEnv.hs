@@ -15,7 +15,7 @@ import Optics
 import Scout.Node
 
 data EvaluationEnv
-    = EvaluationEnv { valueEnv :: Map Identifier Expr
+    = EvaluationEnv { valueEnv :: Map Identifier (ScopedEvaluation Expr)
                       -- used for tracking all bindings up to the first application (renameShadowedVariables takes over from there)
                     , shadowingEnv :: ShadowingEnv
                     }

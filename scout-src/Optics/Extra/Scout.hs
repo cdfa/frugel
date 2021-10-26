@@ -49,22 +49,6 @@ hasLens = lens getter (\t b -> modifier (const b) t)
 _UnNonEmpty :: IsList l => Lens' (NonEmpty (Item l)) l
 _UnNonEmpty = lens fromFoldable (\s b -> fromMaybe s . nonEmpty $ toList b)
 
-infixr 4 <<.~, <<%~
-
-(<<%~) :: PermeableOptic k a
-    => Optic k is s t a b
-    -> (a -> b)
-    -> s
-    -> (ViewResult k a, t)
-o <<%~ f = passthrough o $ \a -> (a, f a)
-
-(<<.~) :: PermeableOptic k a
-    => Optic k is s t a b
-    -> b
-    -> s
-    -> (ViewResult k a, t)
-o <<.~ b = o <<%~ const b
-
 afailing' :: ( Is k An_AffineTraversal
              , Is k A_Traversal
              , Is l An_AffineTraversal

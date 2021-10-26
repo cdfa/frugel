@@ -70,7 +70,7 @@ instance AnnotatedPretty Expr where
         (prettyUnary, prettyBinary)
             = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
         stubIfEvaluated prettyNode n
-            = maybe (prettyNode n) (annotate Elided' . angles . viaShow)
+            = maybe (prettyNode n) (annotate Elided' . pretty)
             . guarded (/= Evaluated)
             $ view (hasLens @ExprMeta % #evaluationStatus) n
 

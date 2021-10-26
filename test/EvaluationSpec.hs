@@ -24,7 +24,6 @@ import Scout
 import Test.QuickCheck
 import Test.Syd
 import Test.Syd.Validity
-import Data.Has
 
 i :: Expr
 i = unsafeAbstraction "x" $ unsafeVariable "x"
@@ -41,8 +40,6 @@ s
 runEval' :: (Decomposable a
            , NodeOf a ~ Node
            , Unbound a
-           , LabelOptic' "exprMeta" An_AffineFold a ExprMeta
-           , Has Meta a
            , Data a)
     => (a -> Evaluation a)
     -> a
