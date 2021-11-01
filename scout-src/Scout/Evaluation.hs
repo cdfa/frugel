@@ -31,7 +31,8 @@ import Optics.Writer
 import Relude                 ( group )
 import qualified Relude.Unsafe as Unsafe
 
-import Scout.Internal.EvaluationEnv ( EvaluationEnv(EvaluationEnv) )
+import Scout.Internal.EvaluationEnv
+    ( EvaluationEnv(EvaluationEnv), _EvaluationEnv )
 import qualified Scout.Internal.EvaluationEnv as EvaluationEnv
 import qualified Scout.Internal.Node as Node
 import qualified Scout.Internal.Program
@@ -186,18 +187,11 @@ evalScope decls = do
         = review _EvaluationEnv . (, newShadowingEnv) <$> newValueEnv
       where
         newShadowingEnv
-            = env
-            & #shadowingEnv
-            .~ shadowingEnv
+            = shadowingEnv
             <> fromList (zip (decls ^.. folded % #name) $ repeat 0) -- should be replaced with new names when where clauses can be nested
         newValueEnv
             = mappend valueEnv . fromList
-            <$> traverse evalDecl
-                         (decls ^.. folded % ((,) <$^> #name <*^> #value))
-        evalDecl :: (Identifier, Expr)
-            -> LimiterT
-                IO
-                (Identifier, IORef (Either (ScopedEvaluation Expr) Expr))
+            <$> traverse evalDecl (decls ^.. folded % (#name `fanout` #value))
         evalDecl (name, value) = do
             valueEither <- Left . fromMaybe evaluationStub
                 <$> draw successfulEvaluation

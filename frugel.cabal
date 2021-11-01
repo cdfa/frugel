@@ -36,7 +36,6 @@ library
       Frugel.Model
       Frugel.Parsing
       Frugel.PrettyPrinting
-      Optics.Applicative
       Optics.Extra.Frugel
       Prelude
   other-modules:
@@ -80,7 +79,8 @@ library scout
       Data.Whitespace
       Frugel.CstrSite.ValidEnumerable
       Optics.Extra.Scout
-      Optics.Intro
+      Optics.ReadOnly.FunctorOptic
+      Optics.ReadOnly.Intro
       Optics.ReadOnly.VL
       Optics.Writer
       PrettyPrinting.Expr

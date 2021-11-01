@@ -7,16 +7,18 @@
 module Optics.Extra.Scout
     ( module Optics.Extra.Scout
     , module Optics.Extra.Frugel
-    , module Optics.Intro
+    , module Optics.ReadOnly.Intro
     , module Optics.ReadOnly.VL
+    , module Optics.ReadOnly.FunctorOptic
     ) where
 
 import Data.Has
 
 import GHC.Exts
 
-import Optics.Extra.Frugel hiding ( foldVL )
-import Optics.Intro
+import Optics.Extra.Frugel    hiding ( foldVL )
+import Optics.ReadOnly.FunctorOptic
+import Optics.ReadOnly.Intro
 import Optics.ReadOnly.VL
 
 -- Can't use tuple directly, because GHC can't do impredicative types yet

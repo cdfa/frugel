@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -7,18 +6,14 @@ module Optics.Extra.Frugel
     ( module Optics
     , module Optics.Extra.Frugel
     , module Optics.State.Operators
-    , module Optics.Applicative
     ) where
 
 import Optics
-import Optics.Applicative
 import Optics.State.Operators
 
 infixr 4 %%~, +~, -~, %@~
 
 infix 4 +=, -=
-
-infixl 4 <$^>
 
 (+~) :: (Num a, Is k A_Setter) => Optic k is s t a a -> a -> s -> t
 l +~ n = over l (+ n)
@@ -51,18 +46,6 @@ l -= b = modify (l -~ b)
     -> s
     -> t
 (%@~) = iover
-
-(<$^>) :: JoinKinds k A_Getter l
-    => (a -> b)
-    -> Optic k is s t a a
-    -> Optic l is s t b b
-(<$^>) = omap
-
-omap :: JoinKinds k A_Getter l
-    => (a -> b)
-    -> Optic k is s t a a
-    -> Optic l is s t b b
-omap f o = o % to f
 
 -- using :: (Is k A_Lens, Zoom m n s t) => Optic' k is t s -> (s -> (c, s)) -> n c
 -- using l f = zoom l $ state f
