@@ -37,6 +37,9 @@ module Scout.Node
     , _WhereClause
     , _WhereCstrSite
     , _WhereNode
+    , _Evaluated
+    , _EvaluationDeferred
+    , _OutOfFuel
     , exprMeta
     , exprCstrSite'
     , declCstrSite'
@@ -241,8 +244,8 @@ evalTest
                                  is0 = \n = n (\x = false) true
                                  Y = \f = (\x = f (x x)) (\x = f (x x))
                                  fact = Y (\f = \n = (is0 n) 1 (mul n (f (pred n))))
-                                 fact2 = \n = (is0 n) 1 (mul n (fact3 (pred n)))
-                                 fact3 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
+                                 fact2 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
+                                 fact3 = fact2
                                  infiniteRecursion = infiniteRecursion|]
                  ]
 

@@ -15,11 +15,15 @@ import Optics
 import Scout.Node
 
 data EvaluationEnv
-    = EvaluationEnv { valueEnv :: Map Identifier (ScopedEvaluation Expr)
+    = EvaluationEnv { valueEnv :: Map
+                              Identifier
+                              (IORef (Either (ScopedEvaluation Expr) Expr))
                       -- used for tracking all bindings up to the first application (renameShadowedVariables takes over from there)
                     , shadowingEnv :: ShadowingEnv
                     }
-    deriving ( Eq, Show, Generic )
+    deriving ( Generic )
     deriving ( Semigroup, Monoid ) via (Generically EvaluationEnv)
 
 makeFieldLabelsNoPrefix ''EvaluationEnv
+
+makePrisms ''EvaluationEnv

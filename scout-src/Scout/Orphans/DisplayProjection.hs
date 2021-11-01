@@ -13,9 +13,10 @@ import Scout.PrettyPrinting
 instance DisplayProjection EvaluationError where
     renderDoc = \case
         TypeError e -> "Type error:" <+> renderDoc e
-        UnboundVariableError name -> pretty name <+> "was not defined"
-        ConflictingDefinitionsError name ->
-            pretty name <+> "was defined multiple times in a the same scope"
+        UnboundVariableError name -> dquotes (pretty name)
+            <+> "was not defined"
+        ConflictingDefinitionsError name -> dquotes (pretty name)
+            <+> "was defined multiple times in a the same scope"
         OutOfFuelError expr -> "Ran out of fuel when evaluating:"
             `nestingLine` annotateComplete
                 (reAnnotate toStandardAnnotation $ annPretty expr)

@@ -45,18 +45,15 @@ instance AnnotatedPretty Node where
     annPretty (DeclNode decl) = annPretty decl
     annPretty (WhereNode w) = annPretty w
 
-instance AnnotatedPretty Identifier where
-    annPretty = pretty
-
 instance AnnotatedPretty Expr where
     annPretty
         = stubIfEvaluated
         . prettyNodeWithMeta "<ExprNode>"
         . parenthesizeExprFromMeta parens
         $ \expr -> case expr of
-            Variable _ n -> annPretty n
+            Variable _ n -> pretty n
             Abstraction _ arg subExp -> backslash
-                <> annPretty arg `nestingLine` equals
+                <> pretty arg `nestingLine` equals
                 <+> annPretty (prettyUnary expr subExp)
             Application _ function arg -> uncurry nestingLine
                 $ both %~ annPretty
@@ -76,7 +73,7 @@ instance AnnotatedPretty Expr where
 
 instance AnnotatedPretty Decl where
     annPretty = prettyNodeWithMeta "<DeclNode>" $ \case
-        Decl{..} -> annPretty name `nestingLine` equals <+> annPretty value
+        Decl{..} -> pretty name `nestingLine` equals <+> annPretty value
         d@(DeclCstrSite _ contents) ->
             prettyCstrSite (DeclNode d) annPretty contents
 

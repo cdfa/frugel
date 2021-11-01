@@ -12,24 +12,23 @@ import Optics.Extra.Scout
 import Scout
 import Scout.Internal.Model
 
--- Assumes program terminates
 initialModel :: Program -> Model
 initialModel p
-    = fromFrugelModel
-        Model { editableDataVersion = 0
-              , fuelLimit = initialFuelLimit
-              , focusedNodeValueIndex = 0
-              , errors = []
-              , partiallyEvaluated = False
-              , selectedNodeValueRenderDepth = 10
-              , evaluationOutput = EvaluationOutput { evaluated = program
-                                                    , focusedNodeValues = mempty
-                                                    }
-              , ..
-              }
-        frugelModel
+    = Model { editableDataVersion = 0
+            , fuelLimit = initialFuelLimit
+            , focusedNodeValueIndex = 0
+            , errors = []
+            , partiallyEvaluated = False
+            , selectedNodeValueRenderDepth = 10
+            , evaluationOutput = EvaluationOutput { evaluated = program'
+                                                        evaluationPlaceHolder
+                                                        Nothing
+                                                  , focusedNodeValues = mempty
+                                                  }
+            , ..
+            }
   where
-    frugelModel@Frugel.Model{..}
+    Frugel.Model{..}
         = Frugel.prettyPrint -- pretty print twice, because program may not be fully parsed (and then it's only parsed but not pretty-printed)
         . Frugel.prettyPrint
         $ Frugel.initialModel p
@@ -39,31 +38,46 @@ initialModel p
 initialFuelLimit :: Int
 initialFuelLimit = 3
 
+updateWithFrugelModel :: Frugel.Model Program -> Model -> Model
+updateWithFrugelModel Frugel.Model{..}
+                      Model{program = _, cursorOffset = _, errors = _, ..}
+    = hideSelectedNodeValue
+    $ Model { editableDataVersion = editableDataVersion + 1
+            , program
+            , cursorOffset
+            , errors = map fromFrugelError errors
+            , evaluationOutput = evaluationOutput { evaluated = program'
+                                                        evaluationPlaceHolder
+                                                        Nothing
+                                                  }
+            , ..
+            }
+
 -- Assumes program terminates
-fromFrugelModel :: Model -> Frugel.Model Program -> Model
+fromFrugelModel :: Model -> Frugel.Model Program -> IO Model
 fromFrugelModel = partialFromFrugelModel Infinity
 
-partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> Model
+partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> IO Model
 partialFromFrugelModel fuel
                        scoutModel@Model{ editableDataVersion
                                        , focusedNodeValueIndex
                                        , selectedNodeValueRenderDepth
                                        }
-                       Frugel.Model{..}
-    = Model { editableDataVersion = editableDataVersion + 1
-            , errors = map fromFrugelError errors
-                  ++ map (uncurry $ flip EvaluationError)
-                         (toOccurList evalErrors)
-            , partiallyEvaluated = case fuel of
-                  Only _ -> True
-                  Infinity -> False
-            , evaluationOutput = EvaluationOutput { .. }
-            , fuelLimit = fuelLimit scoutModel
-            , ..
-            }
-  where
+                       Frugel.Model{..} = do
     (evaluated, (evalErrors, focusedNodeValues))
-        = runEval (Just cursorOffset) fuel evalProgram program
+        <- runEval (Just cursorOffset) fuel evalProgram program
+    pure
+        $ Model { editableDataVersion = editableDataVersion + 1
+                , errors = map fromFrugelError errors
+                      ++ map (uncurry $ flip EvaluationError)
+                             (toOccurList evalErrors)
+                , partiallyEvaluated = case fuel of
+                      Only _ -> True
+                      Infinity -> False
+                , evaluationOutput = EvaluationOutput { .. }
+                , fuelLimit = fuelLimit scoutModel
+                , ..
+                }
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
 updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->
@@ -76,7 +90,7 @@ toFrugelModel Model{..}
 hideSelectedNodeValue :: Model -> Model
 hideSelectedNodeValue
     = (#partiallyEvaluated .~ True)
-    . (#selectedNodeValue .~ evaluationPlaceHolder)
-  where
-    evaluationPlaceHolder
-        = ExprNode . exprCstrSite' . toCstrSite . one $ Left "Evaluating..."
+    . (#selectedNodeValue .~ ExprNode evaluationPlaceHolder)
+
+evaluationPlaceHolder :: Expr
+evaluationPlaceHolder = exprCstrSite' . toCstrSite . one $ Left "Evaluating..."

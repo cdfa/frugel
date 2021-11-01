@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module EvaluationSpec ( spec ) where
 
@@ -37,14 +37,11 @@ s
     $ application' (application' (unsafeVariable "f") (unsafeVariable "x"))
                    (application' (unsafeVariable "g") (unsafeVariable "x"))
 
-runEval' :: (Decomposable a
-           , NodeOf a ~ Node
-           , Unbound a
-           , Data a)
+runEval' :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     => (a -> Evaluation a)
     -> a
-    -> (a, MultiSet EvaluationError)
-runEval' eval = second fst . runEval Nothing Infinity eval
+    -> IO (a, MultiSet EvaluationError)
+runEval' eval = second fst <.> runEval Nothing Infinity eval
 
 spec :: Spec
 spec = describe "Evaluation" $ do
@@ -67,10 +64,10 @@ simpleEvalSpec
     $ runEval'
         evalExpr
         (application' (application' (application' s k) k) (unsafeVariable "q"))
-    `shouldBe` ( singleExprNodeCstrSite $ unsafeVariable "q"
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
-               )
+    >>= shouldBe
+    ?? ( singleExprNodeCstrSite $ unsafeVariable "q"
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       )
 
 -- Evaluation is lazy
 lazinessSpec :: Spec
@@ -79,20 +76,19 @@ lazinessSpec
     $ runEval' evalExpr
                (application' (unsafeAbstraction "u" (unsafeVariable "q"))
                              (error "should not be evaluated"))
-    `shouldBe` ( singleExprNodeCstrSite $ unsafeVariable "q"
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
-               )
+    >>= shouldBe
+    ?? ( singleExprNodeCstrSite $ unsafeVariable "q"
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       )
 
 -- Call-by-need
--- callByNeedTest :: (Expr, MultiSet EvaluationError)
+-- callByNeedTest :: IO (Expr, MultiSet EvaluationError)
 -- callByNeedTest
---     = runEval'
---         (evalExpr
---          . application' (unsafeAbstraction "x"
---                          $ sum' (unsafeVariable "x") (unsafeVariable "x"))
---          . trace "test"
---          $ unsafeVariable "y")
+--     = runEval' evalExpr
+--     . application'
+--         (unsafeAbstraction "x" $ sum' (unsafeVariable "x") (unsafeVariable "x"))
+--     . trace "test"
+--     $ unsafeVariable "y"
 -- also tests laziness
 shadowingSpec :: Spec
 shadowingSpec
@@ -102,17 +98,16 @@ shadowingSpec
                               $ unsafeAbstraction "x"
                               $ unsafeVariable "x")
                              (unsafeVariable "q"))
-    `shouldBe` (unsafeAbstraction "x" $ unsafeVariable "x", fromOccurList [])
+    >>= shouldBe
+    ?? (unsafeAbstraction "x" $ unsafeVariable "x", fromOccurList [])
 
 partialApplicationSpec :: Spec
 partialApplicationSpec
     = it "continues evaluation in abstraction bodies when they are not fully applied in the result, e.g. `k q` evaluates to `\\y = [`q`]`"
-    $ runEval' evalExpr (application' k $ unsafeVariable "q")
-    `shouldBe` ( unsafeAbstraction "y" . singleExprNodeCstrSite
-                 $ unsafeVariable "q"
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
-               )
+    $ runEval' evalExpr (application' k $ unsafeVariable "q") >>= shouldBe
+    ?? ( unsafeAbstraction "y" . singleExprNodeCstrSite $ unsafeVariable "q"
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       )
 
 expectedFunctionSpec :: Spec
 expectedFunctionSpec
@@ -120,40 +115,38 @@ expectedFunctionSpec
     $ runEval' evalExpr
                (application' (sum' (unsafeVariable "q") (unsafeVariable "q"))
                              (unsafeVariable "x"))
-    `shouldBe` ( application'
-                     (singleExprNodeCstrSite
-                      $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
-                             (singleExprNodeCstrSite $ unsafeVariable "q"))
-                     (singleExprNodeCstrSite $ unsafeVariable "x")
-               , fromOccurList
-                     [ ( TypeError . TypeMismatchError Function
-                         $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
-                                (singleExprNodeCstrSite $ unsafeVariable "q")
-                       , 1
-                       )
-                     , (UnboundVariableError $ unsafeIdentifier "q", 2)
-                     , (UnboundVariableError $ unsafeIdentifier "x", 1)
-                     ]
-               )
+    >>= shouldBe
+    ?? ( application' (singleExprNodeCstrSite
+                       $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
+                              (singleExprNodeCstrSite $ unsafeVariable "q"))
+                      (singleExprNodeCstrSite $ unsafeVariable "x")
+       , fromOccurList [ ( TypeError . TypeMismatchError Function
+                           $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
+                                  (singleExprNodeCstrSite $ unsafeVariable "q")
+                         , 1
+                         )
+                       , (UnboundVariableError $ unsafeIdentifier "q", 2)
+                       , (UnboundVariableError $ unsafeIdentifier "x", 1)
+                       ]
+       )
 
 expectedIntSpec :: Spec
 expectedIntSpec
     = it "reports a type error when something else than an integer is found where an integer is expected, e.g. in `k + s`"
-    $ runEval' evalExpr (sum' k s)
-    `shouldBe` ( sum' (singleExprNodeCstrSite k) (singleExprNodeCstrSite s)
-               , fromOccurList [ (TypeError $ TypeMismatchError Integer k, 1)
-                               , (TypeError $ TypeMismatchError Integer s, 1)
-                               ]
-               )
+    $ runEval' evalExpr (sum' k s) >>= shouldBe
+    ?? ( sum' (singleExprNodeCstrSite k) (singleExprNodeCstrSite s)
+       , fromOccurList [ (TypeError $ TypeMismatchError Integer k, 1)
+                       , (TypeError $ TypeMismatchError Integer s, 1)
+                       ]
+       )
 
 unBoundVariableSpec :: Spec
 unBoundVariableSpec
     = it "reports an UnboundVariableError when it encounters a unbound variable, e.g. `x`"
-    $ runEval' evalExpr (unsafeVariable "x")
-    `shouldBe` ( singleExprNodeCstrSite $ unsafeVariable "x"
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
-               )
+    $ runEval' evalExpr (unsafeVariable "x") >>= shouldBe
+    ?? ( singleExprNodeCstrSite $ unsafeVariable "x"
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
+       )
 
 cstrSiteSpec :: Spec
 cstrSiteSpec
@@ -164,20 +157,20 @@ cstrSiteSpec
          $ fromList [ Left 'c'
                     , Right . ExprNode . application' i $ unsafeVariable "x"
                     ])
-    `shouldBe` ( exprCstrSite'
-                 $ fromList [ Left 'c'
-                            , Right . ExprNode . singleExprNodeCstrSite
-                              $ unsafeVariable "x"
-                            ]
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
-               )
+    >>= shouldBe
+    ?? ( exprCstrSite'
+         $ fromList
+             [ Left 'c'
+             , Right . ExprNode . singleExprNodeCstrSite $ unsafeVariable "x"
+             ]
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
+       )
 
 abstractionRenamingSpec :: Spec
 abstractionRenamingSpec
     = it "renames binders to prevent them from capturing variables in expressions substituted into them"
-    $ runEval' evalExpr (application' (one "f" "x") (one "f" "x"))
-    `shouldBe` (one "x" "x1", mempty)
+    $ runEval' evalExpr (application' (one "f" "x") (one "f" "x")) >>= shouldBe
+    ?? (one "x" "x1", mempty)
   where
     one f x
         = unsafeAbstraction f . unsafeAbstraction x
@@ -186,12 +179,10 @@ abstractionRenamingSpec
 freeVariableCaptureAvoidanceSpec :: Spec
 freeVariableCaptureAvoidanceSpec
     = it "renames binders to prevent them from capturing free variables"
-    $ runEval' evalExpr (application' k $ unsafeVariable "y")
-    `shouldBe` ( unsafeAbstraction "y1" . singleExprNodeCstrSite
-                 $ unsafeVariable "y"
-               , fromOccurList
-                     [ (UnboundVariableError $ unsafeIdentifier "y", 1) ]
-               )
+    $ runEval' evalExpr (application' k $ unsafeVariable "y") >>= shouldBe
+    ?? ( unsafeAbstraction "y1" . singleExprNodeCstrSite $ unsafeVariable "y"
+       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "y", 1) ]
+       )
 
 -- identifiers sizes reduced to increase environment sizes
 freshSuffixSpec :: Spec

@@ -34,7 +34,8 @@ data Limit = Infinity | Only Int
     deriving ( Show, Eq )
 
 newtype LimiterT m a = LimiterT { unLimiterT :: ReaderT Limit m a }
-    deriving ( Functor, Applicative, Monad, MonadTrans, MonadFix )
+    deriving ( Functor, Applicative, Monad, MonadTrans, MonadFix, MonadWriter r
+             , MonadIO )
 
 type Limiter = LimiterT Identity
 
@@ -57,12 +58,6 @@ instance Monad m => MonadLimiter (LimiterT m) where
             then pure Nothing
             else (Just . unLimited) <.> LimiterT . local predLimit
                 $ unLimiterT limited
-
-instance MonadWriter w m => MonadWriter w (LimiterT m) where
-    writer = LimiterT . writer
-    listen = mapLimiterT listen
-    pass = mapLimiterT pass
-    tell = LimiterT . tell
 
 instance MonadLimiter m => MonadLimiter (ReaderT r m) where
     askLimit = lift askLimit

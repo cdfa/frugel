@@ -21,6 +21,7 @@ import Data.Hidden
 import qualified Data.Map     as Map
 import Data.MultiSet          ( MultiSet )
 import qualified Data.MultiSet as MultiSet
+import qualified Data.Set     as Set
 
 import Frugel                 hiding ( group )
 
@@ -38,6 +39,8 @@ import Scout.Node
 import Scout.Orphans.MultiSet ()
 import Scout.Program
 import Scout.Unbound
+
+import System.IO.Unsafe
 
 type Evaluation = LimiterT (ReaderT EvaluationEnv ScopedEvaluation)
 
@@ -67,15 +70,14 @@ evalExpr expr = do
   where
     -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
     evalExpr' v@(Variable _ identifier) = do
-        scopedValue <- gview (#valueEnv % at identifier)
-        maybe variableStub lift2 scopedValue
+        valueRefMaybe <- gview (#valueEnv % at identifier)
+        maybe variableStub (lift2 . outputOnce) valueRefMaybe
       where
         variableStub
             = writerFragment #errors
                              ( singleExprNodeCstrSite v
                              , one $ UnboundVariableError identifier
                              )
-
     evalExpr' (Application meta f x) = do
         ef <- evalExpr f
         case ef of
@@ -86,8 +88,8 @@ evalExpr expr = do
               where
                 successfulApplication = do
                     scopedEx <- scope $ evalExpr x
-                    Limited
-                        <$> magnify #shadowingEnv (reifiedFunction scopedEx)
+                    xRef <- newIORef $ Left scopedEx
+                    Limited <$> magnify #shadowingEnv (reifiedFunction xRef)
                 applicationStub
                     = writerFragment
                         #errors
@@ -113,14 +115,16 @@ evalExpr expr = do
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
             mapLimiterT (mapReaderT (pure . runIdentity))
                 $ renameShadowedVariables ex
-        Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
-            . deferEvaluation
-            <$> scope
+        fmap (Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
+              . deferEvaluation)
+            . scope
+            $ do
+                stubRef <- newIORef . pure $ variable' n
                 -- overwriting n in the environment is important, because otherwise a shadowed variable may be used
-                (local (chain [ #valueEnv % at n ?~ pure (variable' n)
-                              , #shadowingEnv % at n ?~ 0
-                              ])
-                       (evalExpr e))
+                local (chain [ #valueEnv % at n ?~ stubRef
+                             , #shadowingEnv % at n ?~ 0
+                             ])
+                    $ evalExpr e
     -- evalExpr i@(LitN _) = pure i
     evalExpr' (Sum meta x y) = do
         ex <- evalExpr x
@@ -134,7 +138,9 @@ evalExpr expr = do
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
-scope :: Evaluation Expr -> Evaluation (ScopedEvaluation Expr)
+scope :: Applicative m
+    => LimiterT (ReaderT r ScopedEvaluation) a
+    -> LimiterT (ReaderT r m) (ScopedEvaluation a)
 scope = mapLimiterT $ mapReaderT pure
 
 normaliseExpr :: Expr -> ScopedEvaluation Expr
@@ -143,6 +149,18 @@ normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
         traverseOf (traversalVL uniplate) normaliseExpr =<< eval
     Evaluated -> traverseOf (traversalVL uniplate) normaliseExpr expr
     OutOfFuel -> pure expr
+
+outputOnce :: (MonadIO (t m), MonadTrans t, Monad m, MonadWriter w (t m))
+    => IORef (Either (WriterT w m a) a)
+    -> t m a
+outputOnce valueRef = do
+    scopedValue <- readIORef valueRef
+    case scopedValue of
+        Left withOutput -> do
+            (value, output) <- lift $ runWriterT withOutput
+            writeIORef valueRef $ Right value
+            writer (value, output)
+        Right withoutOutput -> pure withoutOutput
 
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
 evalWhereClause whereClause@(WhereClause _ decls)
@@ -153,21 +171,21 @@ evalWhereClause (WhereCstrSite meta cstrSite)
 -- todo: return evaluated decls
 evalScope :: Foldable t => t Decl -> Evaluation EvaluationEnv
 evalScope decls = do
-    newEnv <- asks computeNewEnv
     fuelLimit <- askLimit
+    evaluatedDecls <- newIORef mempty
+    newEnv <- liftIO . usingLimiterT fuelLimit . computeNewEnv evaluatedDecls
+        =<< ask
     writerFragment
         #errors
-        ( usingLimiter fuelLimit newEnv
-        , MultiSet.fromList $ map ConflictingDefinitionsError repeated
-        )
+        (newEnv, MultiSet.fromList $ map ConflictingDefinitionsError repeated)
   where
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
         $ toListOf (folded % #name) decls
-    computeNewEnv env@EvaluationEnv{..}
-        = flip (set #valueEnv) withUpdatedShadowingEnv <$> newValueEnv
+    computeNewEnv evaluatedDecls EvaluationEnv{..}
+        = review _EvaluationEnv . (, newShadowingEnv) <$> newValueEnv
       where
-        withUpdatedShadowingEnv
+        newShadowingEnv
             = env
             & #shadowingEnv
             .~ shadowingEnv
@@ -176,17 +194,31 @@ evalScope decls = do
             = mappend valueEnv . fromList
             <$> traverse evalDecl
                          (decls ^.. folded % ((,) <$^> #name <*^> #value))
-        evalDecl (name, value)
-            = (name, ) . fromMaybe evaluationStub <$> draw successfulEvaluation
+        evalDecl :: (Identifier, Expr)
+            -> LimiterT
+                IO
+                (Identifier, IORef (Either (ScopedEvaluation Expr) Expr))
+        evalDecl (name, value) = do
+            valueEither <- Left . fromMaybe evaluationStub
+                <$> draw successfulEvaluation
+            (name, ) <$> newIORef valueEither
           where
             successfulEvaluation = do
-                iteratedEnv <- newValueEnv
+                iteratedEnv <- mapLimiterT unsafeInterleaveIO newValueEnv
                 Limited
                     <.> mapLimiterT
                         (pure
-                         . usingReaderT (withUpdatedShadowingEnv
-                                         & #valueEnv .~ iteratedEnv))
-                    $ evalExpr value
+                         . usingReaderT (review _EvaluationEnv
+                                                (iteratedEnv, newShadowingEnv)))
+                    $ do
+                        evaluated
+                            <- Set.member name <$> readIORef evaluatedDecls
+                        if evaluated
+                            then liftIO . fmap fst . runWriterT
+                                =<< scope (evalExpr value)
+                            else do
+                                modifyIORef evaluatedDecls (Set.insert name)
+                                evalExpr value
             evaluationStub
                 = writerFragment
                     #errors
@@ -209,23 +241,26 @@ evalProgram (ProgramCstrSite meta cstrSite)
     = ProgramCstrSite meta . snd <$> evalCstrSite cstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
+-- It's possible to run this in ST instead of IO, but we would need an extra type parameter on ScopedEvaluation and therefor on Expression
+-- May be feasible when we use hypertypes to parametrise the tree
 runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     => Maybe Int
     -> Limit
     -> (a -> Evaluation a)
     -> a
-    -> (a, (MultiSet EvaluationError, Seq Node))
+    -> IO (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval x
     = removeReifiedFunctions
     . second (view #errors &&& view #focusedNodeValues)
-    $ runWriter (normaliseAllExpressions
-                 =<< (usingReaderT (mempty { EvaluationEnv.shadowingEnv
-                                                 = Map.fromSet (const 0)
-                                                 $ freeVariables mempty x
-                                           })
-                      . usingLimiterT fuel
-                      . eval
-                      $ maybe id focusNodeUnderCursor cursorOffset x))
+    <$> runWriterT
+        (normaliseAllExpressions
+         =<< (usingReaderT
+                  (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
+                                $ freeVariables mempty x
+                          })
+              . usingLimiterT fuel
+              . eval
+              $ maybe id focusNodeUnderCursor cursorOffset x))
   where
     normaliseAllExpressions = traversalVL (template @_ @Expr) %%~ normaliseExpr
     removeReifiedFunctions
@@ -265,22 +300,27 @@ focusNodeUnderCursor cursorOffset n
     focus :: Has Meta n => n -> n
     focus = hasLens @Meta % #focused .~ True
 
--- todo: apply to evaluation output and deferred evaluations
-renameShadowedVariables :: Expr -> LimiterT (Reader ShadowingEnv) Expr
+-- todo: apply to evaluation output
+renameShadowedVariables
+    :: Monad m => Expr -> LimiterT (ReaderT ShadowingEnv m) Expr
 renameShadowedVariables = \case
+    expr | expr ^. exprMeta % #evaluationStatus == OutOfFuel -> pure expr
     Abstraction meta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
                 name
                 _ -> do
         suffix <- asks $ freshSuffix name
         let newIdentifier = numberedIdentifier name suffix
-        Abstraction meta newIdentifier . deferEvaluation
-            <$> mapLimiterT
-                (mapReaderT pure)
-                (local (at name ?~ suffix)
-                       (reifiedFunction . pure $ variable' newIdentifier))
+        fmap (Abstraction meta newIdentifier . deferEvaluation) . scope $ do
+            stubRef <- newIORef . pure $ variable' newIdentifier
+            local (at name ?~ suffix) $ reifiedFunction stubRef
     Abstraction{} -> error
         "Internal evaluation error: object language function was missing meta language function"
-    expr -> expr & traversalVL uniplate %%~ renameShadowedVariables
+    expr -> traversalVL uniplate %%~ renameShadowedVariables
+        =<< traverseOf
+            (exprMeta % #evaluationStatus % _EvaluationDeferred % _Hidden)
+            (\scopedExpr ->
+             scope (renameShadowedVariables =<< lift2 scopedExpr))
+            expr
 
 freshSuffix :: Identifier -> Map Identifier Int -> Int
 freshSuffix original env

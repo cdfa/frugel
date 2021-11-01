@@ -18,7 +18,7 @@
 module Scout.Internal.Node where
 
 import Control.Limited
-import Control.Monad.Writer      ( Writer )
+import Control.Monad.Writer      ( WriterT )
 import Control.Sized
 import Control.ValidEnumerable
 
@@ -127,12 +127,12 @@ data EvaluationStatus
     deriving ( Eq, Ord, Show, Generic, Data )
 
 type ReifiedFunction
-    = ScopedEvaluation Expr
+    = IORef (Either (ScopedEvaluation Expr) Expr)
     -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
-type ScopedEvaluation = Writer EvaluationOutput
+type ScopedEvaluation = WriterT EvaluationOutput IO
 
 type ShadowingEnv = Map Identifier Int
 
@@ -178,6 +178,8 @@ makePrisms ''WhereClause
 makeFieldLabelsNoPrefix ''ExprMeta
 
 makeFieldLabelsNoPrefix ''Meta
+
+makePrisms ''EvaluationStatus
 
 makeFieldLabelsNoPrefix ''EvaluationOutput
 

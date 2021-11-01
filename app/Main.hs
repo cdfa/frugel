@@ -8,7 +8,6 @@ module Main where
 import Control.Concurrent
 import Control.ValidEnumerable
 
-import Data.Composition
 import qualified Data.Sequence          as Seq
 import Data.Sized
 
@@ -53,7 +52,13 @@ updateModel :: MVar (Maybe (ThreadId, Integer))
 updateModel evalThreadVar action model'
     = either id (effectSub model') $ updateModel' action model'
   where
-    updateModel' Init _ = Right . const $ focus "code-root"
+    updateModel' Init model = Right $ \sink -> do
+        focus "code-root"
+        liftIO
+            $ reEvaluate evalThreadVar
+                         (toFrugelModel model)
+                         (model & #editableDataVersion -~ 1)
+                         sink
     updateModel' GenerateRandom model = Right $ \sink -> liftIO $ do
         newProgram <- unSized @500 <.> generate $ uniformValid 500
         let newFrugelModel
@@ -61,10 +66,8 @@ updateModel evalThreadVar action model'
                 . snd
                 . attemptEdit (const $ Right newProgram) -- reparse the new program for parse errors
                 $ toFrugelModel model
-        let (preEvaluationModel, sub)
-                = reEvaluate evalThreadVar newFrugelModel model
-        sink . AsyncAction $ NewProgramGenerated preEvaluationModel
-        sub sink
+        sink . AsyncAction $ NewProgramGenerated newFrugelModel
+        reEvaluate evalThreadVar newFrugelModel model sink
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
     updateModel' (FocusedNodeValueIndexAction indexAction) model
         = Left . effectSub (hideSelectedNodeValue newModel) $ \sink -> liftIO
@@ -107,7 +110,8 @@ updateModel evalThreadVar action model'
     -- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
     updateModel' (GenericAction genericAction)
                  model = Left $ case editResult of
-        Success -> uncurry effectSub . over _2 (liftIO .)
+        Success -> effectSub (updateWithFrugelModel newFrugelModel model)
+            . (liftIO .)
             $ reEvaluate evalThreadVar newFrugelModel model
         Failure -> noEff
             $ updateWithFrugelErrors (view #errors newFrugelModel) model
@@ -122,7 +126,8 @@ updateModel evalThreadVar action model'
       where
         newModel = case asyncAction of
             EvaluationFinished m -> m
-            NewProgramGenerated m -> m
+            NewProgramGenerated frugelModel ->
+                updateWithFrugelModel frugelModel model
 
 reEvaluateModel
     :: MVar (Maybe (ThreadId, Integer)) -> Model -> Effect Action Model
@@ -133,27 +138,27 @@ reEvaluateFrugelModel :: MVar (Maybe (ThreadId, Integer))
     -> Frugel.Model Program
     -> Model
     -> Effect Action Model
-reEvaluateFrugelModel = uncurry effectSub . over _2 (liftIO .) .:. reEvaluate
+reEvaluateFrugelModel evalThreadVar frugelModel model
+    = effectSub (updateWithFrugelModel frugelModel model) . (liftIO .)
+    $ reEvaluate evalThreadVar frugelModel model
 
 reEvaluate :: MVar (Maybe (ThreadId, Integer))
     -> Frugel.Model Program
     -> Model
-    -> ( Model
-       , Sink Action
-         -> IO ()
-       )
-reEvaluate evalThreadVar
-           newFrugelModel
-           model@Model{fuelLimit, editableDataVersion}
-    = (partialFromFrugelModel (Only fuelLimit) model newFrugelModel, \sink ->
+    -> Sink Action
+    -> IO ()
+reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit} sink = do
+    partialModel@Model{editableDataVersion}
+        <- partialFromFrugelModel (Only fuelLimit) model newFrugelModel
+    unsafeEvaluateTopExpression sink partialModel
     bracketNonTermination (succ editableDataVersion) evalThreadVar $ do
-        let newModel = fromFrugelModel model newFrugelModel
+        newModel <- fromFrugelModel model newFrugelModel
         -- safe because inside bracketNonTermination
-        unsafeEvaluateTopExpression sink newModel
+        unsafeEvaluateTopExpression sink $ hideSelectedNodeValue newModel
         -- force selected node value separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
         unsafeEvaluateSelectedNodeValue sink
             $ #partiallyEvaluated .~ False
-            $ newModel)
+            $ newModel
 
 bracketNonTermination
     :: Integer -> MVar (Maybe (ThreadId, Integer)) -> IO () -> IO ()
@@ -172,8 +177,7 @@ bracketNonTermination version evalThreadVar action = do
 -- force errors to force full evaluation
 unsafeEvaluateTopExpression :: Sink Action -> Model -> IO ()
 unsafeEvaluateTopExpression sink model@Model{..}
-    = seq (length errors) . sink . AsyncAction . EvaluationFinished
-    $ hideSelectedNodeValue model
+    = seq (length errors) . sink . AsyncAction $ EvaluationFinished model
 
 unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
 unsafeEvaluateSelectedNodeValue sink model@Model{..}

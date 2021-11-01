@@ -5,7 +5,6 @@
   , "^Control.ValidEnumerable.*"
   , "^Control.Limited.*"
   , "^Data.Constrained.*"
-  , "^Data.Hidden._Hidden"
   , "^Optics.Writer.*"
   , "^Scout.Node.*"
   , "^Optics.ReadOnly.VL.*"
