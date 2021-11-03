@@ -34,12 +34,6 @@ infixr 9 <.>
 (<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
 f1 <.> f2 = fmap f1 . f2
 
-infixl 4 <<*>>
-
-(<<*>>)
-    :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
-(<<*>>) = liftA2 (<*>)
-
 lift2 :: forall (s :: (Type -> Type)
                  -> Type
                  -> Type) t m a.

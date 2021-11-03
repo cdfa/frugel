@@ -31,7 +31,7 @@ with pkgs;
     enable = false;
     name = "weeder";
     description = "Check dead code";
-    entry = "${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie > /dev/null 2> /dev/null ; ${weeder}/bin/weeder'";
+    entry = "${direnv}/bin/direnv exec . ${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie ; ${weeder}/bin/weeder'";
     files = "\\.l?hs$";
     pass_filenames = false;
   };
