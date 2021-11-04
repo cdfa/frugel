@@ -263,12 +263,12 @@ evalTest
 nonTerminationSafetyTest :: CstrSite
 nonTerminationSafetyTest
     = toCstrSite [ Left [str|(getNumber (k 1)) (getNumber evilWHNF)
-                                                   where
-                                                     getNumber = \inspectMe = inspectMe false
-                                                     evilWHNF = \b = b (o o) 0
-                                                     k = \x = \y = x
-                                                     o = \x = x x
-                                                     false = \x = \y = y
-                                                     0 = \f = \x = x
-                                                     1 = \f = \x = f x|]
+                               where
+                                 getNumber = \inspectMe = inspectMe false
+                                 evilWHNF = \b = b (o o) 0
+                                 k = \x = \y = x
+                                 o = \x = x x
+                                 false = \x = \y = y
+                                 0 = \f = \x = x
+                                 1 = \f = \x = f x|]
                  ]

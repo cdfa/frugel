@@ -149,8 +149,8 @@ scope = mapLimiterT $ mapReaderT pure
 
 normaliseExpr :: Expr -> ScopedEvaluation Expr
 normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
-    EvaluationDeferred (Hidden evalRef) ->
-        traverseOf (traversalVL uniplate) normaliseExpr
+    EvaluationDeferred (Hidden evalRef) -> mapWriterT unsafeInterleaveIO
+        $ uniplate normaliseExpr
         =<< liftIO . uncurry (&)
         =<< traverseOf _1 outputOnce evalRef
     Elided _ -> expr
@@ -257,9 +257,12 @@ runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     -> IO (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval x
     = removeReifiedFunctions
-    . second (view #errors &&& view #focusedNodeValues)
-    <$> runWriterT
-        (normaliseAllExpressions
+    . traverseOf _2
+                 ((view #errors &&& view #focusedNodeValues)
+                  <.> fst
+                  <.> runWriterT . template @_ @Expr normaliseExpr)
+    =<< runWriterT
+        (template @_ @Expr normaliseExpr
          =<< (usingReaderT
                   (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
                                 $ freeVariables mempty x
@@ -268,7 +271,6 @@ runEval cursorOffset fuel eval x
               . eval
               $ maybe id focusNodeUnderCursor cursorOffset x))
   where
-    normaliseAllExpressions = traversalVL (template @_ @Expr) %%~ normaliseExpr
     removeReifiedFunctions
         = traversalVL (template @_ @AbstractionMeta) % #reified .~ Nothing
 

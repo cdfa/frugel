@@ -37,7 +37,7 @@ import Data.Validity.Extra
 import Data.Validity.Sequence    ()
 import Data.Whitespace
 
-import Frugel
+import Frugel                    hiding ( Elided )
 import Frugel.CstrSite.ValidEnumerable ()
 
 import GHC.Generics              ( Associativity(..) )
@@ -334,6 +334,7 @@ instance Pretty Identifier where
 
 instance Pretty EvaluationStatus where
     pretty EvaluationDeferred{} = angles "EvaluationDeferred"
+    pretty Elided{} = angles "ExprNode"
     pretty status = angles $ viaShow status
 
 instance DisplayProjection Node where
