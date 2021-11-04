@@ -15,7 +15,7 @@ import Optics.Extra.Scout
 import PrettyPrinting.Expr
 
 import qualified Scout.Internal.Node
-import Scout.Node
+import Scout.Node         hiding ( Elided )
 
 data PrettyAnnotation = CompletionAnnotation' Node CompletionStatus | Elided'
 
@@ -47,7 +47,7 @@ instance AnnotatedPretty Node where
 
 instance AnnotatedPretty Expr where
     annPretty
-        = stubIfEvaluated
+        = stubIfNotEvaluated
         . prettyNodeWithMeta "<ExprNode>"
         . parenthesizeExprFromMeta parens
         $ \expr -> case expr of
@@ -66,7 +66,7 @@ instance AnnotatedPretty Expr where
       where
         (prettyUnary, prettyBinary)
             = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
-        stubIfEvaluated prettyNode n
+        stubIfNotEvaluated prettyNode n
             = maybe (prettyNode n) (annotate Elided' . pretty)
             . guarded (/= Evaluated)
             $ view (hasLens @ExprMeta % #evaluationStatus) n

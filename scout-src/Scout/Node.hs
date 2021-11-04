@@ -20,6 +20,7 @@ module Scout.Node
     , ReifiedFunction
     , ScopedEvaluation
     , ShadowingEnv
+    , EvaluationRef
     , EvaluationOutput(EvaluationOutput)
     , EvaluationError(..)
     , TypeError(..)
@@ -39,6 +40,7 @@ module Scout.Node
     , _WhereNode
     , _Evaluated
     , _EvaluationDeferred
+    , _Elided
     , _OutOfFuel
     , exprMeta
     , exprCstrSite'
@@ -143,7 +145,7 @@ liftNestedCstrSiteOuterWhitespace
                 item
 
 capTree :: Int -> Node -> Node
-capTree 0 (ExprNode e) = ExprNode . deferEvaluation $ pure e -- use evaluation status for expr, because inspecting it's meta forces the constructor
+capTree 0 (ExprNode e) = ExprNode $ elideExpr e -- use evaluation status for expr, because inspecting it's meta forces the constructor
 capTree 0 n = elide n
 capTree depth n = case n of
     ExprNode expr -> ExprNode $ capExprTree depth expr
@@ -152,7 +154,7 @@ capTree depth n = case n of
         $ _WhereClause % _2 % mapped %~ capDecl depth
         $ capCstrSiteNodes depth whereClause
   where
-    capExprTree 0 expr = deferEvaluation $ pure expr
+    capExprTree 0 expr = elideExpr expr
     capExprTree depth' expr
         = expr
         & traversalVL uniplate %~ capExprTree (pred depth')
@@ -165,10 +167,17 @@ capTree depth n = case n of
 elide :: Has Meta n => n -> n
 elide = hasLens @Meta % #elided .~ True
 
-deferEvaluation :: ScopedEvaluation Expr -> Expr
+elideExpr :: Expr -> Expr
+elideExpr e
+    = elide
+    $ hasLens @ExprMeta % #evaluationStatus .~ Elided (Hidden e)
+    $ exprCstrSite' (fromList [])
+
+deferEvaluation :: EvaluationRef Expr -> Expr
 deferEvaluation eval
     = exprCstrSite' (fromList [])
-    & hasLens @ExprMeta % #evaluationStatus .~ EvaluationDeferred (Hidden eval)
+    & hasLens @ExprMeta % #evaluationStatus
+    .~ EvaluationDeferred (Hidden (eval, pure))
 
 whereClauseBindees :: WhereClause -> [Identifier]
 whereClauseBindees = toListOf $ _WhereClause % _2 % folded % #name

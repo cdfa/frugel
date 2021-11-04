@@ -122,13 +122,16 @@ data Meta
 
 data EvaluationStatus
     = Evaluated
-    | EvaluationDeferred (Hidden (ScopedEvaluation Expr))
+    | EvaluationDeferred (Hidden (EvaluationRef Expr, Expr -> IO Expr))
+    | Elided (Hidden Expr)
     | OutOfFuel
     deriving ( Eq, Ord, Show, Generic, Data )
 
 type ReifiedFunction
-    = IORef (Either (ScopedEvaluation Expr) Expr)
+    = EvaluationRef Expr
     -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
+
+type EvaluationRef a = IORef (Either (ScopedEvaluation a) a)
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)

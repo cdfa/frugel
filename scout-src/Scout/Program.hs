@@ -2,8 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -81,10 +79,8 @@ nodeChildrenVL f = _ConstrainedVL $ Lens.re @Dynamic _Dynamic nodeChildren'
     nodeChildren' d = d <$ case d of
         DL.Dynamic (ProgramCstrSite _ cstrSite) -> traverseCstrSite cstrSite
         DL.Dynamic program -> traverseOf_
-            (#expr
-             % to Constrained `summing` #whereClause
-             % _Just
-             % to Constrained)
+            ((#expr % to Constrained)
+             `summing` (#whereClause % _Just % to Constrained))
             f
             (program :: Program)
         DL.Dynamic node -> traverseNode node
