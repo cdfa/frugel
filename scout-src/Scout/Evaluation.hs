@@ -137,16 +137,6 @@ evalExpr expr = do
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
-newEvalRef :: MonadIO m
-    => LimiterT (ReaderT r ScopedEvaluation) a
-    -> LimiterT (ReaderT r m) (EvaluationRef a)
-newEvalRef = mapLimiterT . mapReaderT $ newIORef . Left
-
-scope :: Applicative m
-    => LimiterT (ReaderT r m) a
-    -> LimiterT (ReaderT r m) (m a)
-scope = mapLimiterT $ mapReaderT pure
-
 normaliseExpr :: Expr -> ScopedEvaluation Expr
 normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
     EvaluationDeferred (Hidden evalRef) -> mapWriterT unsafeInterleaveIO
@@ -156,8 +146,18 @@ normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
     Elided _ -> expr
         & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
         %%~ normaliseExpr
-    Evaluated -> traverseOf (traversalVL uniplate) normaliseExpr expr
+    Evaluated -> uniplate normaliseExpr expr
     OutOfFuel -> pure expr
+
+newEvalRef :: MonadIO m
+    => LimiterT (ReaderT r ScopedEvaluation) a
+    -> LimiterT (ReaderT r m) (EvaluationRef a)
+newEvalRef = mapLimiterT . mapReaderT $ newIORef . Left
+
+scope :: Applicative m
+    => LimiterT (ReaderT r m) a
+    -> LimiterT (ReaderT r m) (m a)
+scope = mapLimiterT $ mapReaderT pure
 
 outputOnce :: (MonadIO (t m), MonadTrans t, Monad m, MonadWriter w (t m))
     => IORef (Either (WriterT w m a) a)
@@ -256,11 +256,11 @@ runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     -> a
     -> IO (a, (MultiSet EvaluationError, Seq Node))
 runEval cursorOffset fuel eval x
-    = removeReifiedFunctions
-    . traverseOf _2
+    = traverseOf _2
                  ((view #errors &&& view #focusedNodeValues)
                   <.> fst
                   <.> runWriterT . template @_ @Expr normaliseExpr)
+    . over (traversalVL (template @_ @Expr)) removeReifiedFunctions
     =<< runWriterT
         (template @_ @Expr normaliseExpr
          =<< (usingReaderT
@@ -270,9 +270,25 @@ runEval cursorOffset fuel eval x
               . usingLimiterT fuel
               . eval
               $ maybe id focusNodeUnderCursor cursorOffset x))
+
+removeReifiedFunctions :: Expr -> Expr
+removeReifiedFunctions
+    expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
+    EvaluationDeferred _ -> expr
+        & hasLens @ExprMeta
+        % #evaluationStatus
+        % _EvaluationDeferred
+        % _Hidden
+        % _2
+        %~ (pure . removeReifiedFunction . removeReifiedFunctions <=<)
+    Elided _ -> expr
+        & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
+        %~ removeReifiedFunction . removeReifiedFunctions
+    Evaluated -> removeReifiedFunction
+        $ over (traversalVL uniplate) removeReifiedFunctions expr
+    OutOfFuel -> expr
   where
-    removeReifiedFunctions
-        = traversalVL (template @_ @AbstractionMeta) % #reified .~ Nothing
+    removeReifiedFunction = _Abstraction % _1 % #reified .~ Nothing
 
 reportAnyTypeErrors
     :: MonadWriter EvaluationOutput m => ExpectedType -> Expr -> m Expr
