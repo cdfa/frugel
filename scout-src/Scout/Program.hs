@@ -29,7 +29,7 @@ import Data.Has
 
 import Optics.Extra.Scout        as Optics
 
-import Scout.Internal.Program
+import Scout.Internal.Program    hiding ( expr, whereClause )
 import Scout.Node
 import Scout.Orphans.DisplayProjection ()
 
