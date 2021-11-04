@@ -177,7 +177,7 @@ evalWhereClause whereClause@(WhereClause _ decls)
 evalWhereClause (WhereCstrSite meta cstrSite)
     = second (WhereCstrSite meta) <$> evalCstrSite cstrSite
 
--- todo: return evaluated 
+-- todo: return evaluated decls
 -- With this way of implementing limited recursion, the bound expressions get evaluated again with every recursive application, which would not be necessary if recursion was not limited.
 -- I can't find a better way to do it for now, because limited recursion implies that the results of evaluation can change (when the limit is reached).
 -- You would somehow need to change the value the evaluation of a bound variable resulted in after the fact.

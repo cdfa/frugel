@@ -169,9 +169,11 @@ elide = hasLens @Meta % #elided .~ True
 
 elideExpr :: Expr -> Expr
 elideExpr e
-    = elide
-    $ hasLens @ExprMeta % #evaluationStatus .~ Elided (Hidden e)
-    $ exprCstrSite' (fromList [])
+    = exprCstrSite' (fromList [])
+    & elide
+    & hasLens @ExprMeta % #evaluationStatus %~ \status -> case status of
+        EvaluationDeferred _ -> status
+        _ -> Elided (Hidden e)
 
 deferEvaluation :: EvaluationRef Expr -> Expr
 deferEvaluation eval
