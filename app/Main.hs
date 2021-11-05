@@ -100,8 +100,9 @@ updateModel evalThreadVar action model'
             & #selectedNodeValueRenderDepth .~ newDepth
     updateModel' (ChangeFuelLimit newLimit) model
         = Left . reEvaluateModel evalThreadVar
-        $ model & #fuelLimit .~ max 0 newLimit
-    -- reEvaluate to update type error locations
+        $ #fuelLimit .~ max 0 newLimit
+        $ model
+    -- reEvaluate to type error locations
     updateModel' PrettyPrint model
         = Left
         $ reEvaluateFrugelModel evalThreadVar
