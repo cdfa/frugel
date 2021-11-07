@@ -15,13 +15,13 @@ import Scout
 -- It would be nicer to split the data into "editable data" that contains a version which is automatically updated, but at the moment FocusedNodeValueIndexAction and ChangeSelectedNodeValueTreeDepth are the only action where the version is updated manually
 data Model
     = Model { editableDataVersion :: Integer
+            , partiallyEvaluated :: Bool
             , cursorOffset :: Int
             , program :: Program
             , errors :: [Error]
             , focusedNodeValueIndex :: Int
             , fuelLimit :: Int
             , selectedNodeValueRenderDepth :: Int
-            , partiallyEvaluated :: Bool
               -- evaluationOutput being last is VERY IMPORTANT, because focusedNodeValues may contain non-terminating computations and (==) will not terminate if no other difference is found in any previous field
               -- At the moment, partiallyEvaluated also changes when evaluationOutput is set to a value that may not terminate
               -- Using a breadth-first implementation of Eq would be a more elegant solution
