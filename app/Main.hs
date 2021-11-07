@@ -111,9 +111,7 @@ updateModel evalThreadVar action model'
     -- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
     updateModel' (GenericAction genericAction)
                  model = Left $ case editResult of
-        Success -> effectSub (updateWithFrugelModel newFrugelModel model)
-            . (liftIO .)
-            $ reEvaluate evalThreadVar newFrugelModel model
+        Success -> reEvaluateFrugelModel evalThreadVar newFrugelModel model
         Failure -> noEff
             $ updateWithFrugelErrors (view #errors newFrugelModel) model
       where
@@ -151,15 +149,15 @@ reEvaluate :: MVar (Maybe (ThreadId, Integer))
 reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit} sink = do
     partialModel@Model{editableDataVersion}
         <- partialFromFrugelModel (Only fuelLimit) model newFrugelModel
+    -- safe because evaluation had fuel limit
     unsafeEvaluateTopExpression sink partialModel
     bracketNonTermination (succ editableDataVersion) evalThreadVar $ do
         newModel <- fromFrugelModel model newFrugelModel
+        -- sadly, it seems the models from the next to statements are not necessarily displayed in order
         -- safe because inside bracketNonTermination
         unsafeEvaluateTopExpression sink $ hideSelectedNodeValue newModel
         -- force selected node value separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
-        unsafeEvaluateSelectedNodeValue sink
-            $ #partiallyEvaluated .~ False
-            $ newModel
+        unsafeEvaluateSelectedNodeValue sink newModel
 
 bracketNonTermination
     :: Integer -> MVar (Maybe (ThreadId, Integer)) -> IO () -> IO ()

@@ -89,9 +89,10 @@ toFrugelModel Model{..}
     = Frugel.Model { errors = toListOf (folded % _FrugelError) errors, .. }
 
 hideSelectedNodeValue :: Model -> Model
-hideSelectedNodeValue
-    = (#partiallyEvaluated .~ True)
-    . (#selectedNodeValue .~ ExprNode evaluationPlaceHolder)
+hideSelectedNodeValue model
+    = model
+    & #partiallyEvaluated .~ has #selectedNodeValue model
+    & #selectedNodeValue .~ ExprNode evaluationPlaceHolder
 
 evaluationPlaceHolder :: Expr
 evaluationPlaceHolder = exprCstrSite' . toCstrSite . one $ Left "Evaluating..."
