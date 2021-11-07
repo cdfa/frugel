@@ -80,8 +80,9 @@ partialFromFrugelModel fuel
                 }
 
 updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
-updateWithFrugelErrors newErrors = over #errors $ \oldErrors ->
-    rights (map matchFrugelError oldErrors) ++ map fromFrugelError newErrors
+updateWithFrugelErrors newErrors
+    = chain [ #editableDataVersion +~ 1, #errors %~ \oldErrors ->
+    rights (map matchFrugelError oldErrors) ++ map fromFrugelError newErrors ]
 
 toFrugelModel :: Model -> Frugel.Model Program
 toFrugelModel Model{..}
