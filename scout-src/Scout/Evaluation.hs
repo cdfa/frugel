@@ -108,12 +108,14 @@ evalExpr expr = do
                     <$> newEvalRef (evalExpr x)
     evalExpr' (Abstraction meta n body) = do
         reifiedFunction <- gviews #valueEnv $ \env arg -> do
-            eBody <- magnify (to $ \shadowingEnv ->
-                              EvaluationEnv { valueEnv = Map.insert n arg env
-                                            , shadowingEnv
-                                            }) $ evalExpr body
+            scopedBody <- scope
+                . magnify (to $ \shadowingEnv ->
+                           EvaluationEnv { valueEnv = Map.insert n arg env
+                                         , shadowingEnv
+                                         })
+                $ evalExpr body
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
-            mapLimiterT (mapReaderT lift) $ renameShadowedVariables eBody
+            renameShadowedVariables scopedBody
         fmap (Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
               . deferEvaluation)
             . newEvalRef
@@ -139,10 +141,9 @@ evalExpr expr = do
 
 normaliseExpr :: Expr -> ScopedEvaluation Expr
 normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
-    EvaluationDeferred (Hidden evalRef) -> mapWriterT unsafeInterleaveIO
-        $ uniplate normaliseExpr
-        =<< liftIO . uncurry (&)
-        =<< traverseOf _1 outputOnce evalRef
+    EvaluationDeferred (Hidden (evalRef, modifiers)) -> mapWriterT
+        unsafeInterleaveIO
+        $ uniplate normaliseExpr =<< modifiers (outputOnce evalRef)
     Elided _ -> expr
         & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
         %%~ normaliseExpr
@@ -324,36 +325,46 @@ focusNodeUnderCursor cursorOffset n
     focus :: Has Meta n => n -> n
     focus = hasLens @Meta % #focused .~ True
 
--- todo: apply to evaluation output
-renameShadowedVariables
-    :: MonadIO m => Expr -> LimiterT (ReaderT ShadowingEnv m) Expr
-renameShadowedVariables = \case
-    expr | expr ^. exprMeta % #evaluationStatus == OutOfFuel -> pure expr
-    Abstraction meta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
-                name
-                _ -> do
-        suffix <- asks $ freshSuffix name
-        let newIdentifier = numberedIdentifier name suffix
-        fmap (Abstraction meta newIdentifier . deferEvaluation) . newEvalRef
-            $ do
-                stubRef <- newIORef . pure $ variable' newIdentifier
-                local (at name ?~ suffix) $ reifiedFunction stubRef
-    Abstraction{} -> error
-        "Internal evaluation error: object language function was missing meta language function"
-    expr -> traversalVL uniplate %%~ renameShadowedVariables
-        =<< traverseOf
-            (exprMeta % #evaluationStatus % _EvaluationDeferred % _Hidden % _2)
-            onDeferredModifier
-            expr
+renameShadowedVariables :: ScopedEvaluation Expr
+    -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
+renameShadowedVariables scopedExpr = do
+    (expr, output) <- liftIO $ runWriterT scopedExpr
+    join
+        $ curry writer <$> renameShadowedVariables' expr
+        <*> template @_ @Expr renameShadowedVariables' output
   where
-    onDeferredModifier f = do
-        fuel <- askLimit
-        shadowingEnv <- ask
-        pure
-            $ usingReaderT shadowingEnv
-            . usingLimiterT fuel
-            . renameShadowedVariables
-            <=< f
+    renameShadowedVariables' = \case
+        expr | expr ^. exprMeta % #evaluationStatus == OutOfFuel -> pure expr
+        Abstraction
+            meta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+            name
+            _ -> do
+            suffix <- asks $ freshSuffix name
+            let newIdentifier = numberedIdentifier name suffix
+            fmap (Abstraction meta newIdentifier . deferEvaluation)
+                . newEvalRef
+                $ do
+                    stubRef <- newIORef . pure $ variable' newIdentifier
+                    local (at name ?~ suffix) $ reifiedFunction stubRef
+        Abstraction{} -> error
+            "Internal evaluation error: object language function was missing meta language function"
+        expr -> traversalVL uniplate %%~ renameShadowedVariables'
+            =<< traverseOf (exprMeta
+                            % #evaluationStatus
+                            % _EvaluationDeferred
+                            % _Hidden
+                            % _2)
+                           onDeferredModifier
+                           expr
+      where
+        onDeferredModifier f = do
+            fuel <- askLimit
+            shadowingEnv <- ask
+            pure
+                $ usingReaderT shadowingEnv
+                . usingLimiterT fuel
+                . renameShadowedVariables
+                . f
 
 freshSuffix :: Identifier -> Map Identifier Int -> Int
 freshSuffix original env

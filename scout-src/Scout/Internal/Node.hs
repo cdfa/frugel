@@ -122,7 +122,10 @@ data Meta
 
 data EvaluationStatus
     = Evaluated
-    | EvaluationDeferred (Hidden (EvaluationRef Expr, Expr -> IO Expr))
+    | EvaluationDeferred (Hidden ( EvaluationRef Expr
+                                 , ScopedEvaluation Expr
+                                   -> ScopedEvaluation Expr
+                                 ))
     | Elided (Hidden Expr)
     | OutOfFuel
     deriving ( Eq, Ord, Show, Generic, Data )

@@ -179,7 +179,7 @@ deferEvaluation :: EvaluationRef Expr -> Expr
 deferEvaluation eval
     = exprCstrSite' (fromList [])
     & hasLens @ExprMeta % #evaluationStatus
-    .~ EvaluationDeferred (Hidden (eval, pure))
+    .~ EvaluationDeferred (Hidden (eval, id))
 
 whereClauseBindees :: WhereClause -> [Identifier]
 whereClauseBindees = toListOf $ _WhereClause % _2 % folded % #name
