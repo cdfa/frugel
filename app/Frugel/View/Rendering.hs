@@ -19,8 +19,10 @@ data DocTextTree
     deriving ( Show, Eq )
 
 data AnnotationTree = Leaf Text | Node Annotation [AnnotationTree]
+    deriving ( Show, Eq )
 
 newtype Line = Line [AnnotationTree]
+    deriving ( Show, Eq )
 
 makePrisms ''DocTextTree
 
@@ -106,4 +108,4 @@ encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views
     Cursor -> caret [] []
-    Elided -> codeSpan [] views
+    Elided -> elided [] views

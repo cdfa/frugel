@@ -48,7 +48,7 @@ instance AnnotatedPretty Node where
 instance AnnotatedPretty Expr where
     annPretty
         = stubIfNotEvaluated
-        . prettyNodeWithMeta "<ExprNode>"
+        . prettyNodeWithMeta
         . parenthesizeExprFromMeta parens
         $ \expr -> case expr of
             Variable _ n -> pretty n
@@ -72,23 +72,22 @@ instance AnnotatedPretty Expr where
             $ view (hasLens @ExprMeta % #evaluationStatus) n
 
 instance AnnotatedPretty Decl where
-    annPretty = prettyNodeWithMeta "<DeclNode>" $ \case
+    annPretty = prettyNodeWithMeta $ \case
         Decl{..} -> pretty name `nestingLine` equals <+> annPretty value
         d@(DeclCstrSite _ contents) ->
             prettyCstrSite (DeclNode d) annPretty contents
 
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
-    annPretty = prettyNodeWithMeta "<WhereNode>" $ \case
+    annPretty = prettyNodeWithMeta $ \case
         (WhereClause _ decls) -> "where"
             <> nest 2 (line <> vsep (map annPretty $ toList decls))
         whereClause@(WhereCstrSite _ contents) ->
             prettyCstrSite (WhereNode whereClause) annPretty contents
 
-prettyNodeWithMeta :: Has Meta n
-    => Doc PrettyAnnotation
-    -> (n -> Doc PrettyAnnotation)
-    -> n
-    -> Doc PrettyAnnotation
-prettyNodeWithMeta stub prettyNode n
-    = if getter @Meta n ^. #elided then annotate Elided' stub else prettyNode n
+prettyNodeWithMeta
+    :: Has Meta n => (n -> Doc PrettyAnnotation) -> n -> Doc PrettyAnnotation
+prettyNodeWithMeta prettyNode n
+    = if getter @Meta n ^. #elided
+      then annotate Elided' "..."
+      else prettyNode n
