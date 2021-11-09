@@ -86,16 +86,17 @@ updateModel evalThreadVar action model'
         focusNodeValuesCount
             = Seq.length $ view (#evaluationOutput % #focusedNodeValues) model
     updateModel' (ChangeSelectedNodeValueRenderDepth newDepth) model
-        = Left . effectSub newModel $ \sink -> liftIO
-        . bracketNonTermination (view #editableDataVersion newModel)
+        = Left
+        . effectSub (hideSelectedNodeValue newModel & #editableDataVersion +~ 1)
+        $ \sink -> liftIO
+        . bracketNonTermination (view #editableDataVersion model + 1)
                                 evalThreadVar
-        . unsafeEvaluateSelectedNodeValue sink
-        $ #partiallyEvaluated .~ False
-        $ newModel
+        $ do
+            reEvaluatedModel <- fromFrugelModel newModel (toFrugelModel model)
+            unsafeEvaluateSelectedNodeValue sink reEvaluatedModel
       where
         newModel
             = model
-            & #editableDataVersion +~ 1
             & #partiallyEvaluated .~ True
             & #selectedNodeValueRenderDepth .~ newDepth
     updateModel' (ChangeFuelLimit newLimit) model

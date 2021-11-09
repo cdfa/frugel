@@ -134,9 +134,7 @@ evaluatedView model@Model{..}
                   . reAnnotateS toStandardAnnotation
                   . layoutPretty defaultLayoutOptions
                   . annPretty
-                  $ if model ^. #partiallyEvaluated
-                    then ExprNode evaluationPlaceHolder
-                    else capTree selectedNodeValueRenderDepth selectedNodeValue
+                  $ capTree selectedNodeValueRenderDepth selectedNodeValue
                 ]
          ])
         model
