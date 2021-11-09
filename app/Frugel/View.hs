@@ -3,6 +3,8 @@
 
 module Frugel.View where
 
+import qualified Data.Sequence as Seq
+
 import Frugel          hiding ( Model(..) )
 import Frugel.View.Elements
 import Frugel.View.Rendering
@@ -44,9 +46,9 @@ instructionsView Model{..}
            , br_ []
            , text "Fuel limit for evaluation following each keystroke "
            , input_ [ type_ "number"
-                    , value_ $ Miso.ms $ show @String fuelLimit
-                    , onChange (\value -> ModifyModel
-                                    (maybe id (set #fuelLimit) . readMaybe
+                    , value_ . Miso.ms $ show @String fuelLimit
+                    , onChange (\value -> ChangeFuelLimit
+                                    (fromMaybe fuelLimit . readMaybe
                                      $ Miso.fromMisoString value))
                     ]
            , div_ [ class_ "buttons" ]
@@ -75,22 +77,69 @@ errorsView Model{..}
           errors
 
 evaluatedView :: Model -> View Action
-evaluatedView Model{..}
-    = div_
-        [ class_ "card" ]
-        [ div_ [ class_ "card-header" ]
-               [ p_ [ class_ "card-header-title" ]
-                    [ if isJust evalThreadId then "Evaluating..." else "Result"
-                    ]
-               ]
-        , div_ [ class_ "card-content" ]
-               [ div_ [ class_ "content" ]
-                 . renderDocStream
-                 . reAnnotateS toStandardAnnotation
-                 . layoutPretty defaultLayoutOptions
-                 $ unsafePrettyProgram evaluated -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
-               ]
-        ]
+evaluatedView model@Model{..}
+    = div_ [ class_ "card" ]
+    $ [ div_ [ class_ "card-header" ]
+             [ p_ [ class_ "card-header-title" ]
+                  [ if partiallyEvaluated then "Evaluating..." else "Result" ]
+             ]
+      , div_ [ class_ "card-header" ]
+             [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
+      , div_ [ class_ "card-content" ]
+             [ div_ [ class_ "content" ]
+               . renderDocStream
+               . reAnnotateS toStandardAnnotation
+               . layoutPretty defaultLayoutOptions
+               . unsafePrettyProgram
+               $ view #evaluated evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
+             ]
+      ]
+    ++ foldMapOf
+        #selectedNodeValue
+        (\selectedNodeValue ->
+         [ div_ [ class_ "card-header" ]
+                [ p_ [ class_ "card-header-title" ]
+                     [ "Focused node value up to depth: "
+                     , input_ [ type_ "number"
+                              , value_ . Miso.ms
+                                $ show @String selectedNodeValueRenderDepth
+                              , onChange (\value ->
+                                          ChangeSelectedNodeValueRenderDepth
+                                              (fromMaybe fuelLimit . readMaybe
+                                               $ Miso.fromMisoString value))
+                              ]
+                     ]
+                , button_ [ class_ "card-header-icon"
+                          , onClick (FocusedNodeValueIndexAction Decrement)
+                          ]
+                          [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
+                , span_ [ class_ "card-header-vertical-padding" ]
+                        [ let focusedNodeValuesCount
+                                  = Seq.length
+                                  $ view #focusedNodeValues evaluationOutput
+                          in text
+                             $ show (min focusedNodeValuesCount
+                                         (focusedNodeValueIndex + 1))
+                             <> " of "
+                             <> show focusedNodeValuesCount
+                        ]
+                , button_ [ class_ "card-header-icon"
+                          , onClick (FocusedNodeValueIndexAction Increment)
+                          ]
+                          [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
+                ]
+         , div_ [ class_ "card-content" ]
+                [ div_ [ class_ "content" ]
+                  . renderDocStream
+                  . reAnnotateS toStandardAnnotation
+                  . layoutPretty defaultLayoutOptions
+                  . annPretty
+                  $ if model ^. #partiallyEvaluated
+                    then ExprNode evaluationPlaceHolder
+                    else capTree selectedNodeValueRenderDepth selectedNodeValue
+                ]
+         ])
+        model
 
 -- webPrint :: Miso.ToMisoString a => a -> View action
 -- webPrint x = pre_ [] [ text $ Miso.ms x ]

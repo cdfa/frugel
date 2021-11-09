@@ -36,6 +36,7 @@ data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
 data GenericAction = Insert Char | Delete | Backspace | Move Direction
+    deriving ( Show, Eq )
 
 class ( Data p
       , Data (NodeOf p)
@@ -214,9 +215,6 @@ zipperAtCursor :: (Decomposable p, CstrSiteNode p)
     -> Int
     -> p
     -> Either (InternalError p) p
-zipperAtCursor f
-    = modifyNodeAt (\cstrSiteOffset materials ->
-                    maybeToRight (CstrSiteActionFailed cstrSiteOffset materials)
-                    $ traverseOf _CstrSite
-                                 (rezip <.> f <=< unzipTo cstrSiteOffset)
-                                 materials)
+zipperAtCursor f = traverseNodeAt $ \cstrSiteOffset materials -> maybeToRight
+    (CstrSiteActionFailed cstrSiteOffset materials)
+    $ traverseOf _CstrSite (rezip <.> f <=< unzipTo cstrSiteOffset) materials

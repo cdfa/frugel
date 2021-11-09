@@ -5,8 +5,10 @@ module PrettyPrinting.Expr where
 import GHC.Generics ( Associativity(..) )
 
 class Expression e where
+    -- higher precedence binds weaker (because you shouldn't be able to bind stronger than a literal)
     precedence :: e -> Int
     fixity :: e -> Maybe Fixity
+    associativity :: e -> Maybe Associativity
 
     -- fixity Abstraction{} = Just Prefix
     -- fixity _ = Nothing
@@ -22,35 +24,36 @@ data Fixity = Prefix | Infix | Postfix
 -- precedence function `precedence`,
 -- parenthesizing function `parenthesized`
 -- and pretty printing function `prettyPrint`
-makeExprPrettyPrinter :: Expression e
-    => (s -> s) -- parenthesizing function
-    -> ((Fixity -> e -> s) -- pretty print unary expression
-        -> (Associativity -> e -> e -> (s, s)) -- pretty print binary expression
-        -> e
-        -> s) -- generic pretty printer
-    -> e -- expression
-    -> s -- pretty printed expression with minimal parentheses
-
-makeExprPrettyPrinter parenthesized prettyPrint e = prettyPrint' e
+makeExprPrettyPrinter :: (Expression e)
+    => (e -> e) -- parenthesizing function
+    -> ( e
+         -> e
+         -> e
+       , e
+         -> e
+         -> e
+         -> (e, e) -- pretty print binary expression
+       )
+makeExprPrettyPrinter parenthesized = (prettyPrintUnary, prettyPrintBinary)
   where
-    prettyPrint' = prettyPrint prettyPrintUnary prettyPrintBinary
-    opPrecedence = precedence e
-    prettyPrintUnary opFixity subExp
-        = parenthesize (succ opPrecedence)
-                       (fixity subExp == Just opFixity)
-                       subExp
-    prettyPrintBinary associativity left right
+    prettyPrintUnary e subExp
+        = parenthesize (succ $ precedence e) (fixity e == fixity subExp) subExp
+    prettyPrintBinary e left right
         = (\(maxLeftPrecedence, maxRightPrecedence) ->
-           ( parenthesize maxLeftPrecedence (fixity left == Just Postfix) left
-           , parenthesize maxRightPrecedence
-                          (fixity right == Just Prefix)
-                          right
-           )) $ maxPrecedenceByAssociativity associativity
-    maxPrecedenceByAssociativity = \case
-        LeftAssociative -> (succ opPrecedence, opPrecedence)
-        RightAssociative -> (opPrecedence, succ opPrecedence)
-        NotAssociative -> (opPrecedence, opPrecedence)
+           ( parenthesize maxLeftPrecedence False left
+           , parenthesize maxRightPrecedence False right
+           )) $ maxPrecedenceByAssociativity e
+    maxPrecedenceByAssociativity e
+        = flip (maybe
+                $ error "prettyPrintBinary used with non-binary expression (associativity e === Nothing)")
+               (associativity e)
+        $ \case
+            LeftAssociative -> (succ opPrecedence, opPrecedence)
+            RightAssociative -> (opPrecedence, succ opPrecedence)
+            NotAssociative -> (opPrecedence, opPrecedence)
+      where
+        opPrecedence = precedence e
     parenthesize maxPrecedence fixityObviatesParens subExp
         = if precedence subExp >= maxPrecedence && not fixityObviatesParens
-          then parenthesized $ prettyPrint' subExp
-          else prettyPrint' subExp
+          then parenthesized subExp
+          else subExp

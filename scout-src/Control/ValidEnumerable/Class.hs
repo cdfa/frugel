@@ -89,12 +89,6 @@ c7 :: ( ValidEnumerable a
    -> Shareable f x
 c7 f = c6 (uncurry f)
 
--- instance ValidEnumerable Int where
---     enumerateValid = share enumerateBounded
--- instance ValidEnumerable Integer where
---     enumerateValid = share $ c1 nat <|> c1 (\(Nat n) -> -n-1)
--- instance Infinite integer => ValidEnumerable (Nat integer) where
---   enumerate = share (Nat . fromInteger <$> naturals)
 instance ValidEnumerable Bool where
     enumerateValid = datatype [ c0 False, c0 True ]
 

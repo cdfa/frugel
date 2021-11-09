@@ -29,23 +29,22 @@ import Data.Has
 import Data.Sized
 import qualified Data.Text               as Text
 import Data.Text.Optics
+import Data.Validity.Extra
 import Data.Whitespace
 
 import Frugel
-import Frugel.Decomposition
 import Frugel.PrettyPrinting
 
 import Optics.Extra.Scout
 
 import Prettyprinter.Render.Util.SimpleDocTree
 
-import Scout.Internal.Meta               ( ProgramMeta(standardMeta) )
 import Scout.Node
 import qualified Scout.Parsing           as Parsing hiding ( node )
 import Scout.Parsing                     hiding ( expr, node, whereClause )
 import Scout.PrettyPrinting
 
-import Test.QuickCheck.Gen
+import Test.QuickCheck.Gen               as QuickCheck
 
 import Text.Megaparsec
     hiding ( ParseError, parseErrorPretty, runParser )
@@ -61,7 +60,13 @@ data Program
 
 type instance NodeOf Program = Node
 
-makeFieldLabelsWith noPrefixFieldLabels ''Program
+data ProgramMeta
+    = ProgramMeta { standardMeta :: Meta, trailingWhitespace :: Text }
+    deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
+
+makeFieldLabelsNoPrefix ''Program
+
+makeFieldLabelsNoPrefix ''ProgramMeta
 
 makePrisms ''Program
 
@@ -77,6 +82,10 @@ programMeta = hasLens
 
 programCstrSite' :: CstrSite -> Program
 programCstrSite' = ProgramCstrSite $ defaultProgramMeta 0
+
+defaultProgramMeta :: Int -> ProgramMeta
+defaultProgramMeta n
+    = ProgramMeta { standardMeta = defaultMeta n, trailingWhitespace = "" }
 
 instance CstrSiteNode Program where
     setCstrSite = const . programCstrSite'
@@ -95,6 +104,10 @@ deriving instance Show (Error Program)
 deriving instance Show (Model Program)
 
 instance Editable Program
+
+-- until we use GADTs for meta
+instance LabelOptic "exprMeta" An_AffineFold Program Program ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
 
 instance DisplayProjection (Error Program) where
     renderDoc = \case
@@ -172,18 +185,21 @@ unsafePrettyProgram Program{..}
 
 instance Decomposable Program where
     conservativelyDecompose _ _ = Nothing
-    traverseComponents mapChar mapNode program@Program{}
+    traverseComponents traverseChar traverseNode program@Program{}
         = chainDisJoint program
         $ Disjoint (intersperseWhitespaceTraversers
-                        mapChar
+                        traverseChar
                         program
-                        [ Traverser' #expr mapNode
-                        , Traverser' (#whereClause % _Just) mapNode
+                        [ Traverser' #expr traverseNode
+                        , Traverser' (#whereClause % _Just) traverseNode
                         ]
                     :> Traverser' (#meta % #trailingWhitespace)
-                                  (unpacked % traversed %%~ mapChar))
-    traverseComponents mapChar mapNode (ProgramCstrSite meta materials)
-        = ProgramCstrSite meta <$> traverseComponents mapChar mapNode materials
+                                  (unpacked % traversed %%~ traverseChar))
+    traverseComponents traverseChar
+                       traverseNode
+                       (ProgramCstrSite meta materials)
+        = ProgramCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 instance DisplayProjection Program
 
@@ -204,10 +220,32 @@ instance ValidInterstitialWhitespace Program where
         Program{..} -> if isJust whereClause then 1 else 0
         ProgramCstrSite{} -> 0
 
+instance Validity ProgramMeta where
+    validate
+        = mconcat [ genericValidate
+                  , decorate "The trailing whitespace"
+                    . validateWhitespace
+                    . trailingWhitespace
+                  ]
+
 instance KnownNat s => GenValid (Sized s Program) where
     genValid = sized uniformValid
     shrinkValid Sized{..}
         = Sized size <$> shrinkValidStructurallyWithoutExtraFiltering unSized -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance GenValid ProgramMeta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidProgramMeta 0
+    shrinkValid pMeta@ProgramMeta{trailingWhitespace}
+        = shrinkValidStructurallyWithoutExtraFiltering pMeta
+        & mapped % #trailingWhitespace %~ \whitespaceFragment ->
+        Text.take (Text.length whitespaceFragment) trailingWhitespace
+
+instance KnownNat s => ValidEnumerable (Sized s Program) where
+    enumerateValid
+        = datatype
+            [ Sized size <$> enumerateValidProgram (fromEnum $ natVal size) ]
+      where
+        size = Proxy :: Proxy s
 
 enumerateValidProgram
     :: (Typeable f, Control.Sized.Sized f) => Int -> Shareable f Program
@@ -229,9 +267,8 @@ enumerateValidProgram size
         = #standardMeta % #interstitialWhitespace
         .~ [ toText . map unWhitespace $ toList interstitialWhitespace ]
 
-instance KnownNat s => ValidEnumerable (Sized s Program) where
-    enumerateValid
-        = datatype
-            [ Sized size <$> enumerateValidProgram (fromEnum $ natVal size) ]
-      where
-        size = Proxy :: Proxy s
+enumerateValidProgramMeta
+    :: (Typeable f, Control.Sized.Sized f) => Int -> Shareable f ProgramMeta
+enumerateValidProgramMeta n
+    = Control.Sized.pay
+    $ ProgramMeta <$> enumerateValidMeta n <*> enumerateWhitespace

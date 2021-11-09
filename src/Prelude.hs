@@ -20,7 +20,8 @@ import Data.Sequence  ( (><) )
 
 import GHC.Exts
 
-import Relude         hiding ( Sum, abs, group, toList )
+import Relude
+    hiding ( Sum, abs, group, newEmptyMVar, newMVar, swapMVar, toList )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>
@@ -32,12 +33,6 @@ infixr 9 <.>
 
 (<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
 f1 <.> f2 = fmap f1 . f2
-
-infixl 4 <<*>>
-
-(<<*>>)
-    :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
-(<<*>>) = liftA2 (<*>)
 
 lift2 :: forall (s :: (Type -> Type)
                  -> Type
@@ -52,6 +47,9 @@ lift2 = lift . lift
 nTimes :: Int -> (a -> a) -> a -> a
 nTimes 0 _ x = x
 nTimes n f x = f (nTimes (n - 1) f x)
+
+chain :: Foldable t => t (a -> a) -> a -> a
+chain = foldr (.) id
 
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
@@ -71,6 +69,9 @@ spanMaybe _ xs@[] = ([], xs)
 spanMaybe p xs@(x : xs') = case p x of
     Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
     Nothing -> ([], xs)
+
+spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p = swap . bimap reverse reverse . span p . reverse
 
 -- Modified from https://hackage.haskell.org/package/hledger-lib-1.20.4/docs/src/Hledger.Utils.html#splitAtElement
 -- >>> splitOn ' ' " switch   the accumulator to the other mode   "

@@ -15,4 +15,4 @@ import Optics
 
 data Model p = Model { cursorOffset :: Int, program :: p, errors :: [Error p] }
 
-makeFieldLabelsWith noPrefixFieldLabels ''Model
+makeFieldLabelsNoPrefix ''Model

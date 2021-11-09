@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -9,6 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,7 +18,7 @@
 module Scout.Internal.Node where
 
 import Control.Limited
-import Control.Monad.Writer      ( Writer )
+import Control.Monad.Writer      ( WriterT )
 import Control.Sized
 import Control.ValidEnumerable
 
@@ -27,18 +27,20 @@ import Data.Composition
 import Data.Data                 ( Data )
 import Data.GenValidity
 import Data.GenValidity.Sequence ()
+import Data.GenValidity.Text     ()
 import Data.Has
 import Data.Hidden
-import Data.Map.Monoidal         ( MonoidalMap )
 import Data.MultiSet             ( MultiSet )
-import Data.Semigroup            ( Max )
 import qualified Data.Text       as Text
 import Data.Text.Optics
+import Data.Validity.Extra
 import Data.Validity.Sequence    ()
 import Data.Whitespace
 
-import Frugel
+import Frugel                    hiding ( Elided )
 import Frugel.CstrSite.ValidEnumerable ()
+
+import GHC.Generics              ( Associativity(..) )
 
 import Generic.Data
 
@@ -48,12 +50,11 @@ import Optics.Extra.Scout
 
 import PrettyPrinting.Expr
 
-import Scout.Internal.Meta       ( ExprMeta(standardMeta) )
-import qualified Scout.Internal.Meta
-import Scout.Meta
+import qualified Relude.Unsafe   as Unsafe
+
 import Scout.Orphans.Stream      ()
 
-import Test.QuickCheck.Gen       as Gen
+import Test.QuickCheck.Gen       as QuickCheck hiding ( vectorOf )
 
 type CstrSite = ACstrSite Node
 
@@ -82,12 +83,6 @@ data WhereClause
     = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
-data AbstractionMeta
-    = AbstractionMeta { standardExprMeta :: ExprMeta
-                      , reified :: Maybe (Hidden ReifiedFunction)
-                      }
-    deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
-
 type instance NodeOf Node = Node
 
 type instance NodeOf Identifier = Node
@@ -98,21 +93,67 @@ type instance NodeOf Decl = Node
 
 type instance NodeOf WhereClause = Node
 
+-- This has to live her instead of in Meta because ReifiedFunction depends on Expr
+-- Could be removed by using data-diverse for Meta
+data AbstractionMeta
+    = AbstractionMeta { standardExprMeta :: ExprMeta
+                      , reified :: Maybe (Hidden ReifiedFunction)
+                      }
+    deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
+
+data ExprMeta
+    = ExprMeta { standardMeta :: Meta
+               , parenthesisLevels :: Int
+               , evaluationStatus :: EvaluationStatus
+               }
+    deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
+
+-- It would be nicer if GADTs would be used instead and the AST would be parametric in it's recursion (a la hypertypes), especially since elided and focused are not used by core Frugel
+-- This would prevent derivation of Generic though
+-- Meta had it's own modules someday, but the introduction of focusedNodeValues requires it's in here. Until there is time to pull in data-diverse
+data Meta
+    = Meta { interstitialWhitespace :: [Text] -- Invariant: the number of whitespace fragments should be equal to the number of places in a node where whitespace can exist
+             -- ATM this is only set to true by evaluation and obeyed by pretty printing (not standard rendering)
+           , elided :: Bool
+             -- This is not the source of truth for the cursor location (that's in Model). This is used in evaluation to check if the node is focused
+           , focused :: Bool
+           }
+    deriving ( Eq, Ord, Show, Generic, Data )
+
+data EvaluationStatus
+    = Evaluated
+    | EvaluationDeferred (Hidden ( EvaluationRef Expr
+                                 , ScopedEvaluation Expr
+                                   -> ScopedEvaluation Expr
+                                 ))
+    | Elided (Hidden Expr)
+    | OutOfFuel
+    deriving ( Eq, Ord, Show, Generic, Data )
+
 type ReifiedFunction
-    = ScopedEvaluation Expr -> (LimiterT ScopedEvaluation) Expr
+    = EvaluationRef Expr
+    -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
+
+type EvaluationRef a = IORef (Either (ScopedEvaluation a) a)
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
-type ScopedEvaluation = Writer EvaluationOutput
+type ScopedEvaluation = WriterT EvaluationOutput IO
 
+type ShadowingEnv = Map Identifier Int
+
+-- This lives here because of EvaluationError
+-- Note that the output generated by evaluation of an expression to a function value is discarded when that function is applied to an argument
 data EvaluationOutput
     = EvaluationOutput { errors :: MultiSet EvaluationError
-                       , binders :: MonoidalMap Identifier (Max Int)
+                         -- Hidden because we typically do not want to consider these nodes when using template/uniplate
+                         -- Be careful with evaluating the Nodes completely because they may be infinitely large. Use capTree to cap them to a certain depth
+                       , focusedNodeValues :: Seq Node
                        }
-    deriving ( Generic, Data )
-    deriving Semigroup via (Generically EvaluationOutput)
-    deriving Monoid via (Generically EvaluationOutput)
+    deriving ( Eq, Ord, Show, Generic, Data )
+    deriving ( Semigroup, Monoid ) via (Generically EvaluationOutput)
 
+-- This lives here because of dependency on Expr
 data EvaluationError
     = TypeError TypeError
     | UnboundVariableError Identifier
@@ -126,9 +167,9 @@ data TypeError = TypeMismatchError ExpectedType Expr
 data ExpectedType = Function | Integer
     deriving ( Eq, Show, Ord, Data )
 
-makeFieldLabelsWith noPrefixFieldLabels ''Decl
+makeFieldLabelsNoPrefix ''Decl
 
-makeFieldLabelsWith noPrefixFieldLabels ''AbstractionMeta
+makeFieldLabelsNoPrefix ''AbstractionMeta
 
 makePrisms ''Node
 
@@ -140,7 +181,33 @@ makePrisms ''Decl
 
 makePrisms ''WhereClause
 
-makeFieldLabelsWith noPrefixFieldLabels ''EvaluationOutput
+makeFieldLabelsNoPrefix ''ExprMeta
+
+makeFieldLabelsNoPrefix ''Meta
+
+makePrisms ''EvaluationStatus
+
+makeFieldLabelsNoPrefix ''EvaluationOutput
+
+instance LabelOptic "exprMeta" An_AffineFold Node Node ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
+instance LabelOptic "exprMeta" An_AffineFold Expr Expr ExprMeta ExprMeta where
+    labelOptic = castOptic hasLens
+
+instance LabelOptic "exprMeta" An_AffineFold Decl Decl ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
+instance LabelOptic "exprMeta" An_AffineFold WhereClause WhereClause ExprMeta ExprMeta where
+    labelOptic = castOptic $ noIx ignored
+
+instance Has Meta Node where
+    getter (ExprNode n) = getter n
+    getter (DeclNode n) = getter n
+    getter (WhereNode n) = getter n
+    modifier f n@(ExprNode _) = n & _ExprNode %~ modifier f
+    modifier f n@(DeclNode _) = n & _DeclNode %~ modifier f
+    modifier f n@(WhereNode _) = n & _WhereNode %~ modifier f
 
 instance Has ExprMeta Expr where
     getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta
@@ -156,18 +223,20 @@ instance Has ExprMeta Expr where
                 `adjoin` (_ExprCstrSite % _1))
 
 instance Has Meta Expr where
-    getter e = standardMeta $ getter e
+    getter = standardMeta . getter
     modifier = over (exprMeta % #standardMeta)
+
+instance Has Meta AbstractionMeta where
+    getter = getter . standardExprMeta
+    modifier = over (#standardExprMeta % #standardMeta)
 
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
-declMeta :: Lens' Decl Meta
-declMeta = hasLens
-
-whereClauseMeta :: Lens' WhereClause Meta
-whereClauseMeta = hasLens
-
+-- declMeta :: Lens' Decl Meta
+-- declMeta = hasLens
+-- whereClauseMeta :: Lens' WhereClause Meta
+-- whereClauseMeta = hasLens
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
 
@@ -176,6 +245,42 @@ declCstrSite' = DeclCstrSite $ defaultMeta 0
 
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
+
+defaultExprMeta :: Int -> ExprMeta
+defaultExprMeta n
+    = ExprMeta { parenthesisLevels = 0
+               , evaluationStatus = Evaluated
+               , standardMeta = defaultMeta n
+               }
+
+defaultMeta :: Int -> Meta
+defaultMeta n
+    = Meta { interstitialWhitespace = replicate n ""
+           , elided = False
+           , focused = False
+           }
+
+-- Note that expressions may have the precedence of literals when parenthesized
+instance Expression Expr where
+    precedence Abstraction{} = 3
+    precedence Sum{} = 2
+    precedence Application{} = 1
+    precedence Variable{} = 0
+    precedence ExprCstrSite{} = 0
+    fixity Abstraction{} = Just Prefix
+    fixity Application{} = Just Infix
+    fixity Sum{} = Just Infix
+    fixity Variable{} = Nothing
+    fixity ExprCstrSite{} = Nothing
+    associativity Application{} = Just LeftAssociative
+    associativity Sum{} = Just LeftAssociative
+    associativity Abstraction{} = Nothing
+    associativity Variable{} = Nothing
+    associativity ExprCstrSite{} = Nothing
+
+parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
+parenthesizeExprFromMeta parenthesize prettyExpr x
+    = nTimes (x ^. exprMeta % #parenthesisLevels) parenthesize $ prettyExpr x
 
 instance IsNode Node
 
@@ -230,6 +335,11 @@ instance ToString Identifier where
 instance Pretty Identifier where
     pretty = pretty . toString
 
+instance Pretty EvaluationStatus where
+    pretty EvaluationDeferred{} = angles "EvaluationDeferred"
+    pretty Elided{} = "..."
+    pretty status = angles $ viaShow status
+
 instance DisplayProjection Node where
     -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
     renderDoc (ExprNode expr) = renderDoc expr
@@ -245,134 +355,121 @@ instance DisplayProjection Decl
 instance DisplayProjection WhereClause
 
 instance Decomposable Node where
-    traverseComponents mapChar mapNode = \case
-        ExprNode expr -> ExprNode <$> traverseComponents mapChar mapNode expr
-        DeclNode decl -> DeclNode <$> traverseComponents mapChar mapNode decl
-        WhereNode whereClause ->
-            WhereNode <$> traverseComponents mapChar mapNode whereClause
+    traverseComponents traverseChar traverseNode = \case
+        ExprNode expr ->
+            ExprNode <$> traverseComponents traverseChar traverseNode expr
+        DeclNode decl ->
+            DeclNode <$> traverseComponents traverseChar traverseNode decl
+        WhereNode whereClause -> WhereNode
+            <$> traverseComponents traverseChar traverseNode whereClause
 
 instance Decomposable Identifier where
     conservativelyDecompose _ _ = Nothing
-    traverseComponents mapChar _ identifier@(Identifier _)
+    traverseComponents traverseChar _ identifier@(Identifier _)
         = traverseOf (_Identifier % traversed % #unAlphanumeric)
-                     mapChar
+                     traverseChar
                      identifier
 
 instance Decomposable Expr where
-    traverseComponents mapChar mapNode e
+    traverseComponents traverseChar traverseNode e
         | e ^. exprMeta % #parenthesisLevels > 0
             = chainDisJoint e
             $ Disjoint
-                [ keyWordCharTraversal mapChar '('
-                , whitespaceFragmentTraverser _head mapChar
+                [ keyWordCharTraversal traverseChar '('
+                , whitespaceFragmentTraverser _head traverseChar
                 , Traverser'
                       (refracting (exprMeta % #parenthesisLevels)
                                   (subtracting 1)
                        % refracting
                            (exprMeta % #standardMeta % #interstitialWhitespace)
                            (_tail % _init))
-                      mapNode
-                , whitespaceFragmentTraverser _last mapChar
-                , keyWordCharTraversal mapChar ')'
+                      traverseNode
+                , whitespaceFragmentTraverser _last traverseChar
+                , keyWordCharTraversal traverseChar ')'
                 ]
-    traverseComponents mapChar mapNode e
+    traverseComponents traverseChar traverseNode e
         = chainDisJoint e
         . Disjoint
-        . intersperseWhitespaceTraversers mapChar e
+        . intersperseWhitespaceTraversers traverseChar e
         $ case e of
             -- All these cases could be composed into 1, because the lenses don't overlap, but this is better for totality checking
             Variable{} -> [ Traverser' (_Variable % _2)
-                            $ traverseComponents mapChar mapNode
+                            $ traverseComponents traverseChar traverseNode
                           ]
-            Abstraction{} -> [ keyWordCharTraversal mapChar '\\'
+            Abstraction{} -> [ keyWordCharTraversal traverseChar '\\'
                              , Traverser' (_Abstraction % _2)
-                               $ traverseComponents mapChar mapNode
-                             , keyWordCharTraversal mapChar '='
-                             , Traverser' (_Abstraction % _3) mapNode
+                               $ traverseComponents traverseChar traverseNode
+                             , keyWordCharTraversal traverseChar '='
+                             , Traverser' (_Abstraction % _3) traverseNode
                              ]
-            Application{} -> [ Traverser' (_Application % _2) mapNode
-                             , Traverser' (_Application % _3) mapNode
+            Application{} -> [ Traverser' (_Application % _2) traverseNode
+                             , Traverser' (_Application % _3) traverseNode
                              ]
-            Sum{} -> [ Traverser' (_Sum % _2) mapNode
-                     , keyWordCharTraversal mapChar '+'
-                     , Traverser' (_Sum % _3) mapNode
+            Sum{} -> [ Traverser' (_Sum % _2) traverseNode
+                     , keyWordCharTraversal traverseChar '+'
+                     , Traverser' (_Sum % _3) traverseNode
                      ]
             ExprCstrSite{} -> [ Traverser' (_ExprCstrSite % _2)
-                                $ traverseComponents mapChar mapNode
+                                $ traverseComponents traverseChar traverseNode
                               ]
 
 instance Decomposable Decl where
-    traverseComponents mapChar mapNode decl@Decl{}
+    traverseComponents traverseChar traverseNode decl@Decl{}
         = chainDisJoint decl . Disjoint
         $ intersperseWhitespaceTraversers
-            mapChar
+            traverseChar
             decl
-            [ Traverser' #name (traverseComponents mapChar mapNode)
-            , keyWordCharTraversal mapChar '='
-            , Traverser' #value mapNode
+            [ Traverser' #name (traverseComponents traverseChar traverseNode)
+            , keyWordCharTraversal traverseChar '='
+            , Traverser' #value traverseNode
             ]
-    traverseComponents mapChar mapNode (DeclCstrSite meta materials)
-        = DeclCstrSite meta <$> traverseComponents mapChar mapNode materials
+    traverseComponents traverseChar traverseNode (DeclCstrSite meta materials)
+        = DeclCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 instance Decomposable WhereClause where
-    traverseComponents mapChar mapNode whereClause@(WhereClause _ decls)
+    traverseComponents traverseChar
+                       traverseNode
+                       whereClause@(WhereClause _ decls)
         = chainDisJoint whereClause . Disjoint
         $ intersperseWhitespaceTraversers
-            mapChar
+            traverseChar
             whereClause
-            (Traverser' (castOptic united) (<$ traverse_ @[] mapChar "where")
-             : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) mapNode)
+            (Traverser' (castOptic united)
+                        (<$ traverse_ @[] traverseChar "where")
+             : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) traverseNode)
                     (toList decls))
-    traverseComponents mapChar mapNode (WhereCstrSite meta materials)
-        = WhereCstrSite meta <$> traverseComponents mapChar mapNode materials
+    traverseComponents traverseChar traverseNode (WhereCstrSite meta materials)
+        = WhereCstrSite meta
+        <$> traverseComponents traverseChar traverseNode materials
 
 keyWordCharTraversal
     :: (Is A_Lens k, Functor f) => (t -> f b) -> t -> Traverser' f k NoIx a
-keyWordCharTraversal mapChar c = Traverser' (castOptic united) (<$ mapChar c)
+keyWordCharTraversal traverseChar c
+    = Traverser' (castOptic united) (<$ traverseChar c)
 
 intersperseWhitespaceTraversers :: (Applicative f, Has Meta n)
     => (Char -> f Char)
     -> n
     -> [Traverser' f An_AffineTraversal NoIx n]
     -> [Traverser' f An_AffineTraversal NoIx n]
-intersperseWhitespaceTraversers mapChar n traversers
-    = interleave [ traversers
-                 , imap (\i _ -> whitespaceFragmentTraverser (ix i) mapChar)
-                   $ view (hasLens @Meta % #interstitialWhitespace) n
-                 ]
+intersperseWhitespaceTraversers traverseChar n traversers
+    = interleave
+        [ traversers
+        , imap (\i _ -> whitespaceFragmentTraverser (ix i) traverseChar)
+          $ view (hasLens @Meta % #interstitialWhitespace) n
+        ]
 
 whitespaceFragmentTraverser
     :: (Has Meta s, Is l An_AffineTraversal, Applicative f)
     => Optic' l is [Text] Text
     -> (Char -> f Char)
     -> Traverser' f An_AffineTraversal is s
-whitespaceFragmentTraverser selector mapChar
+whitespaceFragmentTraverser selector traverseChar
     = Traverser' (hasLens @Meta
                   % #interstitialWhitespace
                   % castOptic @An_AffineTraversal selector)
-                 (unpacked % traversed %%~ mapChar)
-
--- Note that expressions may have the precedence of literals when parenthesized
-instance Expression Expr where
-    precedence Abstraction{} = 3
-    precedence Application{} = 2
-    precedence Sum{} = 1
-    precedence Variable{} = 0
-    precedence ExprCstrSite{} = 0
-    fixity Abstraction{} = Just Prefix
-    fixity Application{} = Just Infix
-    fixity Sum{} = Just Infix
-    fixity Variable{} = Nothing
-    fixity ExprCstrSite{} = Nothing
-
-parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
-parenthesizeExprFromMeta parenthesize prettyExpr x
-    | parenthesisLevels > 0
-        = nTimes parenthesisLevels parenthesize
-        $ prettyExpr (x & exprMeta % #parenthesisLevels .~ 0)
-  where
-    parenthesisLevels = x ^. exprMeta % #parenthesisLevels
-parenthesizeExprFromMeta _ prettyExpr x = prettyExpr x
+                 (unpacked % traversed %%~ traverseChar)
 
 class ValidInterstitialWhitespace a where
     validInterstitialWhitespace :: a -> Int
@@ -433,6 +530,58 @@ instance Validity WhereClause where
 
 instance Validity AbstractionMeta
 
+instance Validity ExprMeta where
+    validate
+        = mconcat
+            [ genericValidate
+            , decorate
+                  "The number of surrounding parentheses (parenthesisLevels)"
+              . declare "is greater than or equal to 0"
+              . (>= 0)
+              . parenthesisLevels
+            , decorate "The standardMeta"
+              . declare "The number of whitespace fragments is greater or equal then twice the number of surrounding parentheses (parenthesisLevels * 2)"
+              . \ExprMeta{..} -> length (interstitialWhitespace standardMeta)
+              >= parenthesisLevels
+            ]
+
+instance Validity Meta where
+    validate
+        = mconcat [ genericValidate
+                  , decorate "The interstitial whitespace"
+                    . flip decorateList validateWhitespace
+                    . interstitialWhitespace
+                  ]
+
+instance Validity EvaluationStatus
+
+instance Validity EvaluationOutput where
+    validate _ = valid
+
+validateInterstitialWhitespace :: Has Meta a => (a -> Int) -> a -> Validation
+validateInterstitialWhitespace expectedWhitespaceFragmentCount n
+    = mconcat [ genericValidate
+              , declare "has the correct number of whitespace fragments"
+                . (== expectedWhitespaceFragmentCount n)
+                . length
+                . interstitialWhitespace
+              ]
+    $ getter n
+
+hasNonEmptyInterstitialWhitespace :: Has Meta a => a -> Validation
+hasNonEmptyInterstitialWhitespace
+    = validateInterstitialWhitespaceWith
+        (declare "is not empty" . not . Text.null)
+
+validateInterstitialWhitespaceWith
+    :: Has Meta b => (Text -> Validation) -> b -> Validation
+validateInterstitialWhitespaceWith extraValidation
+    = decorate "Meta"
+    . decorate "The interstitial whitespace"
+    . flip decorateList (validateWhitespace <> extraValidation)
+    . interstitialWhitespace
+    . getter
+
 instance GenValid Node where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
@@ -458,6 +607,28 @@ instance GenValid AbstractionMeta where
     shrinkValid absMeta@AbstractionMeta{..}
         = map (flip (set #standardExprMeta) absMeta)
         $ shrinkValidStructurallyWithoutExtraFiltering standardExprMeta -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance GenValid ExprMeta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidExprMeta 0
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required since shrinking Ints does not shrink to negative numbers
+
+instance GenValid Meta where
+    genValid = QuickCheck.sized . uniformWith $ enumerateValidMeta 0
+    shrinkValid meta@Meta{interstitialWhitespace}
+        = shrinkValidStructurallyWithoutExtraFiltering interstitialWhitespace
+        -- ensure number of whitespace fragments is preserved
+        & filter ((length interstitialWhitespace ==) . length)
+        -- ensure only characters from previous whitespace fragments are used
+        & mapped % imapped
+        %@~ (\i whitespaceFragment -> Text.take (Text.length whitespaceFragment)
+             $ interstitialWhitespace Unsafe.!! i)
+        & fmap (flip (set #interstitialWhitespace) meta)
+
+-- Not a proper GenValid instance, but generated nodes should not have random evaluation output
+-- Instance is primarily provided to be able to use shrinkValidStructurallyWithoutExtraFiltering
+instance GenValid EvaluationStatus where
+    genValid = pure Evaluated
+    shrinkValid = const []
 
 instance ValidEnumerable Node where
     enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
@@ -499,19 +670,14 @@ instance ValidEnumerable WhereClause where
     enumerateValid
         = datatype
             [ (\decls -> WhereClause
-                   Meta { interstitialWhitespace = map (toText
-                                                        . map unWhitespace
-                                                        . toList @(NonEmpty _)
-                                                        . fst)
-                              $ toList decls
-                        , elided = False
-                        }
+                   (defaultMeta 0) { interstitialWhitespace = map
+                                         (toText
+                                          . map unWhitespace
+                                          . toList @(NonEmpty _)
+                                          . fst)
+                                         $ toList decls
+                                   }
                $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
-
-enumerateValidAbstractionMeta
-    :: (Typeable f, Sized f) => Int -> Shareable f AbstractionMeta
-enumerateValidAbstractionMeta n
-    = pay $ AbstractionMeta <$> enumerateValidExprMeta n ?? Nothing
 
 -- Not generally safe, see note `addMetaWith`
 addMeta
@@ -532,3 +698,29 @@ addMetaWith enumerateValidNodeMeta c
          . validInterstitialWhitespace
          . c (error "Default meta was evaluated during enumeration")
          $ error "Dummy node children evaluated during enumeration")
+
+enumerateValidAbstractionMeta
+    :: (Typeable f, Sized f) => Int -> Shareable f AbstractionMeta
+enumerateValidAbstractionMeta n
+    = pay $ AbstractionMeta <$> enumerateValidExprMeta n ?? Nothing
+
+enumerateValidExprMeta :: (Typeable f, Sized f) => Int -> Shareable f ExprMeta
+enumerateValidExprMeta minimumWhitespaceFragments
+    = pay
+    $ (\meta' parenthesisWhitespace ->
+       ExprMeta { parenthesisLevels = length parenthesisWhitespace
+                , evaluationStatus = Evaluated
+                , standardMeta = meta'
+                      & #interstitialWhitespace
+                      %~ (\whitespaceFragments -> map fst parenthesisWhitespace
+                          ++ whitespaceFragments
+                          ++ map snd parenthesisWhitespace)
+                }) <$> enumerateValidMeta minimumWhitespaceFragments
+    <*> inflation (2 ^)
+                  []
+                  ((:) .: (,) <$> enumerateWhitespace <*> enumerateWhitespace)
+
+enumerateValidMeta :: (Typeable f, Sized f) => Int -> Shareable f Meta
+enumerateValidMeta n
+    = pay
+    $ Meta <$> vectorOf n enumerateWhitespace <*> pure False <*> pure False

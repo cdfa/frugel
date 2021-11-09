@@ -7,7 +7,6 @@ import Frugel
 import Frugel.View.Elements              as Elements
 
 import Miso                              hiding ( Node, node, view )
-import qualified Miso.String
 
 import Optics.Extra.Scout                hiding ( views )
 
@@ -20,8 +19,10 @@ data DocTextTree
     deriving ( Show, Eq )
 
 data AnnotationTree = Leaf Text | Node Annotation [AnnotationTree]
+    deriving ( Show, Eq )
 
 newtype Line = Line [AnnotationTree]
+    deriving ( Show, Eq )
 
 makePrisms ''DocTextTree
 
@@ -59,8 +60,8 @@ textTreeForm = \case
 
 textLeavesConcat :: [DocTextTree] -> [DocTextTree]
 textLeavesConcat
-    = over (mapped % _Annotated % _2)
-           (textLeavesConcat . concatByPrism _TextLeaf)
+    = over (mapped % _Annotated % _2) textLeavesConcat
+    . concatByPrism _TextLeaf
 
 splitMultiLineAnnotations :: [DocTextTree] -> [DocTextTree]
 splitMultiLineAnnotations = foldMap $ \case
@@ -96,7 +97,7 @@ renderTrees = map (Elements.line [] . map renderTree . view _Line)
 
 renderTree :: AnnotationTree -> View action
 renderTree = \case
-    Leaf t -> text $ Miso.String.ms t
+    Leaf t -> text t
     Node annotation@(CompletionAnnotation InConstruction) [] ->
         renderTree $ Node annotation [ Leaf " " ] -- Ghost space instead of messing with CSS
     Node annotation subTrees ->
@@ -107,4 +108,4 @@ encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views
     Cursor -> caret [] []
-    Elided -> div_ [] views
+    Elided -> elided [] views

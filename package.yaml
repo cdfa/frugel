@@ -48,10 +48,10 @@ library:
         dependencies: base-noprelude >= 4.7 && < 5
   # Note: you may need to stack build before changes are reflected in the editor, because we use a cabal cradle for this component, because stack repl does not support internal libraries https://github.com/commercialhaskell/stack/issues/4564
   dependencies:
-    - prettyprinter >= 1.7.0
+    - prettyprinter ^>= 1.7.0
     - composition
-    - optics >= 0.4
-    - optics-vl >= 0.2.1
+    - optics ^>= 0.4
+    - optics-vl ^>= 0.2.1
     - lens
     - mtl
 
@@ -69,13 +69,13 @@ internal-libraries:
     source-dirs: scout-src
     dependencies:
       - frugel
-      - megaparsec >= 9.0.1
+      - megaparsec ^>= 9.0.1
       - parser-combinators
       - containers
-      - prettyprinter >= 1.7.0
+      - prettyprinter ^>= 1.7.0
       - composition
       - it-has
-      - optics >= 0.4
+      - optics ^>= 0.4
       - lens
       - mtl
       - multiset
@@ -88,8 +88,12 @@ internal-libraries:
       - testing-feat
       - size-based
       - dictionary-sharing
-      - generic-data >= 0.8.0.0
-      - monoidal-containers
+      - generic-data ^>= 0.8.0.0
+      - Interpolation
+      # Until https://github.com/well-typed/optics/pull/430/files# is merged
+      - optics-core ^>= 0.4
+      - profunctors
+      - indexed-profunctors
 
 executables:
   frugel-exe:
@@ -104,12 +108,14 @@ executables:
     dependencies:
       - frugel
       - scout
-      - miso >= 1.8.0.0
+      - miso ^>= 1.8.0.0
       - pretty-show
-      - prettyprinter >= 1.7.0
+      - prettyprinter ^>= 1.7.0
       - aeson
       - QuickCheck
       - multiset
+      - composition
+      - lens
     when:
       - condition: impl(ghcjs)
         then:
@@ -118,7 +124,7 @@ executables:
           dependencies:
             - base-noprelude >= 4.7 && < 5
             - jsaddle ^>= 0.9.8
-            - jsaddle-warp >= 0.9
+            - jsaddle-warp ^>= 0.9
             - websockets ^>= 0.12.7
             - warp ^>= 3.3.17
             - wai-app-static ^>= 3.1.7
@@ -135,8 +141,12 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - base-noprelude >= 4.7 && < 5
+      - containers
       - frugel
       - scout
+      - QuickCheck
+      - genvalidity
+      - genvalidity-containers
       - sydtest
       - genvalidity-sydtest
       - multiset

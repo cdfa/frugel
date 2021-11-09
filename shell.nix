@@ -7,17 +7,6 @@ let
 
   hsPkgs = import ./base.nix { inherit pkgs ghc; };
 
-  reload-script = pkgs.writeShellScriptBin "reload" ''
-    ${pkgs.ghcid}/bin/ghcid -c '\
-        ${pkgs.stack}/bin/stack repl\
-        --only-main\
-        --ghci-options "-fdefer-type-errors +RTS -N -RTS"\
-        '\
-        --reload=www\
-        --restart=package.yaml\
-        -r -W
-  '';
-
   weeder = (
     pkgs.haskell-nix.hackage-package
       {
@@ -34,6 +23,10 @@ let
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
+      prettier = {
+        enable = true;
+        files = "www/.*\\.css$";
+      };
       floskell = floskellHook // {
         enable = true;
       };
@@ -53,11 +46,9 @@ hsPkgs.shellFor {
   tools = {
     cabal = "3.4.0.0";
     hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
-    haskell-language-server = "latest";
     stan = "latest";
   };
   buildInputs = with pkgs; [
-    reload-script
     haskellPackages.floskell
     ghcid
     stack
@@ -72,7 +63,16 @@ hsPkgs.shellFor {
           version = "latest";
         }
     ).components.exes.refactor
-  ];
+    (
+      pkgs.haskell-nix.hackage-package
+        {
+          compiler-nix-name = ghc;
+          name = "haskell-language-server";
+          version = "latest";
+          configureArgs = "-frename";
+        }
+    ).components.exes.haskell-language-server
+  ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs; });
   withHoogle = false;
   exactDeps = false;
   shellHook = ''

@@ -1,9 +1,13 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
 module Data.Hidden where
 
 import Data.Data
 import Data.GenValidity
+
+import Optics
 
 import Text.Show
 
@@ -14,11 +18,13 @@ import Text.Show
 newtype Hidden a = Hidden a
     deriving ( Typeable )
 
+makePrisms ''Hidden
+
 instance Eq (Hidden a) where
     _ == _ = True -- What is hidden should not matter
 
 instance Show (Hidden a) where
-    show _ = undefined
+    show _ = "Hidden"
 
 instance Ord (Hidden a) where
     _ <= _ = True

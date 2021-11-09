@@ -35,7 +35,11 @@ listening l = listens $ view l
 
 {-# INLINE listening #-}
 
-passing :: MonadWriter w m => Setter w w u v -> m (a, u -> v) -> m a
-passing l m = pass (second (over l) <$> m)
+censoring :: (Is k A_Setter, MonadWriter w m)
+    => Optic k is w w u v
+    -> (u -> v)
+    -> m a
+    -> m a
+censoring l uv = censor (over l uv)
 
-{-# INLINE passing #-}
+{-# INLINE censoring #-}
