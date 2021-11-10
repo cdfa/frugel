@@ -39,6 +39,7 @@ class (LabelOptic' "exprMeta" An_AffineFold a ExprMeta, Has Meta a, Data a)
 instance (LabelOptic' "exprMeta" An_AffineFold a ExprMeta, Has Meta a, Data a)
     => EvaluatedConstraint a
 
+-- I think this mess isn't actually even necessary without evaluation observing rendering of focused expressions, because now it's only used in unsafeEvaluateSelectedNodeValue and we don't care about forcing OutOfFuel source expressions and all other expressions in EvaluationStatus are Hidden
 allEvaluatedChildren :: ( HasCallStack
                         , LabelOptic' "exprMeta" An_AffineFold a ExprMeta
                         , Has Meta a

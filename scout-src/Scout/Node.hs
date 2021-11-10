@@ -22,6 +22,7 @@ module Scout.Node
     , ShadowingEnv
     , EvaluationRef
     , EvaluationOutput(EvaluationOutput)
+    , FocusedNodeEvaluation(FocusedNodeEvaluation)
     , EvaluationError(..)
     , TypeError(..)
     , ExpectedType(..)
@@ -42,6 +43,7 @@ module Scout.Node
     , _EvaluationDeferred
     , _Elided
     , _OutOfFuel
+    , _FocusedNodeEvaluation
     , exprMeta
     , exprCstrSite'
     , declCstrSite'
@@ -256,8 +258,7 @@ evalTest
                                  Y = \f = (\x = f (x x)) (\x = f (x x))
                                  fact = Y (\f = \n = (is0 n) 1 (mul n (f (pred n))))
                                  fact2 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
-                                 fact3 = fact2
-                                 infiniteRecursion = infiniteRecursion|]
+                                 fact3 = fact2|]
                  ]
 
 nonTerminationSafetyTest :: CstrSite

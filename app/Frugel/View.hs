@@ -47,9 +47,10 @@ instructionsView Model{..}
            , text "Fuel limit for evaluation following each keystroke "
            , input_ [ type_ "number"
                     , value_ . Miso.ms $ show @String fuelLimit
-                    , onChange (\value -> ChangeFuelLimit
-                                    (fromMaybe fuelLimit . readMaybe
-                                     $ Miso.fromMisoString value))
+                    , onChange (ChangeFuelLimit
+                                . fromMaybe fuelLimit
+                                . readMaybe
+                                . Miso.fromMisoString)
                     ]
            , div_ [ class_ "buttons" ]
                   [ button_ [ onClick PrettyPrint, class_ "button" ]
@@ -72,7 +73,7 @@ errorsView Model{..}
     = div_ [] . conditionalViews (not $ null errors)
     $ map (pre_ [ class_ "box has-background-danger-light" ]
            . renderDocStream
-           . layoutSmart defaultLayoutOptions
+           . layoutPretty defaultLayoutOptions
            . renderDoc)
           errors
 
@@ -95,49 +96,113 @@ evaluatedView model@Model{..}
              ]
       ]
     ++ foldMapOf
-        #selectedNodeValue
-        (\selectedNodeValue ->
+        #selectedNodeEvaluation
+        (\selectedNodeEvaluation ->
          [ div_ [ class_ "card-header" ]
                 [ p_ [ class_ "card-header-title" ]
-                     [ "Focused node value up to depth: "
-                     , input_ [ type_ "number"
-                              , value_ . Miso.ms
-                                $ show @String selectedNodeValueRenderDepth
-                              , onChange (\value ->
-                                          ChangeSelectedNodeValueRenderDepth
-                                              (fromMaybe fuelLimit . readMaybe
-                                               $ Miso.fromMisoString value))
-                              ]
-                     ]
+                     [ "Focused node evaluation" ]
                 , button_ [ class_ "card-header-icon"
-                          , onClick (FocusedNodeValueIndexAction Decrement)
+                          , onClick (ChangeFocusedNodeEvaluationIndex Decrement)
                           ]
                           [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
-                , span_ [ class_ "card-header-vertical-padding" ]
-                        [ let focusedNodeValuesCount
-                                  = Seq.length
-                                  $ view #focusedNodeValues evaluationOutput
-                          in text
-                             $ show (min focusedNodeValuesCount
-                                         (focusedNodeValueIndex + 1))
-                             <> " of "
-                             <> show focusedNodeValuesCount
-                        ]
+                , span_
+                      [ class_ "card-header-vertical-padding" ]
+                      [ let focusedNodeEvaluationsCount
+                                = Seq.length
+                                $ view #focusedNodeEvaluations evaluationOutput
+                        in text
+                           $ show (min focusedNodeEvaluationsCount
+                                       (selectedNodeEvaluationIndex + 1))
+                           <> " of "
+                           <> show focusedNodeEvaluationsCount
+                      ]
                 , button_ [ class_ "card-header-icon"
-                          , onClick (FocusedNodeValueIndexAction Increment)
+                          , onClick (ChangeFocusedNodeEvaluationIndex Increment)
                           ]
                           [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
                 ]
          , div_ [ class_ "card-content" ]
-                [ div_ [ class_ "content" ]
-                  . renderDocStream
-                  . reAnnotateS toStandardAnnotation
-                  . layoutPretty defaultLayoutOptions
-                  . annPretty
-                  $ capTree selectedNodeValueRenderDepth selectedNodeValue
-                ]
+                [ selectedNodeEvaluationView selectedNodeEvaluation model ]
          ])
         model
+
+selectedNodeEvaluationView :: FocusedNodeEvaluation -> Model -> View Action
+selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
+    = div_ [ class_ "card" ]
+    $ conditionalViews
+        (variablesInView model)
+        [ div_ [ class_ "card-header" ]
+               [ p_ [ class_ "card-header-title" ]
+                    [ "Variables in scope at the cursor up to depth: "
+                    , renderDepthInput Context model
+                    ]
+               ]
+        , div_ [ class_ "card-content" ]
+               [ div_ [ class_ "content" ]
+                 . map (div_ []
+                        . renderPretty
+                        . capTree contextRenderDepth
+                        . DeclNode
+                        . uncurry decl')
+                 . toList
+                 $ view #variables selectedNodeEvaluation
+               ]
+        ]
+    ++ conditionalViews
+        (has (#definitions % folded) selectedNodeEvaluation)
+        (div_
+             [ class_ "card-header" ]
+             [ p_ [ class_ "card-header-title" ]
+                  [ "Definitions in scope at the cursor up to depth: "
+                  , renderDepthInput Context model
+                  ]
+             , button_
+                   [ class_ "card-header-icon", onClick ToggleDefinitionsView ]
+                   [ span_
+                         [ class_ "icon" ]
+                         [ text
+                           $ if definitionsViewCollapsed then "▽" else "△"
+                         ]
+                   ]
+             ]
+         : conditionalViews
+             (not (view #definitionsViewCollapsed model))
+             [ div_ [ class_ "card-content" ]
+                    [ div_ [ class_ "content" ]
+                      . map (div_ []
+                             . renderPretty
+                             . capTree contextRenderDepth
+                             . DeclNode
+                             . uncurry decl')
+                      . toList
+                      $ view #definitions selectedNodeEvaluation
+                    ]
+             ])
+    ++ [ div_ [ class_ "card-header" ]
+              [ p_ [ class_ "card-header-title" ]
+                   [ "Focused node value up to depth: "
+                   , renderDepthInput Value model
+                   ]
+              ]
+       , div_ [ class_ "card-content" ]
+              [ div_ [ class_ "content" ]
+                . renderPretty
+                . capTree selectedNodeValueRenderDepth
+                $ view #value selectedNodeEvaluation
+              ]
+       ]
+
+renderDepthInput :: RenderDepthField -> Model -> View Action
+renderDepthInput field model
+    = input_ [ type_ "number"
+             , value_ . Miso.ms $ show @String renderDepth
+             , onChange (ChangeFieldRenderDepth field
+                         . fromMaybe renderDepth
+                         . readMaybe
+                         . Miso.fromMisoString)
+             ]
+  where
+    renderDepth = view (renderDepthFieldLens field) model
 
 -- webPrint :: Miso.ToMisoString a => a -> View action
 -- webPrint x = pre_ [] [ text $ Miso.ms x ]

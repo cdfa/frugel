@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -19,10 +20,12 @@ data Model
             , cursorOffset :: Int
             , program :: Program
             , errors :: [Error]
-            , focusedNodeValueIndex :: Int
             , fuelLimit :: Int
+            , selectedNodeEvaluationIndex :: Int
             , selectedNodeValueRenderDepth :: Int
-              -- evaluationOutput being last is VERY IMPORTANT, because focusedNodeValues may contain non-terminating computations and (==) will not terminate if no other difference is found in any previous field
+            , contextRenderDepth :: Int
+            , definitionsViewCollapsed :: Bool
+              -- evaluationOutput being last is VERY IMPORTANT, because focusedNodeEvaluations may contain non-terminating computations and (==) will not terminate if no other difference is found in any previous field
               -- At the moment, partiallyEvaluated also changes when evaluationOutput is set to a value that may not terminate
               -- Using a breadth-first implementation of Eq would be a more elegant solution
             , evaluationOutput :: EvaluationOutput
@@ -30,20 +33,25 @@ data Model
     deriving ( Show, Eq )
 
 data EvaluationOutput
-    = EvaluationOutput { evaluated :: Program, focusedNodeValues :: Seq Node }
+    = EvaluationOutput { evaluated :: Program
+                       , focusedNodeEvaluations :: Seq FocusedNodeEvaluation
+                       }
     deriving ( Show, Eq )
 
 makeFieldLabelsNoPrefix ''Model
 
 makeFieldLabelsNoPrefix ''EvaluationOutput
 
-instance LabelOptic "selectedNodeValue" An_AffineTraversal Model Model Node Node where
+instance LabelOptic "selectedNodeEvaluation" An_AffineTraversal Model Model FocusedNodeEvaluation FocusedNodeEvaluation where
     labelOptic = atraversal matcher updater
       where
         matcher model@Model{..}
-            = matching (selectedNodeValue' focusedNodeValueIndex) model
+            = matching (selectedNodeEvaluation' selectedNodeEvaluationIndex)
+                       model
         updater model@Model{..}
-            = flip (set $ selectedNodeValue' focusedNodeValueIndex) model
-        selectedNodeValue' :: Int -> AffineTraversal' Model Node
-        selectedNodeValue' i
-            = #evaluationOutput % #focusedNodeValues % (ix i `afailing'` _last)
+            = flip (set $ selectedNodeEvaluation' selectedNodeEvaluationIndex)
+                   model
+        selectedNodeEvaluation' i
+            = #evaluationOutput
+            % #focusedNodeEvaluations
+            % (ix i `afailing'` _last)

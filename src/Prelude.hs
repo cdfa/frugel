@@ -1,5 +1,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Prelude
     ( module Prelude
@@ -47,6 +48,9 @@ lift2 = lift . lift
 nTimes :: Int -> (a -> a) -> a -> a
 nTimes 0 _ x = x
 nTimes n f x = f (nTimes (n - 1) f x)
+
+applyWhen :: Bool -> (a -> a) -> a -> a
+applyWhen condition f = chain @Maybe (f <$ guard condition)
 
 chain :: Foldable t => t (a -> a) -> a -> a
 chain = foldr (.) id

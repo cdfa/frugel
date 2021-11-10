@@ -69,3 +69,6 @@ infixl 3 `afailing'`
 
 cosmosOf :: forall k a. Is k A_Fold => Optic' k NoIx a a -> Fold a a
 cosmosOf l = simple `summing` castOptic @A_Fold l % cosmosOf l
+
+like :: a -> Getter b a
+like a = to (const a)

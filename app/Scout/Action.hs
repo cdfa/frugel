@@ -14,11 +14,15 @@ data Action
     | PrettyPrint
     | GenericAction GenericAction
     | AsyncAction AsyncAction
-    | FocusedNodeValueIndexAction FocusedNodeValueIndexAction
+    | ChangeFocusedNodeEvaluationIndex FocusedNodeValueIndexAction
     | ChangeFuelLimit Int
-    | ChangeSelectedNodeValueRenderDepth Int
+    | ChangeFieldRenderDepth RenderDepthField Int
+    | ToggleDefinitionsView
+    deriving ( Show, Eq )
 
 data AsyncAction
     = EvaluationFinished Model | NewProgramGenerated (Frugel.Model Program)
+    deriving ( Show, Eq )
 
 data FocusedNodeValueIndexAction = Increment | Decrement
+    deriving ( Show, Eq )

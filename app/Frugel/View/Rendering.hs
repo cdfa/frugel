@@ -14,6 +14,8 @@ import Prelude                           hiding ( lines )
 
 import Prettyprinter.Render.Util.SimpleDocTree
 
+import Scout.PrettyPrinting
+
 data DocTextTree
     = TextLeaf Text | LineLeaf | Annotated Annotation [DocTextTree]
     deriving ( Show, Eq )
@@ -36,6 +38,13 @@ isEmptyTree = \case
     Annotated _ [] -> True
     Annotated _ trees -> all isEmptyTree trees
     _ -> False
+
+renderPretty :: AnnotatedPretty a => a -> [View action]
+renderPretty
+    = renderDocStream
+    . reAnnotateS toStandardAnnotation
+    . layoutPretty defaultLayoutOptions
+    . annPretty
 
 -- instead of rendering to a SimpleDocStream and converting back to a tree with `treeForm`, `renderDoc` could be made to produce DocTextTree's directly, which would speed up rendering a bit
 -- it would also be simpler (and probably faster) to intersperse additional SAnnPop's and SAnnPush's around SLine's using a renderFunction which counts annotation levels instead of what `splitMultiLineAnnotations` does

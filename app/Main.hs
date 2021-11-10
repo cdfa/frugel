@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
@@ -69,36 +69,42 @@ updateModel evalThreadVar action model'
         sink . AsyncAction $ NewProgramGenerated newFrugelModel
         reEvaluate evalThreadVar newFrugelModel model sink
     updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
-    updateModel' (FocusedNodeValueIndexAction indexAction) model
-        = Left . effectSub (hideSelectedNodeValue newModel) $ \sink -> liftIO
+    updateModel' (ChangeFocusedNodeEvaluationIndex indexAction) model
+        = Left . effectSub (hideSelectedNodeEvaluation newModel) $ \sink ->
+        liftIO
         . bracketNonTermination (view #editableDataVersion newModel)
                                 evalThreadVar
-        . unsafeEvaluateSelectedNodeValue sink
+        . yieldWithForcedSelectedNodeEvaluation sink
         $ #partiallyEvaluated .~ False
         $ newModel
       where
         newModel
             = model
             & #editableDataVersion +~ 1
-            & #focusedNodeValueIndex %~ case indexAction of
+            & #selectedNodeEvaluationIndex %~ case indexAction of
                 Increment -> min (focusNodeValuesCount - 1) . succ
                 Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
         focusNodeValuesCount
-            = Seq.length $ view (#evaluationOutput % #focusedNodeValues) model
-    updateModel' (ChangeSelectedNodeValueRenderDepth newDepth) model
-        = Left
-        . effectSub (hideSelectedNodeValue newModel & #editableDataVersion +~ 1)
-        $ \sink -> liftIO
-        . bracketNonTermination (view #editableDataVersion model + 1)
-                                evalThreadVar
-        $ do
-            reEvaluatedModel <- fromFrugelModel newModel (toFrugelModel model)
-            unsafeEvaluateSelectedNodeValue sink reEvaluatedModel
+            = Seq.length
+            $ view (#evaluationOutput % #focusedNodeEvaluations) model
+    updateModel' (ChangeFieldRenderDepth field newDepth) model
+        = if field == Value || contextInView model
+          then Left
+              . effectSub
+                  (hideFieldValues field newModel & #editableDataVersion +~ 1)
+              $ \sink -> liftIO
+              . bracketNonTermination (view #editableDataVersion model + 1)
+                                      evalThreadVar
+              $ do
+                  reEvaluatedModel
+                      <- fromFrugelModel newModel (toFrugelModel model)
+                  yieldModel sink $ forceFieldValues field reEvaluatedModel
+          else Left $ noEff $ renderDepthFieldLens field .~ newDepth $ model
       where
         newModel
             = model
             & #partiallyEvaluated .~ True
-            & #selectedNodeValueRenderDepth .~ newDepth
+            & renderDepthFieldLens field .~ newDepth
     updateModel' (ChangeFuelLimit newLimit) model
         = Left . reEvaluateModel evalThreadVar
         $ #fuelLimit .~ max 0 newLimit
@@ -109,6 +115,22 @@ updateModel evalThreadVar action model'
         $ reEvaluateFrugelModel evalThreadVar
                                 (prettyPrint $ toFrugelModel model)
                                 model
+    updateModel' ToggleDefinitionsView model
+        = if view #definitionsViewCollapsed model
+          then Left . effectSub (hideSelectedNodeDefinitions newModel)
+              $ \sink -> liftIO
+              . bracketNonTermination (view #editableDataVersion newModel)
+                                      evalThreadVar
+              . yieldModel sink
+              . forceSelectedNodeDefinitions
+              $ #partiallyEvaluated .~ False
+              $ newModel
+          else Left $ noEff newModel
+      where
+        newModel
+            = model
+            & #editableDataVersion +~ 1
+            & #definitionsViewCollapsed %~ not
     -- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
     updateModel' (GenericAction genericAction)
                  model = Left $ case editResult of
@@ -151,14 +173,42 @@ reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit} sink = do
     partialModel@Model{editableDataVersion}
         <- partialFromFrugelModel (Only fuelLimit) model newFrugelModel
     -- safe because evaluation had fuel limit
-    unsafeEvaluateTopExpression sink partialModel
-    bracketNonTermination (succ editableDataVersion) evalThreadVar $ do
-        newModel <- fromFrugelModel model newFrugelModel
-        -- sadly, it seems the models from the next to statements are not necessarily displayed in order
-        -- safe because inside bracketNonTermination
-        unsafeEvaluateTopExpression sink $ hideSelectedNodeValue newModel
-        -- force selected node value separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
-        unsafeEvaluateSelectedNodeValue sink newModel
+    yieldModel sink $ forceMainExpression partialModel
+    bracketNonTermination (succ editableDataVersion) evalThreadVar
+        -- forcing is safe because inside bracketNonTermination
+        . yieldWithForcedMainExpression sink
+        =<< fromFrugelModel model newFrugelModel
+
+yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
+yieldWithForcedMainExpression sink newModel
+    = if hasn't #selectedNodeEvaluation newModel
+      then yieldModel sink $ forceMainExpression newModel
+      else do
+          yieldModel sink . forceMainExpression
+              $ hideSelectedNodeEvaluation newModel
+          yieldWithForcedSelectedNodeEvaluation sink newModel
+
+-- force selected node evaluation separately because evaluation up to a certain depth may encounter non-terminating expressions that were not evaluated in the evaluation of the top expression
+yieldWithForcedSelectedNodeEvaluation :: Sink Action -> Model -> IO ()
+yieldWithForcedSelectedNodeEvaluation sink newModel
+    = if not (contextInView newModel)
+      then yieldModel sink $ forceSelectedNodeValue newModel
+      else do
+          yieldModel sink
+              $ forceSelectedNodeValue
+              $ hideSelectedNodeContext newModel
+          yieldWithForcedSelectedNodeContext sink newModel
+
+yieldWithForcedSelectedNodeContext :: Sink Action -> Model -> IO ()
+yieldWithForcedSelectedNodeContext sink newModel
+    = if | not $ definitionsInView newModel ->
+             yieldModel sink $ forceSelectedNodeVariables newModel
+         | not $ variablesInView newModel ->
+             yieldModel sink $ forceSelectedNodeDefinitions newModel
+         | otherwise -> do
+             yieldModel sink . forceSelectedNodeDefinitions
+                 $ hideSelectedNodeVariables newModel
+             yieldModel sink $ forceSelectedNodeVariables newModel
 
 bracketNonTermination
     :: Integer -> MVar (Maybe (ThreadId, Integer)) -> IO () -> IO ()
@@ -174,17 +224,6 @@ bracketNonTermination version evalThreadVar action = do
         u <- action
         void $ swapMVar evalThreadVar $ seq u Nothing
 
--- force errors to force full evaluation
-unsafeEvaluateTopExpression :: Sink Action -> Model -> IO ()
-unsafeEvaluateTopExpression sink model@Model{..}
-    = seq (length errors) . sink . AsyncAction $ EvaluationFinished model
-
-unsafeEvaluateSelectedNodeValue :: Sink Action -> Model -> IO ()
-unsafeEvaluateSelectedNodeValue sink model@Model{..}
-    = seq (lengthOf (#selectedNodeValue
-                     % to (capTree selectedNodeValueRenderDepth)
-                     % allEvaluatedChildren)
-                    model)
-    . sink
-    . AsyncAction
-    $ EvaluationFinished model
+-- yieldModel is strict in the model to make sure evaluation happens in the update thread instead of in the view thread
+yieldModel :: Sink Action -> Model -> IO ()
+yieldModel sink model = sink . AsyncAction . EvaluationFinished $! model

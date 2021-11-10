@@ -18,9 +18,11 @@ import Data.Data.Lens
 import Data.Has
 import Data.Hidden
 import qualified Data.Map     as Map
+import Data.Map.Optics
 import Data.MultiSet          ( MultiSet )
 import qualified Data.MultiSet as MultiSet
 import qualified Data.Set     as Set
+import Data.Set.Optics
 
 import Frugel                 hiding ( Elided, group )
 
@@ -62,14 +64,32 @@ evalCstrSite cstrSite = do
 
 evalExpr :: Expr -> Evaluation Expr
 evalExpr expr = do
-    ex <- evalExpr' expr
+    eExpr <- evalExpr' expr
     when (expr ^. hasLens @Meta % #focused)
-        . tellFragment #focusedNodeValues
+        . tellFragment #focusedNodeEvaluations
         . one
-        $ ExprNode ex
-    pure ex
+        =<< focusedNodeEvaluation eExpr
+    pure eExpr
   where
-    -- Just returning v in case it's not in the environment is cool because it frees two beautiful birds with one key: it adds tolerance for binding errors and it makes it possible to print partially applied functions
+    focusedNodeEvaluation eExpr = do
+        valuesInScope <- liftIO . traverse (unsafeInterleaveIO . dereference)
+            =<< gview #valueEnv
+        definitionsInScope
+            <- Map.restrictKeys valuesInScope <$> gview #definitions
+        variablesInScope
+            <- Map.withoutKeys valuesInScope <$> gview #definitions
+        pure
+            $ review _FocusedNodeEvaluation
+                     (definitionsInScope, variablesInScope, ExprNode eExpr)
+      where
+        dereference evalRef = do
+            refContents <- readIORef evalRef
+            case refContents of
+                Left scopedValue -> do
+                    (value, output) <- runWriterT scopedValue
+                    writeIORef evalRef . Left $ writer (value, output)
+                    pure value
+                Right value -> pure value
     evalExpr' v@(Variable _ identifier) = do
         valueRefMaybe <- gview (#valueEnv % at identifier)
         maybe variableStub (lift2 . outputOnce) valueRefMaybe
@@ -107,15 +127,18 @@ evalExpr expr = do
                 Application meta checkedEf . deferEvaluation
                     <$> newEvalRef (evalExpr x)
     evalExpr' (Abstraction meta n body) = do
-        reifiedFunction <- gviews #valueEnv $ \env arg -> do
-            scopedBody <- scope
-                . magnify (to $ \shadowingEnv ->
-                           EvaluationEnv { valueEnv = Map.insert n arg env
-                                         , shadowingEnv
-                                         })
-                $ evalExpr body
-            -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
-            renameShadowedVariables scopedBody
+        reifiedFunction
+            <- asks $ \EvaluationEnv{valueEnv, definitions} arg -> do
+                scopedBody <- scope
+                    . magnify
+                        (to $ \shadowingEnv ->
+                         EvaluationEnv { valueEnv = Map.insert n arg valueEnv
+                                       , shadowingEnv
+                                       , definitions = Set.delete n definitions
+                                       })
+                    $ evalExpr body
+                -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
+                renameShadowedVariables scopedBody
         fmap (Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
               . deferEvaluation)
             . newEvalRef
@@ -140,15 +163,16 @@ evalExpr expr = do
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
 normaliseExpr :: Expr -> ScopedEvaluation Expr
-normaliseExpr expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
-    EvaluationDeferred (Hidden (evalRef, modifiers)) -> mapWriterT
-        unsafeInterleaveIO
-        $ uniplate normaliseExpr =<< modifiers (outputOnce evalRef)
-    Elided _ -> expr
-        & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
-        %%~ normaliseExpr
-    Evaluated -> uniplate normaliseExpr expr
-    OutOfFuel -> pure expr
+normaliseExpr expr
+    = mapWriterT unsafeInterleaveIO
+    $ case expr ^. hasLens @ExprMeta % #evaluationStatus of
+        EvaluationDeferred (Hidden (evalRef, modifiers)) ->
+            uniplate normaliseExpr =<< modifiers (outputOnce evalRef)
+        Elided _ -> expr
+            & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
+            %%~ normaliseExpr
+        Evaluated -> uniplate normaliseExpr expr
+        OutOfFuel -> pure expr
 
 newEvalRef :: MonadIO m
     => LimiterT (ReaderT r ScopedEvaluation) a
@@ -197,26 +221,27 @@ evalScope decls = do
         = mapMaybe (preview $ _tail % _head) . group . sort
         $ toListOf (folded % #name) decls
     computeNewEnv evaluatedDecls EvaluationEnv{..}
-        = review _EvaluationEnv . (, newShadowingEnv) <$> newValueEnv
+        = fromValueEnv <$> newValueEnv
       where
         newShadowingEnv
             = shadowingEnv
-            <> fromList (zip (decls ^.. folded % #name) $ repeat 0) -- should be replaced with new names when where clauses can be nested
+            <> toMapOf (folded % (#name `fanout` like 0) % ito id) decls
+        newDefinitionsSet = definitions <> setOf (folded % #name) decls
+        fromValueEnv
+            = review _EvaluationEnv . (, newShadowingEnv, newDefinitionsSet)
         newValueEnv
-            = mappend valueEnv . fromList
-            <$> traverse evalDecl (decls ^.. folded % (#name `fanout` #value))
-        evalDecl (name, value) = do
+            = mappend valueEnv <.> itraverse evalDecl
+            $ toMapOf (folded % (#name `fanout` #value) % ito id) decls
+        evalDecl name value = do
             valueEither <- Left . fromMaybe evaluationStub
                 <$> draw successfulEvaluation
-            (name, ) <$> newIORef valueEither
+            newIORef valueEither
           where
             successfulEvaluation = do
                 iteratedEnv <- mapLimiterT unsafeInterleaveIO newValueEnv
                 Limited
                     <.> mapLimiterT
-                        (pure
-                         . usingReaderT (review _EvaluationEnv
-                                                (iteratedEnv, newShadowingEnv)))
+                        (pure . usingReaderT (fromValueEnv iteratedEnv))
                     $ do
                         evaluated
                             <- Set.member name <$> readIORef evaluatedDecls
@@ -255,10 +280,10 @@ runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     -> Limit
     -> (a -> Evaluation a)
     -> a
-    -> IO (a, (MultiSet EvaluationError, Seq Node))
+    -> IO (a, (MultiSet EvaluationError, Seq FocusedNodeEvaluation))
 runEval cursorOffset fuel eval x
     = traverseOf _2
-                 ((view #errors &&& view #focusedNodeValues)
+                 ((view #errors &&& view #focusedNodeEvaluations)
                   <.> fst
                   <.> runWriterT . template @_ @Expr normaliseExpr)
     . over (traversalVL (template @_ @Expr)) removeReifiedFunctions
