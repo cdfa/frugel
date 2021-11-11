@@ -14,8 +14,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-deprecations #-}
-
 module Scout.Internal.Program where
 
 import qualified Control.Sized
@@ -164,21 +162,25 @@ instance PrettyPrint Program where
         renderAnnotation Elided' _
             = error "Encountered elided node when attempting to render a pretty printed program for reparsing"
         reparse :: forall n.
-            (Node ~ NodeOf n, Data n, Decomposable n)
+            (Node ~ NodeOf n, Data n, Decomposable n, CstrSiteNode n)
             => Parser n
             -> n
             -> (n, Set ParseError)
-        reparse parser node
-            = uncurry (reparseNestedCstrSites @Program reparse)
-            . (\cstrSite ->
-               either (\errors -> ((cstrSite, node), fromFoldable errors))
-                      (\newNode -> ((cstrSite, newNode), mempty))
-               $ runParser @Program parser cstrSite)
-            $ decompose node
+        reparse parser node = decompose node & \cstrSite -> either
+            (reparseNestedCstrSites @Program reparse (cstrSite, node)
+             . fromFoldable)
+            (\newNode -> set _1 newNode
+             $ reparseNestedCstrSites @Program
+                                      reparse
+                                      (cstrSite, setCstrSite cstrSite node)
+                                      mempty)
+            $ runParser @Program parser cstrSite
 
 unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
-    = prettyCstrSite undefined annPretty contents -- should be safe, because root construction site annotation is removed later
+    = prettyCstrSite (error "root construction site PrettyAnnotation evaluated")
+                     annPretty
+                     contents -- should be safe, because root construction site annotation is removed later
 unsafePrettyProgram Program{..}
     = annPretty expr
     <> nest 2 (foldMap (mappend line' . annPretty) whereClause)
