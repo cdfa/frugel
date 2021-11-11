@@ -101,4 +101,5 @@ messageItemsPretty prefix ts | null ts = ""
 orList :: NonEmpty (Doc Annotation) -> Doc Annotation
 orList (x :| []) = x
 orList (x :| [y]) = x <> " or " <> y
-orList xs = cat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs
+orList xs
+    = fillCat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs
