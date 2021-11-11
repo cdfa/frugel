@@ -13,6 +13,7 @@ import qualified Control.Zipper.Seq as SeqZipper
 
 import Data.Data
 import Data.Data.Lens
+import Data.Sequence.Optics
 import qualified Data.Set    as Set
 
 import Frugel.CstrSite
@@ -177,10 +178,18 @@ attemptEdit
             newErrors
                 = Set.union errors . Set.unions . fmap fromFoldable
                 $ lefts parses
-            parses
-                = map (\cstrSite ->
-                       second (cstrSite, ) $ runParser @p parser cstrSite)
-                      cstrSiteBucket
+            parses = map (\cstrSite -> second
+                              ( CstrSite
+                                $ seqOf (_CstrSite
+                                         % folded
+                                         % (filtered isLeft `failing` _Right
+                                            % to decompose
+                                            % _CstrSite
+                                            % folded))
+                                        cstrSite
+                              ,
+                              )
+                          $ runParser @p parser cstrSite) cstrSiteBucket
 
 flattenConstructionSites :: forall n.
     ( Data n
