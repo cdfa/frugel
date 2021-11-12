@@ -176,7 +176,7 @@ reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit} sink = do
     yieldModel sink $ forceMainExpression partialModel
     bracketNonTermination (succ editableDataVersion) evalThreadVar
         -- forcing is safe because inside bracketNonTermination
-        . yieldWithForcedMainExpression sink
+        $ yieldWithForcedMainExpression sink
         =<< fromFrugelModel model newFrugelModel
 
 yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
@@ -222,7 +222,7 @@ bracketNonTermination version evalThreadVar action = do
         Nothing -> pure (Just (threadId, version), False)
     unless outdated $ do
         u <- action
-        void $ swapMVar evalThreadVar $ seq u Nothing
+        void $ swapMVar evalThreadVar $! seq u Nothing
 
 -- yieldModel is strict in the model to make sure evaluation happens in the update thread instead of in the view thread
 yieldModel :: Sink Action -> Model -> IO ()
