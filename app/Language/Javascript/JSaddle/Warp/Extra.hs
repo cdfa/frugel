@@ -7,6 +7,8 @@ import Language.Javascript.JSaddle.Run  ( syncPoint )
 import Language.Javascript.JSaddle.Types ( JSM )
 import Language.Javascript.JSaddle.WebSockets hiding ( debug )
 
+import Miso.Dev                         ( clearBody )
+
 import qualified Network.Wai.Application.Static as WaiStatic
 import qualified Network.Wai.Handler.Warp as Warp
 import Network.WebSockets               as WS
@@ -19,7 +21,7 @@ debug port dir f = do
         (Warp.setPort port $ Warp.setTimeout 3600 Warp.defaultSettings)
         =<< jsaddleOr
             defaultConnectionOptions
-            (registerContext >> f >> syncPoint)
+            (registerContext >> clearBody >> f >> syncPoint)
             (withRefresh $ jsaddleAppWithJsOr (jsaddleJs True) staticApp)
     putStrLn $ "http://localhost:" <> show port
 
@@ -30,5 +32,3 @@ runApp = debug 3708 "www"
 runApp :: IO () -> IO ()
 runApp = id
 #endif
-
-
