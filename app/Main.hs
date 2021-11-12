@@ -6,6 +6,7 @@
 module Main where
 
 import Control.Concurrent
+import Control.Exception
 import Control.ValidEnumerable
 
 import qualified Data.Sequence          as Seq
@@ -16,12 +17,16 @@ import Frugel
 import qualified Frugel
 import Frugel.View
 
+import GHC.Event
+
 import Language.Javascript.JSaddle.Warp.Extra as JSaddleWarp
 
 import Miso                             hiding ( model, node, set, view )
 import qualified Miso
 
 import Optics.Extra.Scout
+
+import Prelude
 
 import Scout
 import Scout.Action
@@ -169,15 +174,44 @@ reEvaluate :: MVar (Maybe (ThreadId, Integer))
     -> Model
     -> Sink Action
     -> IO ()
-reEvaluate evalThreadVar newFrugelModel model@Model{fuelLimit} sink = do
-    partialModel@Model{editableDataVersion}
-        <- partialFromFrugelModel (Only fuelLimit) model newFrugelModel
-    -- safe because evaluation had fuel limit
-    yieldModel sink $ forceMainExpression partialModel
-    bracketNonTermination (succ editableDataVersion) evalThreadVar
+reEvaluate evalThreadVar
+           newFrugelModel
+           model@Model{fuelLimit, editableDataVersion}
+           sink = do
+    unlessFinishedIn
+        500000 -- half a second
+        -- forcing is safe because evaluation had fuel limit
+        (yieldModel sink . forceMainExpression
+         =<< partialFromFrugelModel (Only fuelLimit) model newFrugelModel)
+        . const
+        . bracketNonTermination (succ editableDataVersion) evalThreadVar
         -- forcing is safe because inside bracketNonTermination
         $ yieldWithForcedMainExpression sink
         =<< fromFrugelModel model newFrugelModel
+
+unlessFinishedIn :: Int -> IO () -> (TimeoutKey -> IO a) -> IO a
+unlessFinishedIn delay handler action = do
+    timerManager <- getSystemTimerManager
+    handlerThreadVar <- newEmptyMVar
+    let handleTimeout = do
+            noExceptionInMainAction <- isEmptyMVar handlerThreadVar
+            -- new thread is required because timeout handlers shouldn't run too long
+            when noExceptionInMainAction . void $ forkIOWithUnmask $ \unmask ->
+                unmask $ do
+                    noExceptionInMainAction2
+                        <- tryPutMVar handlerThreadVar =<< myThreadId
+                    when noExceptionInMainAction2 handler
+        -- safe use of uninterruptibleMask_, because 
+        cleanupTimeout key = uninterruptibleMask_ $ do
+            handlerNotStarted <- tryPutMVar handlerThreadVar
+                $ error
+                    "Timeout handler attempted to evaluate thread id in lock"
+            if handlerNotStarted
+                then unregisterTimeout timerManager key
+                else takeMVar handlerThreadVar >>= killThread
+    bracket (registerTimeout timerManager delay handleTimeout)
+            cleanupTimeout
+            action
 
 yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
 yieldWithForcedMainExpression sink newModel
