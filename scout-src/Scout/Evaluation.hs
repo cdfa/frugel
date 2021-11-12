@@ -246,18 +246,22 @@ evalScope decls = do
                         evaluated
                             <- Set.member name <$> readIORef evaluatedDecls
                         if evaluated
-                            then liftIO . fmap fst . runWriterT
-                                =<< scope (evalExpr value)
+                            then censoring #errors
+                                           (MultiSet.filter
+                                                (== recursionLimitReachedError))
+                                $ evalExpr value
                             else do
                                 modifyIORef evaluatedDecls (Set.insert name)
                                 evalExpr value
+            evaluationStub :: MonadWriter EvaluationOutput m => m Expr
             evaluationStub
                 = writerFragment
                     #errors
                     ( exprCstrSite'
                       $ fromList [ Right . ExprNode $ variable' name ]
-                    , one . OutOfFuelError $ variable' name
+                    , one recursionLimitReachedError
                     )
+            recursionLimitReachedError = OutOfFuelError $ variable' name
 
 evalProgram :: Program -> Evaluation Program
 evalProgram Program{..} = do
