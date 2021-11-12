@@ -145,16 +145,13 @@ updateModel evalThreadVar action model'
       where
         (editResult, newFrugelModel)
             = Frugel.updateModel genericAction $ toFrugelModel model
-    updateModel' (AsyncAction asyncAction) model
-        = if view #editableDataVersion newModel
-              == view #editableDataVersion model
-          then Left $ noEff newModel
-          else Right . const $ pure ()
-      where
-        newModel = case asyncAction of
-            EvaluationFinished m -> m
-            NewProgramGenerated frugelModel ->
-                updateWithFrugelModel frugelModel model
+    updateModel' (AsyncAction asyncAction) model = case asyncAction of
+        EvaluationFinished newModel -> if view #editableDataVersion newModel
+            == view #editableDataVersion model
+            then Left $ noEff newModel
+            else Right . const $ pure ()
+        NewProgramGenerated frugelModel ->
+            Left . noEff $ updateWithFrugelModel frugelModel model
 
 reEvaluateModel
     :: MVar (Maybe (ThreadId, Integer)) -> Model -> Effect Action Model
