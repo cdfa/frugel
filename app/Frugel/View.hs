@@ -14,15 +14,15 @@ import qualified Miso.String as Miso
 
 import Optics.Extra.Scout
 
-import Scout
+import Scout           hiding ( Evaluated )
 import Scout.Action
 import qualified Scout.Internal.Model
 import Scout.Model
 
 -- import Text.Show.Pretty ( ppShow )
 -- Constructs a virtual DOM from a model
-viewModel :: Model -> View Action
-viewModel model
+viewApp :: Model -> View Action
+viewApp model
     = div_
         [ class_ "code has-background-white-bis" ]
         [ styleSheet "bulma.min.css"
@@ -81,9 +81,11 @@ evaluatedView :: Model -> View Action
 evaluatedView model@Model{..}
     = div_ [ class_ "card" ]
     $ [ div_ [ class_ "card-header" ]
-             [ p_ [ class_ "card-header-title" ]
-                  [ if partiallyEvaluated then "Evaluating..." else "Result" ]
-             ]
+             [ p_ [ class_ "card-header-title" ] [ case evaluationStatus of
+                 Evaluated -> "Result"
+                 PartiallyEvaluated -> "Evaluating..."
+                 Aborted msg ->
+                     text $ "Evaluation aborted due to " <> Miso.ms msg ] ]
       , div_ [ class_ "card-header" ]
              [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
       , div_ [ class_ "card-content" ]

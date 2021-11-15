@@ -147,6 +147,7 @@ library scout
 executable frugel-exe
   main-is: Main.hs
   other-modules:
+      Control.Timeout
       Frugel.Event
       Frugel.View
       Frugel.View.Elements
@@ -162,8 +163,8 @@ executable frugel-exe
       OverloadedLabels
       DisambiguateRecordFields
       DeriveGeneric
-  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts -with-rtsopts=-N -feager-blackholing
-  ghcjs-options: -dedupe
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts "-with-rtsopts=--nonmoving-gc -A16M -M3G -N -Mgrace=16M" -feager-blackholing
+  ghcjs-options: -dedupe "-with-rtsopts=--nonmoving-gc -N"
   build-depends:
       QuickCheck
     , aeson

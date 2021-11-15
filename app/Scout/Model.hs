@@ -4,7 +4,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Scout.Model ( module Scout.Model, Model(Model) ) where
+module Scout.Model
+    ( module Scout.Model
+    , Model(Model)
+    , EvaluationStatus(..)
+    , EvaluationOutput(EvaluationOutput)
+    ) where
 
 import qualified Data.MultiSet as MultiSet
 
@@ -12,7 +17,7 @@ import qualified Frugel
 
 import Optics.Extra.Scout
 
-import Scout
+import Scout          hiding ( Evaluated, EvaluationStatus )
 import Scout.Internal.Model
 
 initialModel :: Program -> Model
@@ -21,7 +26,7 @@ initialModel p
             , fuelLimit = initialFuelLimit
             , selectedNodeEvaluationIndex = 0
             , errors = []
-            , partiallyEvaluated = False
+            , evaluationStatus = PartiallyEvaluated
             , selectedNodeValueRenderDepth = 10
             , contextRenderDepth = 5
             , definitionsViewCollapsed = True
@@ -74,9 +79,9 @@ partialFromFrugelModel fuel
                 , errors = map fromFrugelError errors
                       ++ map (uncurry $ flip EvaluationError)
                              (MultiSet.toOccurList evalErrors)
-                , partiallyEvaluated = case fuel of
-                      Only _ -> True
-                      Infinity -> False
+                , evaluationStatus = case fuel of
+                      Only _ -> PartiallyEvaluated
+                      Infinity -> Evaluated
                 , evaluationOutput = EvaluationOutput { .. }
                 , ..
                 }
@@ -160,8 +165,11 @@ hideSelectedEvaluationField :: Is k A_Traversal
     -> Model
 hideSelectedEvaluationField (castOptic @A_Traversal -> fieldNodes) model
     = model
-    & #partiallyEvaluated .~ has (#selectedNodeEvaluation % fieldNodes) model
     & #selectedNodeEvaluation % fieldNodes .~ evaluationPlaceHolder
+    & #evaluationStatus
+    .~ if has (#selectedNodeEvaluation % fieldNodes) model
+       then PartiallyEvaluated
+       else Evaluated
 
 evaluationPlaceHolder :: Expr
 evaluationPlaceHolder = exprCstrSite' . toCstrSite . one $ Left "Evaluating..."

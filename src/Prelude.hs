@@ -22,7 +22,7 @@ import Data.Sequence  ( (><) )
 import GHC.Exts
 
 import Relude         hiding ( Sum, abs, group, newEmptyMVar, newMVar, swapMVar
-                             , takeMVar, toList, tryPutMVar, tryTakeMVar )
+                             , takeMVar, toList, tryPutMVar, tryTakeMVar, putMVar )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>

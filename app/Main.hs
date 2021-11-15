@@ -1,12 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
 
 import Control.Concurrent
 import Control.Exception
+import Control.Timeout
 import Control.ValidEnumerable
 
 import qualified Data.Sequence          as Seq
@@ -17,8 +19,6 @@ import Frugel
 import qualified Frugel
 import Frugel.View
 
-import GHC.Event
-
 import Language.Javascript.JSaddle.Warp.Extra as JSaddleWarp
 
 import Miso                             hiding ( model, node, set, view )
@@ -28,27 +28,34 @@ import Optics.Extra.Scout
 
 import Prelude
 
-import Scout
+import Scout                            hiding ( Evaluated )
 import Scout.Action
 import qualified Scout.Internal.Model
 import Scout.Model
 
 import Test.QuickCheck.Gen
 
--- Entry point for a miso application
 main :: IO ()
-main = runApp $ do
+main = do
     evalThreadVar <- liftIO $ newMVar Nothing
-    startApp
-        App { initialAction = Init  -- initial action to be executed on application load
-            , model = initialModel $ programCstrSite' evalTest  -- initial model
-            , update = updateModel evalThreadVar -- update function
-            , view = viewModel -- view function
-            , events = defaultEvents -- default delegated events
-            , subs = [] -- empty subscription list
-            , mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
-            , logLevel = Off -- used during prerendering to see if the VDOM and DOM are in synch (only used with `miso` function)
-            }
+    -- sadly, handling heap overflows does not work when running in GHCi (because this is not run on the main thread which receives the exception)
+    let handleHeapOverflow e = do
+            foldMap (flip throwTo e . fst) =<< swapMVar evalThreadVar Nothing
+            catchHeapOverflow $ void getLine
+        catchHeapOverflow action
+            = catchJust (guarded (== HeapOverflow)) action handleHeapOverflow
+    catchHeapOverflow $ do
+        runApp
+            $ startApp App { initialAction = Init
+                           , model = initialModel $ programCstrSite' evalTest
+                           , update = updateModel evalThreadVar
+                           , view = viewApp
+                           , events = defaultEvents
+                           , subs = []
+                           , mountPoint = Nothing
+                           , logLevel = Off
+                           }
+        void getLine
 
 updateModel :: MVar (Maybe (ThreadId, Integer))
     -> Action
@@ -80,7 +87,7 @@ updateModel evalThreadVar action model'
         . bracketNonTermination (view #editableDataVersion newModel)
                                 evalThreadVar
         . yieldWithForcedSelectedNodeEvaluation sink
-        $ #partiallyEvaluated .~ False
+        $ #evaluationStatus .~ Evaluated
         $ newModel
       where
         newModel
@@ -108,7 +115,7 @@ updateModel evalThreadVar action model'
       where
         newModel
             = model
-            & #partiallyEvaluated .~ True
+            & #evaluationStatus .~ PartiallyEvaluated
             & renderDepthFieldLens field .~ newDepth
     updateModel' (ChangeFuelLimit newLimit) model
         = Left . reEvaluateModel evalThreadVar
@@ -128,7 +135,7 @@ updateModel evalThreadVar action model'
                                       evalThreadVar
               . yieldModel sink
               . forceSelectedNodeDefinitions
-              $ #partiallyEvaluated .~ False
+              $ #evaluationStatus .~ Evaluated
               $ newModel
           else Left $ noEff newModel
       where
@@ -152,6 +159,8 @@ updateModel evalThreadVar action model'
             else Right . const $ pure ()
         NewProgramGenerated frugelModel ->
             Left . noEff $ updateWithFrugelModel frugelModel model
+        EvaluationAborted msg ->
+            Left . noEff $ #evaluationStatus .~ Aborted msg $ model
 
 reEvaluateModel
     :: MVar (Maybe (ThreadId, Integer)) -> Model -> Effect Action Model
@@ -174,41 +183,19 @@ reEvaluate :: MVar (Maybe (ThreadId, Integer))
 reEvaluate evalThreadVar
            newFrugelModel
            model@Model{fuelLimit, editableDataVersion}
-           sink = do
-    unlessFinishedIn
+           sink
+    = unlessFinishedIn
         500000 -- half a second
         -- forcing is safe because evaluation had fuel limit
         (yieldModel sink . forceMainExpression
          =<< partialFromFrugelModel (Only fuelLimit) model newFrugelModel)
-        . const
-        . bracketNonTermination (succ editableDataVersion) evalThreadVar
-        -- forcing is safe because inside bracketNonTermination
-        $ yieldWithForcedMainExpression sink
-        =<< fromFrugelModel model newFrugelModel
-
-unlessFinishedIn :: Int -> IO () -> (TimeoutKey -> IO a) -> IO a
-unlessFinishedIn delay handler action = do
-    timerManager <- getSystemTimerManager
-    handlerThreadVar <- newEmptyMVar
-    let handleTimeout = do
-            noExceptionInMainAction <- isEmptyMVar handlerThreadVar
-            -- new thread is required because timeout handlers shouldn't run too long
-            when noExceptionInMainAction . void $ forkIOWithUnmask $ \unmask ->
-                unmask $ do
-                    noExceptionInMainAction2
-                        <- tryPutMVar handlerThreadVar =<< myThreadId
-                    when noExceptionInMainAction2 handler
-        -- safe use of uninterruptibleMask_, because 
-        cleanupTimeout key = uninterruptibleMask_ $ do
-            handlerNotStarted <- tryPutMVar handlerThreadVar
-                $ error
-                    "Timeout handler attempted to evaluate thread id in lock"
-            if handlerNotStarted
-                then unregisterTimeout timerManager key
-                else takeMVar handlerThreadVar >>= killThread
-    bracket (registerTimeout timerManager delay handleTimeout)
-            cleanupTimeout
-            action
+    . bracketNonTermination (succ editableDataVersion) evalThreadVar
+    -- forcing is safe because inside bracketNonTermination
+    $ catch (yieldWithForcedMainExpression sink
+             =<< fromFrugelModel model newFrugelModel)
+            (\(e :: SomeException) -> do
+                 sink $ AsyncAction $ EvaluationAborted $ show e
+                 throwIO e)
 
 yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
 yieldWithForcedMainExpression sink newModel

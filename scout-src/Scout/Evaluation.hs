@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -8,6 +9,9 @@
 
 module Scout.Evaluation where
 
+#if defined(ghcjs_HOST_OS)
+import Control.Concurrent
+#endif
 import Control.Limited
 import Control.Monad.Writer   hiding ( Sum )
 
@@ -64,6 +68,10 @@ evalCstrSite cstrSite = do
 
 evalExpr :: Expr -> Evaluation Expr
 evalExpr expr = do
+    -- for some reason this ensures threads can be interrupted when compiled to JS where yield and -fno-omit-yields don't
+#if defined(ghcjs_HOST_OS)
+    liftIO $ threadDelay 1
+#endif
     eExpr <- evalExpr' expr
     when (expr ^. hasLens @Meta % #focused)
         . tellFragment #focusedNodeEvaluations

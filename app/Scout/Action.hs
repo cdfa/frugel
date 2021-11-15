@@ -21,7 +21,9 @@ data Action
     deriving ( Show, Eq )
 
 data AsyncAction
-    = EvaluationFinished Model | NewProgramGenerated (Frugel.Model Program)
+    = EvaluationFinished Model
+    | NewProgramGenerated (Frugel.Model Program)
+    | EvaluationAborted String
     deriving ( Show, Eq )
 
 data FocusedNodeValueIndexAction = Increment | Decrement

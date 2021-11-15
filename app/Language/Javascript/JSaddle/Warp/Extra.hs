@@ -12,7 +12,10 @@ import Miso.Dev                         ( clearBody )
 import qualified Network.Wai.Application.Static as WaiStatic
 import qualified Network.Wai.Handler.Warp as Warp
 import Network.WebSockets               as WS
+#endif
+-- Split if to make floskell work
 
+#ifndef ghcjs_HOST_OS
 debug :: Int -> FilePath -> JSM () -> IO ()
 debug port dir f = do
     let staticApp
