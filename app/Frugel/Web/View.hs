@@ -1,23 +1,23 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Frugel.View where
+module Frugel.Web.View where
 
 import qualified Data.Sequence as Seq
 
-import Frugel          hiding ( Model(..) )
-import Frugel.View.Elements
-import Frugel.View.Rendering
+import Frugel              hiding ( Model(..) )
+import Frugel.Web.Action
+import qualified Frugel.Web.Internal.Model
+import Frugel.Web.Model
+import Frugel.Web.View.Elements
+import Frugel.Web.View.Rendering
 
-import Miso            hiding ( model, set, view )
+import Miso                hiding ( model, set, view )
 import qualified Miso.String as Miso
 
 import Optics.Extra.Scout
 
-import Scout           hiding ( Evaluated )
-import Scout.Action
-import qualified Scout.Internal.Model
-import Scout.Model
+import Scout               hiding ( Evaluated )
 
 -- import Text.Show.Pretty ( ppShow )
 -- Constructs a virtual DOM from a model

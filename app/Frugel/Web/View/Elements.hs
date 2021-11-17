@@ -1,10 +1,9 @@
-module Frugel.View.Elements where
+module Frugel.Web.View.Elements where
 
-import Frugel.Event
+import Frugel.Web.Action
+import Frugel.Web.Event
 
 import Miso
-
-import Scout.Action
 
 codeSpan :: [Attribute action] -> [View action] -> View action
 codeSpan = span_ . (class_ "code-span" :)

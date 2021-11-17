@@ -4,8 +4,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Scout.Model
-    ( module Scout.Model
+module Frugel.Web.Model
+    ( module Frugel.Web.Model
     , Model(Model)
     , EvaluationStatus(..)
     , EvaluationOutput(EvaluationOutput)
@@ -14,11 +14,11 @@ module Scout.Model
 import qualified Data.MultiSet as MultiSet
 
 import qualified Frugel
+import Frugel.Web.Internal.Model
 
 import Optics.Extra.Scout
 
-import Scout          hiding ( Evaluated, EvaluationStatus )
-import Scout.Internal.Model
+import Scout               hiding ( Evaluated, EvaluationStatus )
 
 initialModel :: Program -> Model
 initialModel p

@@ -149,14 +149,14 @@ executable frugel-exe
   main-is: Main.hs
   other-modules:
       Control.Timeout
-      Frugel.Event
-      Frugel.View
-      Frugel.View.Elements
-      Frugel.View.Rendering
+      Frugel.Web.Action
+      Frugel.Web.Event
+      Frugel.Web.Internal.Model
+      Frugel.Web.Model
+      Frugel.Web.View
+      Frugel.Web.View.Elements
+      Frugel.Web.View.Rendering
       Language.Javascript.JSaddle.Warp.Extra
-      Scout.Action
-      Scout.Internal.Model
-      Scout.Model
   hs-source-dirs:
       app
   default-extensions:

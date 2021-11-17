@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Scout.Internal.Model where
+module Frugel.Web.Internal.Model where
 
 import Optics.Extra.Scout
 

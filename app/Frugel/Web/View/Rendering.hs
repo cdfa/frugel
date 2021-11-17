@@ -1,10 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Frugel.View.Rendering where
+module Frugel.Web.View.Rendering where
 
 import Frugel
-import Frugel.View.Elements              as Elements
+import Frugel.Web.View.Elements          as Elements
 
 import Miso                              hiding ( Node, node, view )
 import qualified Miso.String

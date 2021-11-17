@@ -17,7 +17,10 @@ import Data.Sized
 import Frugel
     hiding ( Model, initialModel, updateModel )
 import qualified Frugel
-import Frugel.View
+import Frugel.Web.Action
+import qualified Frugel.Web.Internal.Model
+import Frugel.Web.Model
+import Frugel.Web.View
 
 import Language.Javascript.JSaddle.Warp.Extra as JSaddleWarp
 
@@ -29,9 +32,6 @@ import Optics.Extra.Scout
 import Prelude
 
 import Scout                            hiding ( Evaluated )
-import Scout.Action
-import qualified Scout.Internal.Model
-import Scout.Model
 
 import Test.QuickCheck.Gen
 

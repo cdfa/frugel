@@ -7,18 +7,17 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Frugel.Event where
+module Frugel.Web.Event where
 
 import Data.Aeson.Types
 
 import Frugel
+import Frugel.Web.Action
 
 import Miso         ( Attribute, Options(..), defaultOptions, onWithOptions )
 import Miso.Event.Decoder hiding ( keyInfoDecoder )
 
 import Optics.Extra.Scout
-
-import Scout.Action
 
 data KeyInfo
     = KeyInfo { key :: !String, shiftKey, metaKey, ctrlKey, altKey :: !Bool }

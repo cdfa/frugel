@@ -1,10 +1,10 @@
-module Scout.Action where
+module Frugel.Web.Action where
 
-import Frugel ( GenericAction )
+import Frugel     ( GenericAction )
 import qualified Frugel
+import Frugel.Web.Model
 
 import Scout
-import Scout.Model
 
 -- The Elm Architecture forces model changes to be centralised. Actions should describe the changes as precisely as possible given their origin
 data Action
