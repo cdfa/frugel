@@ -242,8 +242,10 @@ evalScope decls = do
             = mappend valueEnv <.> itraverse evalDecl
             $ toMapOf (folded % (#name `fanout` #value) % ito id) decls
         evalDecl name value = do
-            valueEither <- Left . fromMaybe evaluationStub
-                <$> draw successfulEvaluation
+            valueEither <- if name `elem` repeated
+                then pure . Left . pure $ duplicateDefinitionStub
+                else Left . fromMaybe evaluationStub
+                    <$> draw successfulEvaluation
             newIORef valueEither
           where
             successfulEvaluation = do
@@ -262,6 +264,9 @@ evalScope decls = do
                             else do
                                 modifyIORef evaluatedDecls (Set.insert name)
                                 evalExpr value
+            duplicateDefinitionStub
+                = exprCstrSite'
+                $ fromList [ Right . ExprNode $ variable' name ]
             evaluationStub :: MonadWriter EvaluationOutput m => m Expr
             evaluationStub
                 = writerFragment
