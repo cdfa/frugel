@@ -135,9 +135,9 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
         (variablesInView model)
         [ div_ [ class_ "card-header" ]
                [ p_ [ class_ "card-header-title" ]
-                    [ "Variables in scope at the cursor up to depth: "
-                    , renderDepthInput Context model
-                    ]
+                    [ "Variables in scope at the cursor" ]
+               , div_ [ class_ "card-header-vertical-padding" ]
+                      [ "depth: ", renderDepthInput Value model ]
                ]
         , div_ [ class_ "card-content" ]
                [ div_ [ class_ "content" ]
@@ -155,9 +155,9 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
         (div_
              [ class_ "card-header" ]
              [ p_ [ class_ "card-header-title" ]
-                  [ "Definitions in scope at the cursor up to depth: "
-                  , renderDepthInput Context model
-                  ]
+                  [ "Definitions in scope at the cursor" ]
+             , div_ [ class_ "card-header-vertical-padding" ]
+                    [ "depth: ", renderDepthInput Value model ]
              , button_
                    [ class_ "card-header-icon", onClick ToggleDefinitionsView ]
                    [ span_
@@ -181,10 +181,9 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                     ]
              ])
     ++ [ div_ [ class_ "card-header" ]
-              [ p_ [ class_ "card-header-title" ]
-                   [ "Focused node value up to depth: "
-                   , renderDepthInput Value model
-                   ]
+              [ p_ [ class_ "card-header-title" ] [ "Focused node value" ]
+              , div_ [ class_ "card-header-vertical-padding" ]
+                     [ "depth: ", renderDepthInput Value model ]
               ]
        , div_ [ class_ "card-content" ]
               [ div_ [ class_ "content" ]
