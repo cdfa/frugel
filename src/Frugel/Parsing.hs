@@ -7,7 +7,7 @@
 module Frugel.Parsing where
 
 import qualified Control.Lens as Lens
-import Control.Monad.Writer
+import Control.Monad.Writer.Strict
 
 import Data.Data
 import Data.Data.Lens

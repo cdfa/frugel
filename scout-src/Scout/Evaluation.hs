@@ -13,7 +13,8 @@ module Scout.Evaluation where
 import Control.Concurrent
 #endif
 import Control.Limited
-import Control.Monad.Writer   hiding ( Sum )
+import Control.Monad.Writer
+    hiding ( Sum ) -- lazy writer is required for laziness
 
 import Data.Alphanumeric
 import Data.Char              ( isDigit )

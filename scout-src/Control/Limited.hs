@@ -24,11 +24,12 @@ module Control.Limited
     , mapLimiterT
     ) where
 
-import Control.Monad.Writer
+import Control.Monad.Fix
+import Control.Monad.Writer.Class
 
 import Optics
 
-import Prelude        hiding ( pass )
+import Prelude              hiding ( pass )
 
 data Limit = Infinity | Only Int
     deriving ( Show, Eq )
