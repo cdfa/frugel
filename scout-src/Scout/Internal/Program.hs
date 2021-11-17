@@ -41,6 +41,7 @@ import Scout.Node
 import qualified Scout.Parsing           as Parsing hiding ( node )
 import Scout.Parsing                     hiding ( expr, node, whereClause )
 import Scout.PrettyPrinting
+import Scout.Truncatable
 
 import Test.QuickCheck.Gen               as QuickCheck
 
@@ -204,6 +205,15 @@ instance Decomposable Program where
         <$> traverseComponents traverseChar traverseNode materials
 
 instance DisplayProjection Program
+
+instance Truncatable Program where
+    truncate 0 _ = program' (truncate 0 $ exprCstrSite' (fromList [])) Nothing
+    truncate depth (ProgramCstrSite meta cstrSite)
+        = ProgramCstrSite meta $ truncate depth cstrSite
+    truncate depth program
+        = program
+        & #expr %~ truncate (depth - 1)
+        & #whereClause % _Just %~ truncate (depth - 1)
 
 instance Validity Program where
     validate

@@ -146,26 +146,6 @@ liftNestedCstrSiteOuterWhitespace
                  . spanl isWhitespaceItem)
                 item
 
-capTree :: Int -> Node -> Node
-capTree 0 (ExprNode e) = ExprNode $ elideExpr e -- use evaluation status for expr, because inspecting it's meta forces the constructor
-capTree 0 n = elide n
-capTree depth n = case n of
-    ExprNode expr -> ExprNode $ capExprTree depth expr
-    DeclNode decl -> DeclNode $ capDecl depth decl
-    WhereNode whereClause -> WhereNode
-        $ _WhereClause % _2 % mapped %~ capDecl depth
-        $ capCstrSiteNodes depth whereClause
-  where
-    capExprTree 0 expr = elideExpr expr
-    capExprTree depth' expr
-        = expr
-        & traversalVL uniplate %~ capExprTree (pred depth')
-        & capCstrSiteNodes depth'
-    capDecl depth'
-        = #value %~ capExprTree (pred depth') . capCstrSiteNodes depth'
-    capCstrSiteNodes depth'
-        = traversalVL (template @_ @Node) %~ capTree (pred depth')
-
 elide :: Has Meta n => n -> n
 elide = hasLens @Meta % #elided .~ True
 

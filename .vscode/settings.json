@@ -24,6 +24,7 @@
         "snoc",
         "stylesheet",
         "traversers",
+        "Truncatable",
         "uncurry",
         "vdom",
         "WHNF"
@@ -36,6 +37,7 @@
         "afolding",
         "atraversal",
         "bulma",
+        "cdfa's",
         "colinderoos",
         "cstr",
         "deepseq",

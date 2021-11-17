@@ -21,8 +21,9 @@ import Data.Sequence  ( (><) )
 
 import GHC.Exts
 
-import Relude         hiding ( Sum, abs, group, newEmptyMVar, newMVar, swapMVar
-                             , takeMVar, toList, tryPutMVar, tryTakeMVar, putMVar )
+import Relude
+    hiding ( Sum, abs, group, newEmptyMVar, newMVar, putMVar, swapMVar, takeMVar
+           , toList, truncate, tryPutMVar, tryTakeMVar )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>

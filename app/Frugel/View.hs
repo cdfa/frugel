@@ -42,9 +42,9 @@ styleSheet path = link_ [ rel_ "stylesheet", href_ path ]
 instructionsView :: Model -> View Action
 instructionsView Model{..}
     = div_ [ class_ "box" ]
-           [ text "Type as usual, use arrow keys to move"
+           [ text "Type as usual, use arrow keys to move, Ctrl+Enter for format"
            , br_ []
-           , text "Fuel limit for evaluation following each keystroke "
+           , text "Fuel for limited evaluation: "
            , input_ [ type_ "number"
                     , value_ . Miso.ms $ show @String fuelLimit
                     , onChange (ChangeFuelLimit
@@ -87,13 +87,17 @@ evaluatedView model@Model{..}
                  Aborted msg ->
                      text $ "Evaluation aborted due to " <> Miso.ms msg ] ]
       , div_ [ class_ "card-header" ]
-             [ p_ [ class_ "card-header-title" ] [ "Full program" ] ]
+             [ p_ [ class_ "card-header-title" ] [ "Full program" ]
+             , div_ [ class_ "card-header-vertical-padding" ]
+                    [ "depth: ", renderDepthInput MainExpression model ]
+             ]
       , div_ [ class_ "card-content" ]
              [ div_ [ class_ "content" ]
                . renderDocStream
                . reAnnotateS toStandardAnnotation
                . layoutPretty defaultLayoutOptions
                . unsafePrettyProgram
+               . truncate mainExpressionRenderDepth
                $ view #evaluated evaluationOutput -- safe because undefined node in top annotation is removed by `reAnnotateS toStandardAnnotation`
              ]
       ]
@@ -137,14 +141,13 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                [ p_ [ class_ "card-header-title" ]
                     [ "Variables in scope at the cursor" ]
                , div_ [ class_ "card-header-vertical-padding" ]
-                      [ "depth: ", renderDepthInput Value model ]
+                      [ "depth: ", renderDepthInput SelectedNodeContext model ]
                ]
         , div_ [ class_ "card-content" ]
                [ div_ [ class_ "content" ]
                  . map (div_ []
                         . renderPretty
-                        . capTree contextRenderDepth
-                        . DeclNode
+                        . truncate contextRenderDepth
                         . uncurry decl')
                  . toList
                  $ view #variables selectedNodeEvaluation
@@ -157,7 +160,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
              [ p_ [ class_ "card-header-title" ]
                   [ "Definitions in scope at the cursor" ]
              , div_ [ class_ "card-header-vertical-padding" ]
-                    [ "depth: ", renderDepthInput Value model ]
+                    [ "depth: ", renderDepthInput SelectedNodeContext model ]
              , button_
                    [ class_ "card-header-icon", onClick ToggleDefinitionsView ]
                    [ span_
@@ -173,8 +176,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                     [ div_ [ class_ "content" ]
                       . map (div_ []
                              . renderPretty
-                             . capTree contextRenderDepth
-                             . DeclNode
+                             . truncate contextRenderDepth
                              . uncurry decl')
                       . toList
                       $ view #definitions selectedNodeEvaluation
@@ -183,12 +185,12 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
     ++ [ div_ [ class_ "card-header" ]
               [ p_ [ class_ "card-header-title" ] [ "Focused node value" ]
               , div_ [ class_ "card-header-vertical-padding" ]
-                     [ "depth: ", renderDepthInput Value model ]
+                     [ "depth: ", renderDepthInput SelectedNodeValue model ]
               ]
        , div_ [ class_ "card-content" ]
               [ div_ [ class_ "content" ]
                 . renderPretty
-                . capTree selectedNodeValueRenderDepth
+                . truncate selectedNodeValueRenderDepth
                 $ view #value selectedNodeEvaluation
               ]
        ]

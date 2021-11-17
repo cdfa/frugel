@@ -23,10 +23,11 @@ import Scout.Internal.Model
 initialModel :: Program -> Model
 initialModel p
     = Model { editableDataVersion = 0
-            , fuelLimit = initialFuelLimit
+            , fuelLimit = 10 -- how long this evaluation with this fuel limit takes is very dependent on the program being evaluated. With this, evaluating `fact2 ...` took 0.43 seconds
             , selectedNodeEvaluationIndex = 0
             , errors = []
             , evaluationStatus = PartiallyEvaluated
+            , mainExpressionRenderDepth = 20
             , selectedNodeValueRenderDepth = 10
             , contextRenderDepth = 5
             , definitionsViewCollapsed = True
@@ -44,23 +45,14 @@ initialModel p
         . Frugel.prettyPrint
         $ Frugel.initialModel p
 
--- Currently, the largest limiting factor on this is that rendering big partially evaluated programs
--- Otherwise it could be 20, which is still to low for real-world programs. To make partial evaluation useful for those, the editor could present iteratively further evaluated programs
-initialFuelLimit :: Int
-initialFuelLimit = 3
-
 updateWithFrugelModel :: Frugel.Model Program -> Model -> Model
 updateWithFrugelModel Frugel.Model{..}
                       Model{program = _, cursorOffset = _, errors = _, ..}
-    = hideSelectedNodeValue
+    = hideEvaluationOutput
     $ Model { editableDataVersion = editableDataVersion + 1
             , program
             , cursorOffset
             , errors = map fromFrugelError errors
-            , evaluationOutput = evaluationOutput { evaluated = program'
-                                                        evaluationPlaceHolder
-                                                        Nothing
-                                                  }
             , ..
             }
 
@@ -111,7 +103,7 @@ forceMainExpression :: Model -> Model
 forceMainExpression model@Model{..} = seq (length errors) model
 
 forceSelectedNodeValue :: Model -> Model
-forceSelectedNodeValue = forceSelectedNodeField Value #value
+forceSelectedNodeValue = forceSelectedNodeField SelectedNodeValue #value
 
 forceSelectedNodeContext :: Model -> Model
 forceSelectedNodeContext model
@@ -121,11 +113,13 @@ forceSelectedNodeContext model
 
 forceSelectedNodeDefinitions :: Model -> Model
 forceSelectedNodeDefinitions
-    = forceSelectedNodeField Context $ #definitions % folded % to ExprNode
+    = forceSelectedNodeField SelectedNodeContext
+    $ #definitions % folded % to ExprNode
 
 forceSelectedNodeVariables :: Model -> Model
 forceSelectedNodeVariables
-    = forceSelectedNodeField Context $ #variables % folded % to ExprNode
+    = forceSelectedNodeField SelectedNodeContext
+    $ #variables % folded % to ExprNode
 
 forceSelectedNodeField :: Is k A_Fold
     => RenderDepthField
@@ -135,17 +129,25 @@ forceSelectedNodeField :: Is k A_Fold
 forceSelectedNodeField field fieldNodes model
     = seq (lengthOf (#selectedNodeEvaluation
                      % castOptic @A_Fold fieldNodes
-                     % to (capTree $ view (renderDepthFieldLens field) model)
+                     % to (truncate $ view (renderDepthFieldLens field) model)
                      % allEvaluatedChildren)
                     model)
           model
+
+hideEvaluationOutput :: Model -> Model
+hideEvaluationOutput = hideMainExpression . hideSelectedNodeEvaluation
+
+hideMainExpression :: Model -> Model
+hideMainExpression
+    = hideEvaluationOutputField $ #evaluationOutput % #evaluated % #expr
 
 hideSelectedNodeEvaluation :: Model -> Model
 hideSelectedNodeEvaluation
     = hideSelectedNodeValue . hideSelectedNodeDefinitions
 
 hideSelectedNodeValue :: Model -> Model
-hideSelectedNodeValue = hideSelectedEvaluationField $ #value % _ExprNode
+hideSelectedNodeValue
+    = hideEvaluationOutputField $ #selectedNodeEvaluation % #value % _ExprNode
 
 hideSelectedNodeContext :: Model -> Model
 hideSelectedNodeContext
@@ -153,38 +155,40 @@ hideSelectedNodeContext
 
 hideSelectedNodeDefinitions :: Model -> Model
 hideSelectedNodeDefinitions
-    = hideSelectedEvaluationField $ #definitions % traversed
+    = hideEvaluationOutputField
+    $ #selectedNodeEvaluation % #definitions % traversed
 
 hideSelectedNodeVariables :: Model -> Model
 hideSelectedNodeVariables
-    = hideSelectedEvaluationField $ #variables % traversed
+    = hideEvaluationOutputField
+    $ #selectedNodeEvaluation % #variables % traversed
 
-hideSelectedEvaluationField :: Is k A_Traversal
-    => Optic' k is FocusedNodeEvaluation Expr
-    -> Model
-    -> Model
-hideSelectedEvaluationField (castOptic @A_Traversal -> fieldNodes) model
+hideEvaluationOutputField
+    :: Is k A_Traversal => Optic' k is Model Expr -> Model -> Model
+hideEvaluationOutputField (castOptic @A_Traversal -> fieldNodes) model
     = model
-    & #selectedNodeEvaluation % fieldNodes .~ evaluationPlaceHolder
+    & fieldNodes .~ evaluationPlaceHolder
     & #evaluationStatus
-    .~ if has (#selectedNodeEvaluation % fieldNodes) model
-       then PartiallyEvaluated
-       else Evaluated
+    .~ if has fieldNodes model then PartiallyEvaluated else Evaluated
 
 evaluationPlaceHolder :: Expr
 evaluationPlaceHolder = exprCstrSite' . toCstrSite . one $ Left "Evaluating..."
 
-data RenderDepthField = Value | Context
+data RenderDepthField
+    = MainExpression | SelectedNodeValue | SelectedNodeContext
     deriving ( Show, Eq )
 
 renderDepthFieldLens :: RenderDepthField -> Lens' Model Int
-renderDepthFieldLens Value = #selectedNodeValueRenderDepth
-renderDepthFieldLens Context = #contextRenderDepth
+renderDepthFieldLens MainExpression = #mainExpressionRenderDepth
+renderDepthFieldLens SelectedNodeValue = #selectedNodeValueRenderDepth
+renderDepthFieldLens SelectedNodeContext = #contextRenderDepth
 
 forceFieldValues :: RenderDepthField -> Model -> Model
-forceFieldValues Value = forceSelectedNodeValue
-forceFieldValues Context = forceSelectedNodeContext
+forceFieldValues MainExpression = forceMainExpression
+forceFieldValues SelectedNodeValue = forceSelectedNodeValue
+forceFieldValues SelectedNodeContext = forceSelectedNodeContext
 
 hideFieldValues :: RenderDepthField -> Model -> Model
-hideFieldValues Value = hideSelectedNodeValue
-hideFieldValues Context = hideSelectedNodeContext
+hideFieldValues MainExpression = hideMainExpression
+hideFieldValues SelectedNodeValue = hideSelectedNodeValue
+hideFieldValues SelectedNodeContext = hideSelectedNodeContext

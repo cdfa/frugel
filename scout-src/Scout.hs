@@ -6,6 +6,7 @@ module Scout
     , module Control.Limited
     , module Scout.PrettyPrinting
     , module Scout.Unbound
+    , module Scout.Truncatable
     ) where
 
 import Control.Limited
@@ -15,4 +16,5 @@ import Scout.Evaluation
 import Scout.Node     hiding ( EvaluationOutput(..) )
 import Scout.PrettyPrinting
 import Scout.Program
+import Scout.Truncatable
 import Scout.Unbound

@@ -100,7 +100,7 @@ updateModel evalThreadVar action model'
             = Seq.length
             $ view (#evaluationOutput % #focusedNodeEvaluations) model
     updateModel' (ChangeFieldRenderDepth field newDepth) model
-        = if field == Value || contextInView model
+        = if field == SelectedNodeValue || contextInView model
           then Left
               . effectSub
                   (hideFieldValues field newModel & #editableDataVersion +~ 1)
