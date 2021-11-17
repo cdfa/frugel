@@ -1,7 +1,7 @@
 {
     "style": "cramer",
     "extensions": ["OverloadedLabels"],
-    "fixities": [],
+    "fixities": ["infixr 8 .:.", "infixr 9 #.", "infixr 8 .#"],
     "formatting": {
         "op": {
             ",": {
@@ -162,7 +162,7 @@
             "import-module": false,
             "import-spec": true,
             "class": false,
-            "record-fields": true
+            "record-fields": false
         },
         "options": {
             "sort-pragmas": true,

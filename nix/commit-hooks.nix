@@ -1,17 +1,21 @@
-{ stablePkgs, floskell }:
+{ pkgs, weeder }:
+let
+  inherit (import ./scripts.nix { inherit pkgs; }) regen-hie-script;
+in
+with pkgs;
 {
   floskellHook = {
     enable = false;
     name = "Floskell";
     description = "A flexible Haskell source code pretty printer.";
-    entry = "${floskell}/bin/floskell";
-    files = "^(?!^src\\/Optics\\/External).*\\.l?hs$";
+    entry = "${haskellPackages.floskell}/bin/floskell";
+    files = "\\.l?hs$";
   };
   floskellConfigChangeHook = {
     enable = false;
     name = "Floskell config change";
     description = "Reformatting all Haskell files because the Floskell config has changed";
-    entry = "${stablePkgs.bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${stablePkgs.coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${stablePkgs.gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
+    entry = "${bash}/bin/bash -c 'shopt -s globstar; ${haskellPackages.floskell}/bin/floskell $(${coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
     files = "floskell.json$";
     pass_filenames = false;
   };
@@ -21,6 +25,14 @@
     description = "A build of the project.";
     entry = "nix-build";
     files = "package\\.yaml$";
+    pass_filenames = false;
+  };
+  weederHook = {
+    enable = false;
+    name = "weeder";
+    description = "Check dead code";
+    entry = "${direnv}/bin/direnv exec . ${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie ; ${weeder}/bin/weeder'";
+    files = "\\.l?hs$";
     pass_filenames = false;
   };
 }

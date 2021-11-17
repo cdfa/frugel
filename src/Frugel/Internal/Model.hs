@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -12,8 +11,8 @@ module Frugel.Internal.Model where
 
 import Frugel.Error
 
-import Optics.Extra
+import Optics
 
 data Model p = Model { cursorOffset :: Int, program :: p, errors :: [Error p] }
 
-makeFieldLabelsWith noPrefixFieldLabels ''Model
+makeFieldLabelsNoPrefix ''Model

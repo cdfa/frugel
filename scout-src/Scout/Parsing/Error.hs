@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 
 import Frugel.DisplayProjection
 
-import Optics.Extra
+import Optics
 
 import Scout.Node
 
@@ -89,12 +89,6 @@ showErrorFancy = \case
             GT -> "greater than "
     ErrorCustom a -> absurd a
 
--- | Get length of the “pointer” to display under a given 'ErrorFancy'.
-errorFancyLength :: ShowErrorComponent e => ErrorFancy e -> Int
-errorFancyLength = \case
-    ErrorCustom a -> errorComponentLen a
-    _ -> 1
-
 -- | Transforms a list of error messages into their textual representation.
 messageItemsPretty ::
     -- | Prefix to prepend
@@ -107,4 +101,5 @@ messageItemsPretty prefix ts | null ts = ""
 orList :: NonEmpty (Doc Annotation) -> Doc Annotation
 orList (x :| []) = x
 orList (x :| [y]) = x <> " or " <> y
-orList xs = cat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs
+orList xs
+    = fillCat (punctuate ", " (toList $ NE.init xs)) <> ", or " <> last xs

@@ -1,4 +1,4 @@
-module Control.ValidEnumerable.Whitespace where
+module Data.Whitespace where
 
 import Control.Enumerable.Combinators
 import Control.Sized

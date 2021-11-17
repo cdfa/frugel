@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -12,7 +10,7 @@ import Data.Char
 import Data.Has
 import qualified Data.Set as Set
 
-import Optics.Extra
+import Optics.Extra.Scout
 
 import Scout.Node
 
@@ -40,7 +38,7 @@ setWhitespace (whitespaceFragments, a)
     & (hasLens @Meta @a % #interstitialWhitespace)
     .~ reverse whitespaceFragments
 
-infixl 4 <$%>, <$%, <*%>, <*%
+infixl 4 <$%>, <$%, <*%>, <*%, *%>
 
 (<$%>) :: Functor f => (a -> b) -> f a -> f (WithWhitespace b)
 (<$%>) f fa = second f . noWhitespace <$> fa
@@ -77,11 +75,10 @@ wSome fa = bimap reverse fromList <$> wSome'
         = second . cons <$> fa
         <*> (try (first . cons <$> whitespaceToken <*> wSome')
              <|> pure (noWhitespace []))
-
-wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
-    => m a
-    -> m (WithWhitespace [a])
-wMany fa = toList <<$>> wSome fa <|> pure (noWhitespace [])
+-- wMany :: (MonadParsec e s m, Token s ~ Either Char Node)
+--     => m a
+--     -> m (WithWhitespace [a])
+-- wMany fa = toList <<$>> wSome fa <|> pure (noWhitespace [])
 -- wOptional
 --     :: MonadPlus m => m (WithWhitespace a) -> m (WithWhitespace (Maybe a))
 -- wOptional fa = Just <<$>> fa <|> pure (noWhitespace Nothing)

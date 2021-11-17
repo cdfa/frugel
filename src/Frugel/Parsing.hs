@@ -7,7 +7,7 @@
 module Frugel.Parsing where
 
 import qualified Control.Lens as Lens
-import Control.Monad.Writer
+import Control.Monad.Writer.Strict
 
 import Data.Data
 import Data.Data.Lens
@@ -17,11 +17,11 @@ import Data.Set.Optics
 import Frugel.CstrSite
 import Frugel.Decomposition
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 class Ord (ParseErrorOf p) => Parseable p where
-    type ParserOf p :: * -> *
-    type ParseErrorOf p :: *
+    type ParserOf p :: Type -> Type
+    type ParseErrorOf p :: Type
     programParser :: (ParserOf p) p
     anyNodeParser :: (ParserOf p) (NodeOf p)
     runParser :: (ParserOf p) n

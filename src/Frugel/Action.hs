@@ -1,26 +1,20 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Frugel.Action where
 
 import Control.Lens.Plated
-import Control.ValidEnumerable
 import Control.Zipper.Seq    hiding ( insert )
 import qualified Control.Zipper.Seq as SeqZipper
 
 import Data.Data
 import Data.Data.Lens
+import Data.Sequence.Optics
 import qualified Data.Set    as Set
-import Data.Sized
 
 import Frugel.CstrSite
 import Frugel.Decomposition  hiding ( ModificationStatus(..) )
@@ -32,16 +26,9 @@ import Frugel.Parsing
 import Frugel.PrettyPrinting hiding ( prettyPrint )
 import qualified Frugel.PrettyPrinting as PrettyPrinting
 
-import Miso                  hiding ( focus, model, node, set, view )
-import qualified Miso        hiding ( set )
-
-import Optics.Extra
+import Optics.Extra.Frugel
 
 import Prettyprinter.Render.String
-
-import Test.QuickCheck.Gen
-
-import qualified Text.Megaparsec as Megaparsec
 
 data EditResult = Success | Failure
     deriving ( Show, Eq )
@@ -49,16 +36,8 @@ data EditResult = Success | Failure
 data Direction = Leftward | Rightward | Upward | Downward
     deriving ( Show, Eq )
 
-data Action p
-    = Init
-    | GenerateRandom
-    | NewModel (Model p)
-    | Log String
-    | Insert Char
-    | Delete
-    | Backspace
-    | Move Direction
-    | PrettyPrint
+data GenericAction = Insert Char | Delete | Backspace | Move Direction
+    deriving ( Show, Eq )
 
 class ( Data p
       , Data (NodeOf p)
@@ -67,52 +46,41 @@ class ( Data p
       , CstrSiteNode p
       , CstrSiteNode (NodeOf p)
       , Parseable p
-      , PrettyPrint p
       ) => Editable p
 
-deriving instance (Ord (Megaparsec.Token s), Ord e)
-    => Ord (Megaparsec.ParseError s e)
-
--- Updates model, optionally introduces side effects
 updateModel :: forall p.
-    (Editable p, DisplayProjection p, ValidEnumerable (Sized 500 p))
-    => Action p
+    (Editable p, DisplayProjection p)
+    => GenericAction
     -> Model p
-    -> Effect (Action p) (Model p)
-updateModel Init model
-    = fromTransition (scheduleIO_ $ Miso.focus "code-root") model
-updateModel GenerateRandom model = model <# do
-    NewModel . flip (set #program) model
-        <$> (liftIO . unSized <.> generate @(Sized 500 p) $ uniformValid 500)
-updateModel (NewModel model) _ = noEff model
-updateModel (Log msg) model
-    = fromTransition (scheduleIO_ . consoleLog $ show msg) model
-updateModel (Insert c) model = noEff $ insert c model
-updateModel Delete model = noEff $ delete model
-updateModel Backspace model = noEff $ backspace model
-updateModel (Move direction) model = noEff $ moveCursor direction model
-updateModel PrettyPrint model = noEff $ prettyPrint model
+    -> (EditResult, Model p)
+updateModel (Insert c) model = insert c model
+updateModel Delete model = delete model
+updateModel Backspace model = backspace model
+updateModel (Move direction) model = moveCursor direction model
 
-insert :: (Editable p) => Char -> Model p -> Model p
-insert c model
-    = case attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
-                        $ view #cursorOffset model)
-                       model of
-        (Success, newModel) -> newModel & #cursorOffset +~ 1
-        (Failure, newModel) -> newModel
+insert :: Editable p => Char -> Model p -> (EditResult, Model p)
+insert c model = case editResult of
+    Success -> edited & _2 % #cursorOffset +~ 1
+    Failure -> edited
+  where
+    edited@(editResult, _)
+        = attemptEdit (zipperAtCursor (Just . SeqZipper.insert (Left c))
+                       $ view #cursorOffset model)
+                      model
 
--- This only works as long as there is always characters (or nothing) after nodes in construction sites
--- and idem for backspace
-delete :: (Editable p) => Model p -> Model p
-delete model@Model{..}
-    = case attemptEdit
-        (zipperAtCursor (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
-                        cursorOffset)
-        model of
-        (Success, newModel) -> newModel
-        (Failure, newModel) -> newModel & #errors .~ errors
+delete :: Editable p => Model p -> (EditResult, Model p)
+delete model@Model{..} = case editResult of
+    Success -> edited
+    Failure -> edited & _2 % #errors .~ errors
+  where
+    edited@(editResult, _)
+        = attemptEdit
+            (zipperAtCursor
+                 (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
+                 cursorOffset)
+            model
 
-backspace :: (Editable p) => Model p -> Model p
+backspace :: Editable p => Model p -> (EditResult, Model p)
 
 -- when the bad default of "exiting" after a node when transformation failed is fixed
 -- backspace model
@@ -123,17 +91,21 @@ backspace :: (Editable p) => Model p -> Model p
 --         (Failure, newModel) -> newModel & #errors .~ []
 backspace model
     | view #cursorOffset model > 0
-        = snd
-        . attemptEdit
+        = attemptEdit
             (zipperAtCursor
                  (suffixTail <=< guarded (is $ #suffix % ix 0 % _Left))
                  (view #cursorOffset model - 1))
         $ over #cursorOffset (subtract 1) model
-backspace model = model
+backspace model = (Failure, model)
 
-moveCursor :: DisplayProjection p => Direction -> Model p -> Model p
-moveCursor direction model = model & #cursorOffset %~ updateOffset
+moveCursor
+    :: DisplayProjection p => Direction -> Model p -> (EditResult, Model p)
+moveCursor direction model@Model{..}
+    = ( if cursorOffset == newOffset then Failure else Success
+      , model & #cursorOffset .~ newOffset
+      )
   where
+    newOffset = updateOffset cursorOffset
     updateOffset = case direction of
         Leftward -> max 0 . subtract 1
         Rightward -> min (length programText) . (+ 1)
@@ -156,10 +128,9 @@ moveCursor direction model = model & #cursorOffset %~ updateOffset
     currentOffset = view #cursorOffset model
     -- uses layoutPretty for consistency with view
     programText
-        = renderString . layoutPretty defaultLayoutOptions . renderDoc
-        $ view #program model
+        = renderString . layoutPretty defaultLayoutOptions $ renderDoc program
 
-prettyPrint :: forall p. Editable p => Model p -> Model p
+prettyPrint :: (Editable p, PrettyPrint p) => Model p -> Model p
 prettyPrint model@Model{..}
     = model
     & #program .~ newProgram
@@ -207,10 +178,18 @@ attemptEdit
             newErrors
                 = Set.union errors . Set.unions . fmap fromFoldable
                 $ lefts parses
-            parses
-                = map (\cstrSite ->
-                       second (cstrSite, ) $ runParser @p parser cstrSite)
-                      cstrSiteBucket
+            parses = map (\cstrSite -> second
+                              ( CstrSite
+                                $ seqOf (_CstrSite
+                                         % folded
+                                         % (filtered isLeft `failing` _Right
+                                            % to decompose
+                                            % _CstrSite
+                                            % folded))
+                                        cstrSite
+                              ,
+                              )
+                          $ runParser @p parser cstrSite) cstrSiteBucket
 
 flattenConstructionSites :: forall n.
     ( Data n
@@ -245,9 +224,6 @@ zipperAtCursor :: (Decomposable p, CstrSiteNode p)
     -> Int
     -> p
     -> Either (InternalError p) p
-zipperAtCursor f
-    = modifyNodeAt (\cstrSiteOffset materials ->
-                    maybeToRight (CstrSiteActionFailed cstrSiteOffset materials)
-                    $ traverseOf _CstrSite
-                                 (rezip <.> f <=< unzipTo cstrSiteOffset)
-                                 materials)
+zipperAtCursor f = traverseNodeAt $ \cstrSiteOffset materials -> maybeToRight
+    (CstrSiteActionFailed cstrSiteOffset materials)
+    $ traverseOf _CstrSite (rezip <.> f <=< unzipTo cstrSiteOffset) materials

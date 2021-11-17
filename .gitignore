@@ -1,6 +1,6 @@
 result
-*.cabal
 .pre-commit-config.yaml
+.hie
 
 dist
 dist-*

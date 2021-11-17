@@ -1,25 +1,56 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
-module Frugel.View where
+module Frugel.Web.View.Rendering where
 
 import Frugel
-import Frugel.View.Elements              as Elements
-import Frugel.View.ViewModel             as ViewModel
+import Frugel.Web.View.Elements          as Elements
 
-import Miso                              hiding ( node, view )
+import Miso                              hiding ( Node, node, view )
 import qualified Miso.String
 
-import Optics.Extra                      hiding ( views )
+import Optics.Extra.Scout                hiding ( views )
 
 import Prelude                           hiding ( lines )
 
 import Prettyprinter.Render.Util.SimpleDocTree
 
-webPrint :: Miso.String.ToMisoString a => a -> View (Action p)
-webPrint x = pre_ [] [ text $ Miso.String.ms x ]
+import Scout.PrettyPrinting
 
-renderSmart :: SimpleDocStream Annotation -> [View (Action p)]
-renderSmart
+data DocTextTree
+    = TextLeaf Text | LineLeaf | Annotated Annotation [DocTextTree]
+    deriving ( Show, Eq )
+
+data AnnotationTree = Leaf Text | Node Annotation [AnnotationTree]
+    deriving ( Show, Eq )
+
+newtype Line = Line [AnnotationTree]
+    deriving ( Show, Eq )
+
+makePrisms ''DocTextTree
+
+makePrisms ''Line
+
+isEmptyTree :: DocTextTree -> Bool
+isEmptyTree = \case
+    TextLeaf "" -> True
+    Annotated Cursor _ -> False
+    Annotated (CompletionAnnotation InConstruction) _ -> False
+    Annotated _ [] -> True
+    Annotated _ trees -> all isEmptyTree trees
+    _ -> False
+
+renderPretty :: AnnotatedPretty a => a -> [View action]
+renderPretty
+    = renderDocStream
+    . reAnnotateS toStandardAnnotation
+    . layoutPretty defaultLayoutOptions
+    . annPretty
+
+-- instead of rendering to a SimpleDocStream and converting back to a tree with `treeForm`, `renderDoc` could be made to produce DocTextTree's directly, which would speed up rendering a bit
+-- it would also be simpler (and probably faster) to intersperse additional SAnnPop's and SAnnPush's around SLine's using a renderFunction which counts annotation levels instead of what `splitMultiLineAnnotations` does
+renderDocStream :: SimpleDocStream Annotation -> [View action]
+renderDocStream
     = renderTrees
     . annotationTreeForm
     . splitMultiLineAnnotations
@@ -27,26 +58,7 @@ renderSmart
     . textTreeForm
     . treeForm
 
-insertCursor :: Int -> SimpleDocStream Annotation -> SimpleDocStream Annotation
-insertCursor 0 s = SAnnPush Frugel.Cursor $ SAnnPop s
-insertCursor offset s = case s of
-    SFail -> error "Encountered SFail in DocStream"
-    SEmpty -> error
-        ("offset " <> show offset <> " was out of bounds for the DocStream")
-    (SChar c s') -> SChar c $ insertCursor (offset - 1) s'
-    (SText len txt s')
-        | offset > len -> SText len txt $ insertCursor (offset - len) s'
-    (SText _ txt s') -> insertCursor offset . foldr SChar s' $ toString txt
-    (SLine nextLineIndent s')
-        | offset > 1 + nextLineIndent -> SLine nextLineIndent
-            $ insertCursor (offset - 1 - nextLineIndent) s'
-    (SLine nextLineIndent s') -> SLine 0
-        $ insertCursor (offset - 1)
-        $ SText nextLineIndent (toText $ replicate nextLineIndent ' ') s'
-    (SAnnPush ann s') -> SAnnPush ann $ insertCursor offset s'
-    (SAnnPop s') -> SAnnPop $ insertCursor offset s'
-
-textTreeForm :: SimpleDocTree Annotation -> [DocTextTree Annotation]
+textTreeForm :: SimpleDocTree Annotation -> [DocTextTree]
 textTreeForm = \case
     STEmpty -> one $ TextLeaf ""
     STChar '\n' -> one LineLeaf -- Normally, there would be no newlines in STChar, but these are explicitly inserted by renderCstrSite' to prevent insertion of extra whitespace when pretty printing construction sites which are `nest`ed
@@ -56,13 +68,13 @@ textTreeForm = \case
     STAnn ann content -> one . Annotated ann $ textTreeForm content
     STConcat contents -> concatMap textTreeForm contents
 
-textLeavesConcat :: [DocTextTree ann] -> [DocTextTree ann]
-textLeavesConcat
-    = over (mapped % _Annotated % _2)
-           (textLeavesConcat . concatByPrism _TextLeaf)
+-- for some reason eta-reduction here causes an "Unexpected lambda in case"
+textLeavesConcat :: [DocTextTree] -> [DocTextTree]
+textLeavesConcat trees
+    = over (mapped % _Annotated % _2) textLeavesConcat
+    $ concatByPrism _TextLeaf trees
 
-splitMultiLineAnnotations
-    :: [DocTextTree Annotation] -> [DocTextTree Annotation]
+splitMultiLineAnnotations :: [DocTextTree] -> [DocTextTree]
 splitMultiLineAnnotations = foldMap $ \case
     TextLeaf t -> [ TextLeaf t ]
     LineLeaf -> [ LineLeaf ]
@@ -73,6 +85,7 @@ splitMultiLineAnnotations = foldMap $ \case
         . reAnnotateTrees completionStatus
         . splitOn LineLeaf
         $ splitMultiLineAnnotations trees
+    tree@(Annotated Elided _) -> [ tree ]
   where
     reAnnotateTrees completionStatus ((firstLine :< middleLines) :> lastLine)
         = reannotate firstLine
@@ -82,7 +95,7 @@ splitMultiLineAnnotations = foldMap $ \case
     reAnnotateTrees completionStatus treeLines
         = map (Annotated $ CompletionAnnotation completionStatus) treeLines -- length treeLines <= 1
 
-annotationTreeForm :: [DocTextTree Annotation] -> [Line]
+annotationTreeForm :: [DocTextTree] -> [Line]
 annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
   where
     transform = \case
@@ -90,19 +103,20 @@ annotationTreeForm = map (Line . map transform) . splitOn LineLeaf
         LineLeaf -> error "unexpected LineLeaf"
         Annotated ann trees -> Node ann $ map transform trees
 
-renderTrees :: [Line] -> [View (Action p)]
+renderTrees :: [Line] -> [View action]
 renderTrees = map (Elements.line [] . map renderTree . view _Line)
 
-renderTree :: AnnotationTree -> View (Action p)
+renderTree :: AnnotationTree -> View action
 renderTree = \case
-    Leaf t -> text $ Miso.String.ms t
+    Leaf t -> text $ Miso.String.ms t -- ms required on GHCJS
     Node annotation@(CompletionAnnotation InConstruction) [] ->
         renderTree $ Node annotation [ Leaf " " ] -- Ghost space instead of messing with CSS
     Node annotation subTrees ->
         encloseInTagFor annotation $ map renderTree subTrees
 
-encloseInTagFor :: Annotation -> [View (Action p)] -> View (Action p)
+encloseInTagFor :: Annotation -> [View action] -> View action
 encloseInTagFor ann views = case ann of
     CompletionAnnotation InConstruction -> inConstruction [] views
     CompletionAnnotation Complete -> complete [] views
     Cursor -> caret [] []
+    Elided -> elided [] views

@@ -16,7 +16,7 @@ import Frugel.CstrSite
 import Frugel.Decomposition
 import Frugel.Error.InternalError
 
-import Optics.Extra
+import Optics.Extra.Frugel
 
 import Prettyprinter
 import Prettyprinter.Internal.Type ( Doc(Char) )
@@ -27,6 +27,7 @@ data CompletionStatus = InConstruction | Complete
 data Annotation
     = CompletionAnnotation CompletionStatus
     | Cursor -- Cursor is only supposed to be inserted into SimpleDocStream before rendering. Any contents will be discarded.
+    | Elided -- See comment on elided field of Meta
     deriving ( Show, Eq, Data )
 
 annotateInConstruction, annotateComplete :: Doc Annotation -> Doc Annotation

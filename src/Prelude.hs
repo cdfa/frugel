@@ -1,15 +1,29 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
-module Prelude ( module Prelude, module Relude, (><), toList, dup ) where
+module Prelude
+    ( module Prelude
+    , module Relude
+    , module Control.Monad.Reader
+    , (><)
+    , toList
+    , dup
+    ) where
+
+import Control.Monad.Reader
+    ( MonadReader(..), Reader, ReaderT(ReaderT), asks, mapReader, mapReaderT
+    , runReader, runReaderT, withReader, withReaderT )
 
 import qualified Data.Foldable as Foldable
-import Data.List    ( groupBy )
-import Data.Sequence ( (><) )
+import Data.List      ( groupBy )
+import Data.Sequence  ( (><) )
 
 import GHC.Exts
 
-import Relude       hiding ( Sum, abs, group, toList )
+import Relude
+    hiding ( Sum, abs, group, newEmptyMVar, newMVar, putMVar, swapMVar, takeMVar
+           , toList, truncate, tryPutMVar, tryTakeMVar )
 import Relude.Extra.Tuple
 
 infixl 4 <<$>
@@ -22,19 +36,25 @@ infixr 9 <.>
 (<.>) :: Functor f => (a -> b) -> (c -> f a) -> c -> f b
 f1 <.> f2 = fmap f1 . f2
 
-infixl 4 <<*>>
-
-(<<*>>)
-    :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
-(<<*>>) = liftA2 (<*>)
-
-lift2 :: forall (s :: (* -> *)
-                 -> *
-                 -> *) t m a.
+lift2 :: forall (s :: (Type -> Type)
+                 -> Type
+                 -> Type) t m a.
     (MonadTrans s, MonadTrans t, Monad (t m), Monad m)
     => m a
     -> s (t m) a
 lift2 = lift . lift
+
+-- From https://hackage.haskell.org/package/utility-ht-0.0.16/docs/src/Data.Function.HT.Private.html#nest
+{-# INLINE nTimes #-}
+nTimes :: Int -> (a -> a) -> a -> a
+nTimes 0 _ x = x
+nTimes n f x = f (nTimes (n - 1) f x)
+
+applyWhen :: Bool -> (a -> a) -> a -> a
+applyWhen condition f = chain @Maybe (f <$ guard condition)
+
+chain :: Foldable t => t (a -> a) -> a -> a
+chain = foldr (.) id
 
 -- >>> concatBy leftToMaybe Left [Left "h", Left "i", Right 1]
 -- [Left "hi",Right 1]
@@ -54,6 +74,9 @@ spanMaybe _ xs@[] = ([], xs)
 spanMaybe p xs@(x : xs') = case p x of
     Just y -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
     Nothing -> ([], xs)
+
+spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p = swap . bimap reverse reverse . span p . reverse
 
 -- Modified from https://hackage.haskell.org/package/hledger-lib-1.20.4/docs/src/Hledger.Utils.html#splitAtElement
 -- >>> splitOn ' ' " switch   the accumulator to the other mode   "
