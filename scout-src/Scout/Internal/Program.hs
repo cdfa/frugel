@@ -167,15 +167,26 @@ instance PrettyPrint Program where
             => Parser n
             -> n
             -> (n, Set ParseError)
-        reparse parser node = decompose node & \cstrSite -> either
-            (reparseNestedCstrSites @Program reparse (cstrSite, node)
-             . fromFoldable)
-            (\newNode -> set _1 newNode
-             $ reparseNestedCstrSites @Program
-                                      reparse
-                                      (cstrSite, setCstrSite cstrSite node)
-                                      mempty)
-            $ runParser @Program parser cstrSite
+        reparse parser node
+            = let cstrSite = decompose node
+              in either
+                     (reparseNestedCstrSites @Program reparse (cstrSite, node)
+                      . fromFoldable)
+                      -- reparsing nested construction sites is a bit ridiculous, but can't find other fast way to get parse errors from parsing nested construction sites
+                     (\newNode ->
+                      ( fst
+                        $ reparseNestedCstrSites @Program
+                                                 reparse
+                                                 (cstrSite, newNode)
+                                                 mempty
+                      , snd
+                        $ reparseNestedCstrSites
+                            @Program
+                            reparse
+                            (cstrSite, setCstrSite cstrSite node)
+                            mempty
+                      ))
+                 $ runParser @Program parser cstrSite
 
 unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
