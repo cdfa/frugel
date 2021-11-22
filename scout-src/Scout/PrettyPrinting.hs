@@ -53,14 +53,14 @@ instance AnnotatedPretty Expr where
         $ \expr -> case expr of
             Variable _ n -> pretty n
             Abstraction _ arg subExp -> backslash
-                <> pretty arg `nestingLine` equals
-                <+> annPretty (prettyUnary expr subExp)
+                <> pretty arg
+                `nestingLine` (equals <+> annPretty (prettyUnary expr subExp))
             Application _ function arg -> uncurry nestingLine
                 $ both %~ annPretty
                 $ prettyBinary expr function arg
-            Sum _ left right ->
-                (\(left', right') -> annPretty left' `nestingLine` "+"
-                 <+> annPretty right') $ prettyBinary expr left right
+            Sum _ left right -> (\(left', right') -> annPretty left'
+                                 `nestingLine` ("+" <+> annPretty right'))
+                $ prettyBinary expr left right
             ExprCstrSite _ contents ->
                 prettyCstrSite (ExprNode expr) annPretty contents
       where
