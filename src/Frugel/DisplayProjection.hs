@@ -19,7 +19,7 @@ import Frugel.Error.InternalError
 import Optics.Extra.Frugel
 
 import Prettyprinter
-import Prettyprinter.Internal.Type ( Doc(Char) )
+import Prettyprinter.Internal.Type ( Doc(Char, Union) )
 
 data CompletionStatus = InConstruction | Complete
     deriving ( Show, Eq, Data )
@@ -92,4 +92,4 @@ renderCstrSite' inConstruction complete prettyNode (CstrSite contents)
     prettyChar c = pretty c
 
 nestingLine :: Doc ann -> Doc ann -> Doc ann
-nestingLine x y = x <> nest 4 (softline <> y)
+nestingLine x y = x <> Union (pretty ' ' <> y) (nest 4 $ line <> y)
