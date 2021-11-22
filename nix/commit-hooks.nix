@@ -1,7 +1,4 @@
-{ pkgs, weeder }:
-let
-  inherit (import ./scripts.nix { inherit pkgs; }) regen-hie-script;
-in
+{ pkgs }:
 with pkgs;
 {
   floskellHook = {
@@ -31,7 +28,7 @@ with pkgs;
     enable = false;
     name = "weeder";
     description = "Check dead code";
-    entry = "${direnv}/bin/direnv exec . ${bash}/bin/bash -c '${regen-hie-script}/bin/regen-hie ; ${weeder}/bin/weeder'";
+    entry = "${direnv}/bin/direnv exec . bash -c 'regen-hie ; weeder --require-hs-files'";
     files = "\\.l?hs$";
     pass_filenames = false;
   };

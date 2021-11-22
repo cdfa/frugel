@@ -7,19 +7,10 @@ let
 
   hsPkgs = import ./base.nix { inherit pkgs ghc; };
 
-  weeder = (
-    pkgs.haskell-nix.hackage-package
-      {
-        compiler-nix-name = ghc;
-        name = "weeder";
-        version = "latest";
-      }
-  ).components.exes.weeder;
-
   nix-pre-commit-hooks = import "${sources."pre-commit-hooks.nix"}/nix" { nixpkgs = haskellNix.sources.nixpkgs-unstable; };
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
-    hooks = with import ./nix/commit-hooks.nix { inherit pkgs weeder; }; {
+    hooks = with import ./nix/commit-hooks.nix { inherit pkgs; }; {
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
@@ -53,8 +44,15 @@ hsPkgs.shellFor {
     ghcid
     stack
     git # required by pre-commit-check shell hook
-    weeder
     dhall-lsp-server
+    (
+      pkgs.haskell-nix.hackage-package
+        {
+          compiler-nix-name = ghc;
+          name = "weeder";
+          version = "2.2.0";
+        }
+    ).components.exes.weeder
     (
       pkgs.haskell-nix.hackage-package
         {
@@ -69,7 +67,7 @@ hsPkgs.shellFor {
           compiler-nix-name = ghc;
           name = "haskell-language-server";
           version = "latest";
-          configureArgs = "-frename";
+          configureArgs = "-frename --allow-newer=hls-rename-plugin:ghcide";
         }
     ).components.exes.haskell-language-server
   ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs; });
