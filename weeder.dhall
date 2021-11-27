@@ -8,6 +8,7 @@
   , "^Optics.Writer.*"
   , "^Scout.Node.*"
   , "^Optics.ReadOnly.VL.*"
+  , "^BasicEvaluation.*"
   , "^Paths_.*"
   ]
 , type-class-roots = True

@@ -66,6 +66,7 @@ internal-libraries:
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
     source-dirs: scout-src
+    other-modules: BasicEvaluation
     dependencies:
       - frugel
       - megaparsec ^>= 9.0.1
