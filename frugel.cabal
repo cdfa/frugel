@@ -169,7 +169,8 @@ executable frugel-exe
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wcompat -Widentities -Wredundant-constraints -fhide-source-paths -fno-show-valid-hole-fits -j -threaded -rtsopts "-with-rtsopts=--nonmoving-gc -A16M -M3G -N -Mgrace=16M" -feager-blackholing
   ghcjs-options: -dedupe "-with-rtsopts=--nonmoving-gc -N"
   build-depends:
-      QuickCheck
+      Interpolation
+    , QuickCheck
     , aeson
     , composition
     , frugel

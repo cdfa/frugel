@@ -20,6 +20,7 @@ data Model
             , cursorOffset :: Int
             , program :: Program
             , errors :: [Error]
+            , showHelp :: Bool
             , fuelLimit :: Int
             , selectedNodeEvaluationIndex :: Int
             , mainExpressionRenderDepth :: Int

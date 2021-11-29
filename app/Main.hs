@@ -61,17 +61,16 @@ updateModel :: MVar (Maybe (ThreadId, Integer))
     -> Action
     -> Model
     -> Effect Action Model
-updateModel evalThreadVar action model'
-    = either id (effectSub model') $ updateModel' action model'
-  where
-    updateModel' Init model = Right $ \sink -> do
-        focus "code-root"
-        liftIO
-            $ reEvaluate evalThreadVar
-                         (toFrugelModel model)
-                         (model & #editableDataVersion -~ 1)
-                         sink
-    updateModel' GenerateRandom model = Right $ \sink -> liftIO $ do
+updateModel evalThreadVar Init model = effectSub model $ \sink -> do
+    focus "code-root"
+    liftIO
+        $ reEvaluate evalThreadVar
+                     (toFrugelModel model)
+                     (model & #editableDataVersion -~ 1)
+                     sink
+updateModel _ ToggleHelp model = noEff $ #showHelp %~ not $ model
+updateModel evalThreadVar GenerateRandom model
+    = effectSub model $ \sink -> liftIO $ do
         newProgram <- unSized @500 <.> generate $ uniformValid 500
         let newFrugelModel
                 = set #cursorOffset 0
@@ -80,87 +79,76 @@ updateModel evalThreadVar action model'
                 $ toFrugelModel model
         sink . AsyncAction $ NewProgramGenerated newFrugelModel
         reEvaluate evalThreadVar newFrugelModel model sink
-    updateModel' (Log msg) _ = Right . const . consoleLog $ show msg
-    updateModel' (ChangeFocusedNodeEvaluationIndex indexAction) model
-        = Left . effectSub (hideSelectedNodeEvaluation newModel) $ \sink ->
-        liftIO
-        . bracketNonTermination (view #editableDataVersion newModel)
-                                evalThreadVar
-        . yieldWithForcedSelectedNodeEvaluation sink
-        $ #evaluationStatus .~ Evaluated
-        $ newModel
-      where
-        newModel
-            = model
-            & #editableDataVersion +~ 1
-            & #selectedNodeEvaluationIndex %~ case indexAction of
-                Increment -> min (focusNodeValuesCount - 1) . succ
-                Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
-        focusNodeValuesCount
-            = Seq.length
-            $ view (#evaluationOutput % #focusedNodeEvaluations) model
-    updateModel' (ChangeFieldRenderDepth field newDepth) model
-        = if field == SelectedNodeValue || contextInView model
-          then Left
-              . effectSub
-                  (hideFieldValues field newModel & #editableDataVersion +~ 1)
-              $ \sink -> liftIO
-              . bracketNonTermination (view #editableDataVersion model + 1)
-                                      evalThreadVar
-              $ do
-                  reEvaluatedModel
-                      <- fromFrugelModel newModel (toFrugelModel model)
-                  yieldModel sink $ forceFieldValues field reEvaluatedModel
-          else Left $ noEff $ renderDepthFieldLens field .~ newDepth $ model
-      where
-        newModel
-            = model
-            & #evaluationStatus .~ PartiallyEvaluated
-            & renderDepthFieldLens field .~ newDepth
-    updateModel' (ChangeFuelLimit newLimit) model
-        = Left . reEvaluateModel evalThreadVar
-        $ #fuelLimit .~ max 0 newLimit
-        $ model
-    -- reEvaluate to type error locations
-    updateModel' PrettyPrint model
-        = Left
-        $ reEvaluateFrugelModel evalThreadVar
-                                (prettyPrint $ toFrugelModel model)
-                                model
-    updateModel' ToggleDefinitionsView model
-        = if view #definitionsViewCollapsed model
-          then Left . effectSub (hideSelectedNodeDefinitions newModel)
-              $ \sink -> liftIO
-              . bracketNonTermination (view #editableDataVersion newModel)
-                                      evalThreadVar
-              . yieldModel sink
-              . forceSelectedNodeDefinitions
-              $ #evaluationStatus .~ Evaluated
-              $ newModel
-          else Left $ noEff newModel
-      where
-        newModel
-            = model
-            & #editableDataVersion +~ 1
-            & #definitionsViewCollapsed %~ not
-    -- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
-    updateModel' (GenericAction genericAction)
-                 model = Left $ case editResult of
+updateModel _ (Log msg) model = effectSub model . const . consoleLog $ show msg
+updateModel evalThreadVar (ChangeFocusedNodeEvaluationIndex indexAction) model
+    = effectSub (hideSelectedNodeEvaluation newModel) $ \sink -> liftIO
+    . bracketNonTermination (view #editableDataVersion newModel) evalThreadVar
+    . yieldWithForcedSelectedNodeEvaluation sink
+    $ #evaluationStatus .~ Evaluated
+    $ newModel
+  where
+    newModel
+        = model
+        & #editableDataVersion +~ 1
+        & #selectedNodeEvaluationIndex %~ case indexAction of
+            Increment -> min (focusNodeValuesCount - 1) . succ
+            Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
+    focusNodeValuesCount
+        = Seq.length $ view (#evaluationOutput % #focusedNodeEvaluations) model
+updateModel evalThreadVar (ChangeFieldRenderDepth field newDepth) model
+    = if field == SelectedNodeValue || contextInView model
+      then effectSub
+          (hideFieldValues field newModel & #editableDataVersion +~ 1)
+          $ \sink -> liftIO
+          . bracketNonTermination (view #editableDataVersion model + 1)
+                                  evalThreadVar
+          $ do
+              reEvaluatedModel
+                  <- fromFrugelModel newModel (toFrugelModel model)
+              yieldModel sink $ forceFieldValues field reEvaluatedModel
+      else noEff $ renderDepthFieldLens field .~ newDepth $ model
+  where
+    newModel
+        = model
+        & #evaluationStatus .~ PartiallyEvaluated
+        & renderDepthFieldLens field .~ newDepth
+updateModel evalThreadVar (ChangeFuelLimit newLimit) model
+    = reEvaluateModel evalThreadVar $ #fuelLimit .~ max 0 newLimit $ model
+-- reEvaluate to type error locations
+updateModel evalThreadVar PrettyPrint model
+    = reEvaluateFrugelModel evalThreadVar
+                            (prettyPrint $ toFrugelModel model)
+                            model
+updateModel evalThreadVar ToggleDefinitionsView model
+    = if view #definitionsViewCollapsed model
+      then effectSub (hideSelectedNodeDefinitions newModel) $ \sink -> liftIO
+          . bracketNonTermination (view #editableDataVersion newModel)
+                                  evalThreadVar
+          . yieldModel sink
+          . forceSelectedNodeDefinitions
+          $ #evaluationStatus .~ Evaluated
+          $ newModel
+      else noEff newModel
+  where
+    newModel
+        = model & #editableDataVersion +~ 1 & #definitionsViewCollapsed %~ not
+-- Move action also causes reEvaluation, because value of expression under the cursor may need to be updated
+updateModel evalThreadVar (GenericAction genericAction) model
+    = case editResult of
         Success -> reEvaluateFrugelModel evalThreadVar newFrugelModel model
         Failure -> noEff
             $ updateWithFrugelErrors (view #errors newFrugelModel) model
-      where
-        (editResult, newFrugelModel)
-            = Frugel.updateModel genericAction $ toFrugelModel model
-    updateModel' (AsyncAction asyncAction) model = case asyncAction of
-        EvaluationFinished newModel -> if view #editableDataVersion newModel
-            == view #editableDataVersion model
-            then Left $ noEff newModel
-            else Right . const $ pure ()
-        NewProgramGenerated frugelModel ->
-            Left . noEff $ updateWithFrugelModel frugelModel model
-        EvaluationAborted msg ->
-            Left . noEff $ #evaluationStatus .~ Aborted msg $ model
+  where
+    (editResult, newFrugelModel)
+        = Frugel.updateModel genericAction $ toFrugelModel model
+updateModel _ (AsyncAction asyncAction) model = case asyncAction of
+    EvaluationFinished newModel -> if view #editableDataVersion newModel
+        == view #editableDataVersion model
+        then noEff newModel
+        else effectSub model . const $ pure ()
+    NewProgramGenerated frugelModel ->
+        noEff $ updateWithFrugelModel frugelModel model
+    EvaluationAborted msg -> noEff $ #evaluationStatus .~ Aborted msg $ model
 
 reEvaluateModel
     :: MVar (Maybe (ThreadId, Integer)) -> Model -> Effect Action Model

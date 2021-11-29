@@ -1,9 +1,12 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Frugel.Web.View where
 
 import qualified Data.Sequence as Seq
+import Data.String.Interpolation
 
 import Frugel              hiding ( Model(..) )
 import Frugel.Web.Action
@@ -41,9 +44,10 @@ styleSheet path = link_ [ rel_ "stylesheet", href_ path ]
 
 instructionsView :: Model -> View Action
 instructionsView Model{..}
-    = div_ [ class_ "box" ]
-           [ text "Type as usual, use arrow keys to move, Ctrl+Enter for format"
-           , br_ []
+    = div_ [ class_ "box content" ]
+           [ div_ [ class_ "buttons"] [button_ [ class_ "button" ]
+                     [ span_ [ class_ "icon", onClick ToggleHelp ] [ "🛈" ] ]
+           , span_ [] $ conditionalViews showHelp [ instructions, br_ [] ]
            , text "Fuel for limited evaluation: "
            , input_ [ type_ "number"
                     , value_ . Miso.ms $ show @String fuelLimit
@@ -51,7 +55,7 @@ instructionsView Model{..}
                                 . fromMaybe fuelLimit
                                 . readMaybe
                                 . Miso.fromMisoString)
-                    ]
+                    ]]
            , div_ [ class_ "buttons" ]
                   [ button_ [ onClick PrettyPrint, class_ "button" ]
                             [ text "Format" ]
@@ -59,6 +63,49 @@ instructionsView Model{..}
                             [ text "Generate Random" ]
                   ]
            ]
+
+ghcjsPerformanceWarning :: View action
+
+#if defined(ghcjs_HOST_OS)
+ghcjsPerformanceWarning
+    = div_ []
+           [ text [str|WARNING: the web version of Frugel is very slow!
+                       Please consider one of |]
+           , a_ [ href_ "https://github.com/cdfa/frugel/releases" ]
+                [ "the native versions" ]
+           , "."
+           ]
+
+#else
+ghcjsPerformanceWarning = span_ [] []
+#endif
+
+instructions :: View action
+instructions
+    = div_
+        [ style_ $ "display" =: "inline-block" ]
+        [ ghcjsPerformanceWarning
+        , text [str|This is a very minimal editor.
+                    The only implemented actions are:|]
+        , ul_ [ style_ $ "margin-bottom" =: "1em" ]
+              [ li_ [] [ "insertion by typing as usual" ]
+              , li_ []
+                    [ "cursor movement with arrow keys"
+#if !defined(ghcjs_HOST_OS)
+                    , ul_ []
+                          [ li_ []
+                                [ "Use Alt+<arrow key> to prevent scrolling the page. (see "
+                                , a_ [ href_ "https://github.com/dmjio/miso/issues/668"
+                                     ]
+                                     [ "#668" ]
+                                , ")"
+                                ]
+                          ]
+#endif
+                    ]
+              , li_ [] [ "Ctrl+Enter for formatting" ]
+              ]
+        ]
 
 editorView :: Model -> View Action
 editorView Model{..}
@@ -110,7 +157,7 @@ evaluatedView model@Model{..}
                 , button_ [ class_ "card-header-icon"
                           , onClick (ChangeFocusedNodeEvaluationIndex Decrement)
                           ]
-                          [ span_ [ class_ "icon" ] [ text "ᐊ" ] ]
+                          [ span_ [ class_ "icon" ] [ "ᐊ" ] ]
                 , span_
                       [ class_ "card-header-vertical-padding" ]
                       [ let focusedNodeEvaluationsCount
@@ -125,7 +172,7 @@ evaluatedView model@Model{..}
                 , button_ [ class_ "card-header-icon"
                           , onClick (ChangeFocusedNodeEvaluationIndex Increment)
                           ]
-                          [ span_ [ class_ "icon" ] [ text "ᐅ" ] ]
+                          [ span_ [ class_ "icon" ] [ "ᐅ" ] ]
                 ]
          , div_ [ class_ "card-content" ]
                 [ selectedNodeEvaluationView selectedNodeEvaluation model ]
@@ -165,9 +212,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                    [ class_ "card-header-icon", onClick ToggleDefinitionsView ]
                    [ span_
                          [ class_ "icon" ]
-                         [ text
-                           $ if definitionsViewCollapsed then "▽" else "△"
-                         ]
+                         [ if definitionsViewCollapsed then "▽" else "△" ]
                    ]
              ]
          : conditionalViews

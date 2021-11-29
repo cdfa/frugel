@@ -60,3 +60,7 @@ span {
   font-weight: initial;
   font-style: initial;
 }
+
+ul {
+  margin-top: 0;
+}

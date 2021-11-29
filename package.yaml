@@ -118,6 +118,7 @@ executables:
       - multiset
       - composition
       - lens
+      - Interpolation
     when:
       - condition: impl(ghcjs)
         then:

@@ -18,6 +18,7 @@ data Action
     | ChangeFuelLimit Int
     | ChangeFieldRenderDepth RenderDepthField Int
     | ToggleDefinitionsView
+    | ToggleHelp
     deriving ( Show, Eq )
 
 data AsyncAction

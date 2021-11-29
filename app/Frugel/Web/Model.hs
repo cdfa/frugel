@@ -26,6 +26,7 @@ initialModel p
             , fuelLimit = 10 -- how long this evaluation with this fuel limit takes is very dependent on the program being evaluated. With this, evaluating `fact2 ...` took 0.43 seconds
             , selectedNodeEvaluationIndex = 0
             , errors = []
+            , showHelp = True
             , evaluationStatus = PartiallyEvaluated
             , mainExpressionRenderDepth = 20
             , selectedNodeValueRenderDepth = 10
