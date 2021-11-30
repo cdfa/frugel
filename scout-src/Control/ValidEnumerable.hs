@@ -20,8 +20,8 @@ instance ValidEnumerable Char where
     enumerateValid
         = share
         $ unAlphanumeric <$> accessValid
-        <|> aconcat (map (splurge 8)
-                         [ c0 ' '
-                         , c0 '\n'
-                         , inflation id (minBound :: Char) (pure succ)
-                         ])
+        <|> splurge 8
+                    (aconcat [ c0 ' '
+                             , c0 '\n'
+                             , inflation id (minBound :: Char) (pure succ)
+                             ])

@@ -11,4 +11,6 @@ instance ValidEnumerable Whitespace where
     enumerateValid = share . pay . fmap Whitespace $ elements " \t\n\r\f\v"
 
 enumerateWhitespace :: (Sized f, Typeable f) => Shareable f Text
-enumerateWhitespace = toText . map unWhitespace <$> accessValid
+enumerateWhitespace
+    = toText . map unWhitespace
+    <$> inflation (pred . (2 *)) [] ((:) <$> accessValid)

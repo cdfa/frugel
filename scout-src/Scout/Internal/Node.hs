@@ -686,8 +686,7 @@ instance ValidEnumerable Expr where
     enumerateValid
         = datatype
             [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
-            , splurge 2
-              $ Abstraction <$> enumerateValidAbstractionMeta 3
+            , Abstraction <$> enumerateValidAbstractionMeta 3
               <*> accessValid
               <*> accessValid
             , Application .: setCenterWhitespace <$> accessValid
