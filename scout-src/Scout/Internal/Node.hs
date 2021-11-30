@@ -23,8 +23,10 @@ import Control.Sized
 import Control.ValidEnumerable
 
 import Data.Alphanumeric
+import Data.Char
 import Data.Composition
 import Data.Data                 ( Data )
+import Data.Data.Lens
 import Data.GenValidity
 import Data.GenValidity.Sequence ()
 import Data.GenValidity.Text     ()
@@ -55,6 +57,7 @@ import qualified Relude.Unsafe   as Unsafe
 import Scout.Orphans.Stream      ()
 
 import Test.QuickCheck.Gen       as QuickCheck hiding ( vectorOf )
+import Test.QuickCheck.Modifiers
 
 type CstrSite = ACstrSite Node
 
@@ -70,7 +73,11 @@ data Expr
     | Abstraction AbstractionMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | Sum ExprMeta Expr Expr
+    | Literal ExprMeta Literal
     | ExprCstrSite ExprMeta CstrSite
+    deriving ( Eq, Ord, Show, Generic, Data )
+
+data Literal = Boolean Bool | Integer Integer
     deriving ( Eq, Ord, Show, Generic, Data )
 
 data Decl
@@ -88,6 +95,8 @@ type instance NodeOf Node = Node
 type instance NodeOf Identifier = Node
 
 type instance NodeOf Expr = Node
+
+type instance NodeOf Literal = Node
 
 type instance NodeOf Decl = Node
 
@@ -170,7 +179,7 @@ data EvaluationError
 data TypeError = TypeMismatchError ExpectedType Expr
     deriving ( Eq, Show, Ord, Data )
 
-data ExpectedType = Function | Integer
+data ExpectedType = Function | IntegerType | BoolType
     deriving ( Eq, Show, Ord, Data )
 
 makeFieldLabelsNoPrefix ''Decl
@@ -227,13 +236,9 @@ instance Has ExprMeta Expr where
     getter (Variable meta _) = meta
     getter (Application meta _ _) = meta
     getter (Sum meta _ _) = meta
+    getter (Literal meta _) = meta
     getter (ExprCstrSite meta _) = meta
-    modifier
-        = over ((_Abstraction % _1 % #standardExprMeta)
-                `adjoin` (_Variable % _1)
-                `adjoin` (_Application % _1)
-                `adjoin` (_Sum % _1)
-                `adjoin` (_ExprCstrSite % _1))
+    modifier = over . singular $ traversalVL $ template @_ @ExprMeta
 
 instance Has Meta Expr where
     getter = standardMeta . getter
@@ -279,16 +284,19 @@ instance Expression Expr where
     precedence Sum{} = 2
     precedence Application{} = 1
     precedence Variable{} = 0
+    precedence Literal{} = 0
     precedence ExprCstrSite{} = 0
     fixity Abstraction{} = Just Prefix
     fixity Application{} = Just Infix
     fixity Sum{} = Just Infix
     fixity Variable{} = Nothing
+    fixity Literal{} = Nothing
     fixity ExprCstrSite{} = Nothing
     associativity Application{} = Just LeftAssociative
     associativity Sum{} = Just LeftAssociative
     associativity Abstraction{} = Nothing
     associativity Variable{} = Nothing
+    associativity Literal{} = Nothing
     associativity ExprCstrSite{} = Nothing
 
 parenthesizeExprFromMeta :: (a -> a) -> (Expr -> a) -> Expr -> a
@@ -347,6 +355,10 @@ instance ToString Identifier where
 
 instance Pretty Identifier where
     pretty = pretty . toString
+
+instance Pretty Literal where
+    pretty (Boolean b) = viaShow b
+    pretty (Integer i) = viaShow i
 
 instance Pretty EvaluationStatus where
     pretty EvaluationDeferred{} = angles "EvaluationDeferred"
@@ -422,6 +434,9 @@ instance Decomposable Expr where
                      , keyWordCharTraversal traverseChar '+'
                      , Traverser' (_Sum % _3) traverseNode
                      ]
+            Literal{} -> [Traverser' (_Literal % _2) $ \case
+                 Boolean b -> Boolean b <$ traverse traverseChar (show @String b)
+                 Integer i -> Integer i <$ traverse traverseChar (show @String i)]
             ExprCstrSite{} -> [ Traverser' (_ExprCstrSite % _2)
                                 $ traverseComponents traverseChar traverseNode
                               ]
@@ -494,6 +509,7 @@ instance ValidInterstitialWhitespace Expr where
         Abstraction{} -> 3
         Application{} -> 1
         Sum{} -> 2
+        Literal{} -> 0
         ExprCstrSite{} -> 0
 
 instance ValidInterstitialWhitespace Decl where
@@ -508,7 +524,15 @@ instance ValidInterstitialWhitespace WhereClause where
 
 instance Validity Node
 
-instance Validity Identifier
+instance Validity Identifier where
+    validate
+        = mconcat [ genericValidate
+                  , declare "has alphabetic first character"
+                    . isLetter
+                    . unAlphanumeric
+                    . head
+                    . view _Identifier
+                  ]
 
 instance Validity Expr where
     validate
@@ -527,6 +551,8 @@ instance Validity Expr where
                          *> whitespaceFragments
                          !!? (length whitespaceFragments `div` 2)))
             ]
+
+instance Validity Literal
 
 instance Validity Decl where
     validate
@@ -601,11 +627,15 @@ instance GenValid Node where
 
 instance GenValid Identifier where
     genValid = sized uniformValid
-    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering
+    shrinkValid = shrinkValid
 
 instance GenValid Expr where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
+
+instance GenValid Literal where
+    genValid = sized uniformValid
+    shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No validity requirements
 
 instance GenValid Decl where
     genValid = sized uniformValid
@@ -648,7 +678,7 @@ instance ValidEnumerable Node where
 
 instance ValidEnumerable Identifier where
     enumerateValid
-        = datatype [ Identifier .: (:|) <$> accessValid
+        = datatype [ Identifier .: (:|) <$> accessLetter
                      <*> inflation ((2 ^) . (`div` 5)) [] ((:) <$> accessValid)
                    ]
 
@@ -665,6 +695,7 @@ instance ValidEnumerable Expr where
               <*> accessValid
               <*> accessValid
             , Sum <$> enumerateValidExprMeta 2 <*> accessValid <*> accessValid
+            , Literal <$> enumerateValidExprMeta 0 <*> accessValid
             , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
             ]
       where
@@ -674,6 +705,12 @@ instance ValidEnumerable Expr where
                      (toText . map unWhitespace
                       $ toList @(NonEmpty _) nonEmptyWhitespace)
                      whitespaceFragments
+
+instance ValidEnumerable Literal where
+    enumerateValid
+        = datatype [ Boolean <$> accessValid
+                   , Integer . getNonNegative <$> accessValid
+                   ]
 
 instance ValidEnumerable Decl where
     enumerateValid

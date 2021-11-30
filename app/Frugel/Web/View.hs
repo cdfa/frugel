@@ -44,25 +44,29 @@ styleSheet path = link_ [ rel_ "stylesheet", href_ path ]
 
 instructionsView :: Model -> View Action
 instructionsView Model{..}
-    = div_ [ class_ "box content" ]
-           [ div_ [ class_ "buttons"] [button_ [ class_ "button" ]
+    = div_
+        [ class_ "box content" ]
+        [ div_ [ class_ "buttons" ]
+               [ button_
+                     [ class_ "button" ]
                      [ span_ [ class_ "icon", onClick ToggleHelp ] [ "🛈" ] ]
-           , span_ [] $ conditionalViews showHelp [ instructions, br_ [] ]
-           , text "Fuel for limited evaluation: "
-           , input_ [ type_ "number"
-                    , value_ . Miso.ms $ show @String fuelLimit
-                    , onChange (ChangeFuelLimit
-                                . fromMaybe fuelLimit
-                                . readMaybe
-                                . Miso.fromMisoString)
-                    ]]
-           , div_ [ class_ "buttons" ]
-                  [ button_ [ onClick PrettyPrint, class_ "button" ]
-                            [ text "Format" ]
-                  , button_ [ onClick GenerateRandom, class_ "button" ]
-                            [ text "Generate Random" ]
-                  ]
-           ]
+               , span_ [] $ conditionalViews showHelp [ instructions, br_ [] ]
+               , text "Fuel for limited evaluation: "
+               , input_ [ type_ "number"
+                        , value_ . Miso.ms $ show @String fuelLimit
+                        , onChange (ChangeFuelLimit
+                                    . fromMaybe fuelLimit
+                                    . readMaybe
+                                    . Miso.fromMisoString)
+                        ]
+               ]
+        , div_ [ class_ "buttons" ]
+               [ button_ [ onClick PrettyPrint, class_ "button" ]
+                         [ text "Format" ]
+               , button_ [ onClick GenerateRandom, class_ "button" ]
+                         [ text "Generate Random" ]
+               ]
+        ]
 
 ghcjsPerformanceWarning :: View action
 

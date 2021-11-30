@@ -4,8 +4,6 @@
 
 module EvaluationSpec ( spec ) where
 
-import Data.Alphanumeric
-import Data.Char
 import Data.Data
 import Data.GenValidity.Map   ()
 import qualified Data.Map     as Map
@@ -14,8 +12,6 @@ import Data.NonNegative.GenValidity ()
 import qualified Data.Set     as Set
 
 import Frugel.Decomposition
-
-import Optics.Extra.Scout
 
 import Prelude                hiding ( one )
 
@@ -135,8 +131,8 @@ expectedIntSpec
     = it "reports a type error when something else than an integer is found where an integer is expected, e.g. in `k + s`"
     $ runEval' evalExpr (sum' k s) >>= shouldBe
     ?? ( sum' (singleExprNodeCstrSite k) (singleExprNodeCstrSite s)
-       , fromOccurList [ (TypeError $ TypeMismatchError Integer k, 1)
-                       , (TypeError $ TypeMismatchError Integer s, 1)
+       , fromOccurList [ (TypeError $ TypeMismatchError IntegerType k, 1)
+                       , (TypeError $ TypeMismatchError IntegerType s, 1)
                        ]
        )
 
@@ -188,13 +184,13 @@ freeVariableCaptureAvoidanceSpec
 freshSuffixSpec :: Spec
 freshSuffixSpec = modifyMaxSize (* 5) . describe "fresh variable generation" $ do
     it "does not rename a variable when it is not in the environment"
-        . forallIdentifiers
-        $ \v ->
-        forAllShrink (suchThat genValid (not . Map.member v)) shrinkValid
+        . forAllShrink (genIdentifiers `suchThat` (null . snd . splitNumericSuffix)) shrinkValid
+        $ \v -> let (trimmed, _) = splitNumericSuffix v in
+        forAllShrink (genValid `suchThat` (all ((/= trimmed) . fst . splitNumericSuffix) . Map.keys)) shrinkValid
         $ \env -> freshSuffix v (getNonNegative <$> env) `shouldBe` 0
     it "adds a number larger than the number of times the variable was encountered if the variable was already in the environment"
         . forAllValid
-        $ \x -> forallIdentifiers $ \v -> forAllShrink
+        $ \x -> forAllShrink genIdentifiers shrinkValid $ \v -> forAllShrink
             (Map.insert v x <$> genValid)
             (filter (Map.member v) . shrinkValid)
         $ \env -> freshSuffix v (getNonNegative <$> env)
@@ -202,24 +198,17 @@ freshSuffixSpec = modifyMaxSize (* 5) . describe "fresh variable generation" $ d
     -- maxSuccess increased to catch `freshSuffix (unsafeIdentifier  "x1") $ fromList [(unsafeIdentifier "x", 1)] `shouldSatisfy` (> 0)`
     modifyMaxSuccess (* 100)
         . it "never renames to a variable already in the environment"
-        . forallIdentifiers
+        . forAllShrink genIdentifiers shrinkValid
         $ \v -> forAllValid $ \env -> freshSuffix v (getNonNegative <$> env)
         `shouldSatisfy` (not
                          . flip Set.member (allGeneratedIdentifiers env)
                          . numberedIdentifier v)
   where
-    forallIdentifiers
-        = forAllSized (`div` 10)
-        $ suchThat genValid
-                   (not . isDigit . unAlphanumeric . head . view _Identifier)
+    genIdentifiers
+        = genValid `resizing` (`div` 10)
     allGeneratedIdentifiers
         = Map.foldMapWithKey $ \identifier (NonNegative x) -> fromList
         $ map (numberedIdentifier identifier) [ 0 .. x ]
 
-forAllSized :: (Show a, Testable prop, GenValid a)
-    => (Int -> Int)
-    -> Gen a
-    -> (a -> prop)
-    -> Property
-forAllSized resizer gen
-    = forAllShrink (sized $ flip resize gen . resizer) shrinkValid
+resizing :: Gen a -> (Int -> Int) -> Gen a
+resizing gen resizer = sized $ flip resize gen . resizer

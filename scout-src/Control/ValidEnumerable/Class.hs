@@ -7,10 +7,12 @@ module Control.ValidEnumerable.Class
     , Typeable
     ) where
 
-import Control.Enumerable ( datatype )
+import Control.Enumerable  ( Infinite, datatype )
 import Control.Sized
 
 import Data.ClassSharing
+
+import Test.QuickCheck.Modifiers
 
 class Typeable a => ValidEnumerable a where
     enumerateValid :: (Typeable f, Sized f) => Shared f a
@@ -91,6 +93,9 @@ c7 f = c6 (uncurry f)
 
 instance ValidEnumerable Bool where
     enumerateValid = datatype [ c0 False, c0 True ]
+
+instance Infinite integer => ValidEnumerable (NonNegative integer) where
+    enumerateValid = share (NonNegative . fromInteger <$> naturals)
 
 instance (ValidEnumerable a, ValidEnumerable b) => ValidEnumerable (a, b) where
     enumerateValid = share $ pair accessValid accessValid

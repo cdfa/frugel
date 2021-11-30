@@ -1,7 +1,12 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Scout.Lexing where
 
 import Data.Alphanumeric
+import Data.Char
 import qualified Data.Set as Set
+
+import Prelude     hiding ( some )
 
 import Scout.Node
 
@@ -21,6 +26,16 @@ string s = s <$ chunk (fromList $ map Left s)
 alphaNumChar :: Parser Alphanumeric
 alphaNumChar
     = namedToken "an alphanumeric character" (leftToMaybe >=> fromChar)
--- lowerChar :: Parser Char
--- lowerChar
---     = namedToken "a lower-case character" (leftToMaybe >=> guarded isLower)
+
+letter :: Parser Alphanumeric
+letter
+    = namedToken "a letter in the alphabet"
+                 (leftToMaybe >=> guarded isLetter >=> fromChar)
+
+decimal :: (MonadParsec e s m, Token s ~ Either Char Node, Num a) => m a
+decimal = label "integer" $ foldl' step 0 <$> some digit
+  where
+    step a c = a * 10 + fromIntegral (digitToInt c)
+
+digit :: (MonadParsec e s m, Token s ~ Either Char Node) => m Char
+digit = namedToken "digit" (leftToMaybe >=> guarded isDigit)

@@ -17,11 +17,11 @@ import Control.Monad.Writer
     hiding ( Sum ) -- lazy writer is required for laziness
 
 import Data.Alphanumeric
-import Data.Char              ( isDigit )
 import Data.Data
 import Data.Data.Lens
 import Data.Has
 import Data.Hidden
+import Data.List              ( maximum )
 import qualified Data.Map     as Map
 import Data.Map.Optics
 import Data.MultiSet          ( MultiSet )
@@ -158,16 +158,15 @@ evalExpr expr = do
                              , #shadowingEnv % at n ?~ 0
                              ])
                     $ evalExpr body
-    -- evalExpr i@(LitN _) = pure i
+    evalExpr' i@Literal{} = pure i
     evalExpr' (Sum meta x y) = do
         ex <- evalExpr x
         ey <- evalExpr y
-        uncurry (Sum meta)
-            <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
-        -- case (ex, ey) of
-        --     (LitN a, LitN b) -> pure $ LitN (a + b)
-        --     _ -> uncurry sum'
-        --         <$> traverseOf both (reportAnyTypeErrors Integer) (ex, ey)
+        case (ex, ey) of
+            (Literal _ (Integer a), Literal _ (Integer b)) -> pure . literal'
+                $ Integer (a + b)
+            _ -> uncurry (Sum meta)
+            <$> traverseOf both (reportAnyTypeErrors IntegerType) (ex, ey)
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
@@ -348,14 +347,21 @@ typeCheck e expectedType = case (e, expectedType) of
     (Application{}, _) -> Nothing
     (ExprCstrSite{}, _) -> Nothing
     (Abstraction{}, Function) -> Nothing
-    -- (LitN{}, Integer) -> Nothing
-    (Sum{}, Integer) -> Nothing
-    _ -> Just $ TypeMismatchError expectedType e
+    (Literal _ Boolean{}, BoolType) -> Nothing
+    (Literal _ Integer{}, IntegerType) -> Nothing
+    (Sum{}, IntegerType) -> Nothing
+    (Abstraction{}, _) -> typeError
+    (Sum{}, _) -> typeError
+    (Literal _ Boolean{}, _) -> typeError
+    (Literal _ Integer{}, _) -> typeError
+  where
+    typeError = Just $ TypeMismatchError expectedType e
 
 numberedIdentifier :: Identifier -> Int -> Identifier
 numberedIdentifier identifier 0 = identifier
 numberedIdentifier identifier i
-    = identifier <> Unsafe.fromJust (identifier' $ show i) -- safe because i is integer
+    = identifier
+    <> Unsafe.fromJust (Identifier <.> nonEmpty . map Alphanumeric $ show i)
 
  -- we don't need to traverse the root node, because it's value is the result of evaluation (and we wouldn't be able to reuse traverseChildNodeAt machinery, because Program is not a Node)
 focusNodeUnderCursor :: (Decomposable n, NodeOf n ~ Node) => Int -> n -> n
@@ -413,21 +419,24 @@ freshSuffix :: Identifier -> Map Identifier Int -> Int
 freshSuffix original env
     = Unsafe.fromJust -- safe because suffixRange is infinite
     . getFirst
-    $ foldMap (\x -> First . maybe (Just x) (const Nothing)
-               $ Map.lookup (numberedIdentifier original x) env) suffixRange
+    $ foldMap (\x -> First $ if all (x >) largest then Just x else Nothing)
+              suffixRange
   where
     suffixRange
         = enumFrom . maybe suffixRangeStartDefault succ
         $ Map.lookup original env
     suffixRangeStartDefault
-        = if null trailingDigits
-            || and ((>) <$> readMaybe trailingDigits <*> Map.lookup trimmed env)
-            then 0
-            else 1
-    (trimmed, trailingDigits)
-        = swap
-        $ (_Identifier % _UnNonEmpty)
-        `passthrough` (swap
-                       . second (map unAlphanumeric)
-                       . spanEnd (isDigit . unAlphanumeric))
-        $ original
+        = if and ((>) <$> readMaybe trailingDigits <*> largest) --- || null trailingDigits
+          then 0
+          else fromMaybe 1 largest
+    largest
+        = maximum <.> nonEmpty
+        . mapMaybe
+            (\(i, name) ->
+             let (trimmed', trailingDigits')
+                     = splitNumericSuffix $ numberedIdentifier i name
+             in guard (trimmed == trimmed') >> readMaybe @Int trailingDigits')
+        $ toList env
+    (trimmed, trailingDigits) = splitNumericSuffix original
+
+

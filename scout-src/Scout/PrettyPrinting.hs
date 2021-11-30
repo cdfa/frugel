@@ -61,6 +61,7 @@ instance AnnotatedPretty Expr where
             Sum _ left right -> (\(left', right') -> annPretty left'
                                  `nestingLine` ("+" <+> annPretty right'))
                 $ prettyBinary expr left right
+            Literal _ l -> pretty l
             ExprCstrSite _ contents ->
                 prettyCstrSite (ExprNode expr) annPretty contents
       where

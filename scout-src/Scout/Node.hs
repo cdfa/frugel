@@ -8,6 +8,7 @@ module Scout.Node
     , module Frugel.CstrSite
     , ValidInterstitialWhitespace(..)
     , Expr(..)
+    , Literal(..)
     , CstrSite
     , Identifier(..)
     , Decl(Decl, DeclCstrSite)
@@ -36,6 +37,7 @@ module Scout.Node
     , _ExprNode
     , _Sum
     , _Variable
+    , _Literal
     , _WhereClause
     , _WhereCstrSite
     , _WhereNode
@@ -81,7 +83,11 @@ import qualified Relude.Unsafe as Unsafe
 import Scout.Internal.Node as Node
 
 identifier' :: String -> Maybe Identifier
-identifier' = Identifier <.> (nonEmpty <=< traverse fromChar)
+identifier'
+    = Identifier
+    <.> (nonEmpty
+         <=< traverse fromChar
+         <=< guarded (not . all isDigit . preview _head))
 
 unsafeIdentifier :: String -> Identifier
 unsafeIdentifier = Unsafe.fromJust . identifier'
@@ -104,6 +110,9 @@ application' = Application $ defaultExprMeta 1
 sum' :: Expr -> Expr -> Expr
 sum' = Sum $ defaultExprMeta 2
 
+literal' :: Literal -> Expr
+literal' = Literal $ defaultExprMeta 0
+
 decl' :: Identifier -> Expr -> Decl
 decl' = Decl $ defaultMeta 2
 
@@ -124,6 +133,15 @@ abstractionMeta = _Abstraction % _1
 
 singleExprNodeCstrSite :: Expr -> Expr
 singleExprNodeCstrSite = exprCstrSite' . one . Right . ExprNode
+
+splitNumericSuffix :: Identifier -> (Identifier, [Char])
+splitNumericSuffix identifier
+    = swap
+    $ (_Identifier % _UnNonEmpty)
+    `passthrough` (swap
+                   . second (map unAlphanumeric)
+                   . spanEnd (isDigit . unAlphanumeric))
+    $ identifier
 
 liftNestedCstrSiteOuterWhitespace :: CstrSite -> CstrSite
 liftNestedCstrSiteOuterWhitespace

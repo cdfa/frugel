@@ -52,13 +52,13 @@ parseErrorTextPretty (TrivialError _ us ps)
     = if isNothing us && Set.null ps
       then "unknown parse error"
       else messageItemsPretty
-          "unexpected "
+          "unexpected"
           (showErrorItem
            <$> maybe (error "Internal logic error: missing expected item")
                      one
                      us)
           <> line
-          <> messageItemsPretty "expecting "
+          <> messageItemsPretty "expecting"
                                 (showErrorItem <$> fromList (toList ps))
 parseErrorTextPretty (FancyError _ xs)
     = if Set.null xs

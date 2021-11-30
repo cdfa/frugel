@@ -46,5 +46,10 @@ instance ValidEnumerable Alphanumeric where
         = share . pay . fmap Alphanumeric . Enumerable.elements
         $ [ '0' .. '9' ] ++ [ 'a' .. 'z' ] ++ [ 'A' .. 'Z' ]
 
+accessLetter :: (Sized f, Typeable f) => Shareable f Alphanumeric
+accessLetter
+    = pay . fmap Alphanumeric . Enumerable.elements
+    $ [ 'a' .. 'z' ] ++ [ 'A' .. 'Z' ]
+
 fromChar :: Char -> Maybe Alphanumeric
 fromChar = Alphanumeric <.> guarded isAlphaNum
