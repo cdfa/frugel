@@ -16,7 +16,7 @@ let
       hlint.enable = true;
       prettier = {
         enable = true;
-        files = "www/.*\\.css$";
+        files = "www/.*\\.css|.*\\.md$";
       };
       floskell = floskellHook // {
         enable = true;
