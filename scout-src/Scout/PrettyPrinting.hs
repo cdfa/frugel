@@ -58,8 +58,10 @@ instance AnnotatedPretty Expr where
             Application _ function arg -> uncurry nestingLine
                 $ both %~ annPretty
                 $ prettyBinary expr function arg
-            Sum _ left right -> (\(left', right') -> annPretty left'
-                                 `nestingLine` ("+" <+> annPretty right'))
+            BinaryOperation _ left binOp right ->
+                (\(left', right') -> annPretty left'
+                 `nestingLine` (binaryOperatorSymbol binOp
+                                <+> annPretty right'))
                 $ prettyBinary expr left right
             Literal _ l -> pretty l
             ExprCstrSite _ contents ->

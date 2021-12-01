@@ -82,7 +82,7 @@ lazinessSpec
 -- callByNeedTest
 --     = runEval' evalExpr
 --     . application'
---         (unsafeAbstraction "x" $ sum' (unsafeVariable "x") (unsafeVariable "x"))
+--         (unsafeAbstraction "x" $ binaryOperation' (unsafeVariable "x") (unsafeVariable "x"))
 --     . trace "test"
 --     $ unsafeVariable "y"
 -- also tests laziness
@@ -108,17 +108,23 @@ partialApplicationSpec
 expectedFunctionSpec :: Spec
 expectedFunctionSpec
     = it "reports a type error when something else than a function is found where a function is expected, e.g. in `(q + q) x`"
-    $ runEval' evalExpr
-               (application' (sum' (unsafeVariable "q") (unsafeVariable "q"))
-                             (unsafeVariable "x"))
+    $ runEval'
+        evalExpr
+        (application'
+             (binaryOperation' (unsafeVariable "q") Plus (unsafeVariable "q"))
+             (unsafeVariable "x"))
     >>= shouldBe
-    ?? ( application' (singleExprNodeCstrSite
-                       $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
-                              (singleExprNodeCstrSite $ unsafeVariable "q"))
-                      (singleExprNodeCstrSite $ unsafeVariable "x")
+    ?? ( application'
+             (singleExprNodeCstrSite
+              $ binaryOperation' (singleExprNodeCstrSite $ unsafeVariable "q")
+                                 Plus
+                                 (singleExprNodeCstrSite $ unsafeVariable "q"))
+             (singleExprNodeCstrSite $ unsafeVariable "x")
        , fromOccurList [ ( TypeError . TypeMismatchError Function
-                           $ sum' (singleExprNodeCstrSite $ unsafeVariable "q")
-                                  (singleExprNodeCstrSite $ unsafeVariable "q")
+                           $ binaryOperation'
+                               (singleExprNodeCstrSite $ unsafeVariable "q")
+                               Plus
+                               (singleExprNodeCstrSite $ unsafeVariable "q")
                          , 1
                          )
                        , (UnboundVariableError $ unsafeIdentifier "q", 2)
@@ -129,8 +135,10 @@ expectedFunctionSpec
 expectedIntSpec :: Spec
 expectedIntSpec
     = it "reports a type error when something else than an integer is found where an integer is expected, e.g. in `k + s`"
-    $ runEval' evalExpr (sum' k s) >>= shouldBe
-    ?? ( sum' (singleExprNodeCstrSite k) (singleExprNodeCstrSite s)
+    $ runEval' evalExpr (binaryOperation' k Plus s) >>= shouldBe
+    ?? ( binaryOperation' (singleExprNodeCstrSite k)
+                          Plus
+                          (singleExprNodeCstrSite s)
        , fromOccurList [ (TypeError $ TypeMismatchError IntegerType k, 1)
                        , (TypeError $ TypeMismatchError IntegerType s, 1)
                        ]
@@ -165,10 +173,11 @@ cstrSiteSpec
 abstractionRenamingSpec :: Spec
 abstractionRenamingSpec
     = it "renames binders to prevent them from capturing variables in expressions substituted into them"
-    $ runEval' evalExpr (application' (one "f" "x") (one "f" "x")) >>= shouldBe
-    ?? (one "x" "x1", mempty)
+    $ runEval' evalExpr (application' (churchOne "f" "x") (churchOne "f" "x"))
+    >>= shouldBe
+    ?? (churchOne "x" "x1", mempty)
   where
-    one f x
+    churchOne f x
         = unsafeAbstraction f . unsafeAbstraction x
         $ application' (unsafeVariable f) (unsafeVariable x)
 
@@ -180,14 +189,20 @@ freeVariableCaptureAvoidanceSpec
        , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "y", 1) ]
        )
 
--- identifiers sizes reduced to increase environment sizes
+-- for some reason, we get a "thread blocked indefinitely in an MVar operation" when one of these tests fails 
 freshSuffixSpec :: Spec
 freshSuffixSpec = modifyMaxSize (* 5) . describe "fresh variable generation" $ do
     it "does not rename a variable when it is not in the environment"
-        . forAllShrink (genIdentifiers `suchThat` (null . snd . splitNumericSuffix)) shrinkValid
-        $ \v -> let (trimmed, _) = splitNumericSuffix v in
-        forAllShrink (genValid `suchThat` (all ((/= trimmed) . fst . splitNumericSuffix) . Map.keys)) shrinkValid
-        $ \env -> freshSuffix v (getNonNegative <$> env) `shouldBe` 0
+        . forAllShrink
+            (genIdentifiers `suchThat` (null . snd . splitNumericSuffix))
+            shrinkValid
+        $ \v -> let (trimmed, _) = splitNumericSuffix v
+            in forAllShrink
+                   (genValid
+                    `suchThat` (all ((/= trimmed) . fst . splitNumericSuffix)
+                                . Map.keys))
+                   shrinkValid
+               $ \env -> freshSuffix v (getNonNegative <$> env) `shouldBe` 0
     it "adds a number larger than the number of times the variable was encountered if the variable was already in the environment"
         . forAllValid
         $ \x -> forAllShrink genIdentifiers shrinkValid $ \v -> forAllShrink
@@ -204,8 +219,8 @@ freshSuffixSpec = modifyMaxSize (* 5) . describe "fresh variable generation" $ d
                          . flip Set.member (allGeneratedIdentifiers env)
                          . numberedIdentifier v)
   where
-    genIdentifiers
-        = genValid `resizing` (`div` 10)
+    -- identifiers sizes reduced to increase environment sizes
+    genIdentifiers = genValid `resizing` (`div` 10)
     allGeneratedIdentifiers
         = Map.foldMapWithKey $ \identifier (NonNegative x) -> fromList
         $ map (numberedIdentifier identifier) [ 0 .. x ]

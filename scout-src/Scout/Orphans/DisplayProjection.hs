@@ -21,6 +21,7 @@ instance DisplayProjection EvaluationError where
         OutOfFuelError expr -> "Ran out of fuel when evaluating:"
             `nestingLine` annotateComplete
                 (reAnnotate toStandardAnnotation . annPretty $ truncate 5 expr)
+        DivideByZeroError -> "Divide-by-zero error"
 
 instance DisplayProjection TypeError where
     renderDoc (TypeMismatchError expected expr)

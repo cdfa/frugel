@@ -17,6 +17,7 @@
 
 module Scout.Internal.Node where
 
+import qualified Control.Lens    as Lens
 import Control.Limited
 import Control.Monad.Writer      ( WriterT )
 import Control.Sized
@@ -32,6 +33,7 @@ import Data.GenValidity.Sequence ()
 import Data.GenValidity.Text     ()
 import Data.Has
 import Data.Hidden
+import Data.List                 ( findIndex )
 import Data.MultiSet             ( MultiSet )
 import qualified Data.Text       as Text
 import Data.Text.Optics
@@ -41,8 +43,6 @@ import Data.Whitespace
 
 import Frugel                    hiding ( Elided )
 import Frugel.CstrSite.ValidEnumerable ()
-
-import GHC.Generics              ( Associativity(..) )
 
 import Generic.Data
 
@@ -54,6 +54,7 @@ import PrettyPrinting.Expr
 
 import qualified Relude.Unsafe   as Unsafe
 
+import Scout.Operators           as Operators
 import Scout.Orphans.Stream      ()
 
 import Test.QuickCheck.Gen       as QuickCheck hiding ( vectorOf )
@@ -72,7 +73,7 @@ data Expr
     = Variable ExprMeta Identifier
     | Abstraction AbstractionMeta Identifier Expr
     | Application ExprMeta Expr Expr
-    | Sum ExprMeta Expr Expr
+    | BinaryOperation ExprMeta Expr BinaryOperator Expr
     | Literal ExprMeta Literal
     | ExprCstrSite ExprMeta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data )
@@ -174,6 +175,7 @@ data EvaluationError
     | UnboundVariableError Identifier
     | ConflictingDefinitionsError Identifier
     | OutOfFuelError Expr
+    | DivideByZeroError
     deriving ( Eq, Show, Ord, Data )
 
 data TypeError = TypeMismatchError ExpectedType Expr
@@ -235,7 +237,7 @@ instance Has ExprMeta Expr where
     getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta
     getter (Variable meta _) = meta
     getter (Application meta _ _) = meta
-    getter (Sum meta _ _) = meta
+    getter (BinaryOperation meta _ _ _) = meta
     getter (Literal meta _) = meta
     getter (ExprCstrSite meta _) = meta
     modifier = over . singular $ traversalVL $ template @_ @ExprMeta
@@ -280,20 +282,27 @@ defaultMeta n
 
 -- Note that expressions may have the precedence of literals when parenthesized
 instance Expression Expr where
-    precedence Abstraction{} = 3
-    precedence Sum{} = 2
+    precedence Abstraction{} = 2 + length binaryOperatorPrecedence
+    precedence (BinaryOperation _ _ binOp _)
+        = 2
+        + fromMaybe missingOperatorError
+                    (findIndex (elem binOp) binaryOperatorPrecedence)
+      where
+        missingOperatorError
+            = error $ show binOp <> " was not in the operator precedence list"
     precedence Application{} = 1
     precedence Variable{} = 0
     precedence Literal{} = 0
     precedence ExprCstrSite{} = 0
     fixity Abstraction{} = Just Prefix
     fixity Application{} = Just Infix
-    fixity Sum{} = Just Infix
+    fixity BinaryOperation{} = Just Infix
     fixity Variable{} = Nothing
     fixity Literal{} = Nothing
     fixity ExprCstrSite{} = Nothing
     associativity Application{} = Just LeftAssociative
-    associativity Sum{} = Just LeftAssociative
+    associativity (BinaryOperation _ _ binOp _)
+        = Just $ Operators.associativity binOp
     associativity Abstraction{} = Nothing
     associativity Variable{} = Nothing
     associativity Literal{} = Nothing
@@ -430,13 +439,20 @@ instance Decomposable Expr where
             Application{} -> [ Traverser' (_Application % _2) traverseNode
                              , Traverser' (_Application % _3) traverseNode
                              ]
-            Sum{} -> [ Traverser' (_Sum % _2) traverseNode
-                     , keyWordCharTraversal traverseChar '+'
-                     , Traverser' (_Sum % _3) traverseNode
-                     ]
-            Literal{} -> [Traverser' (_Literal % _2) $ \case
-                 Boolean b -> Boolean b <$ traverse traverseChar (show @String b)
-                 Integer i -> Integer i <$ traverse traverseChar (show @String i)]
+            BinaryOperation{} ->
+                [ Traverser' (_BinaryOperation % _2) traverseNode
+                , Traverser' (_BinaryOperation % _3)
+                             (\binOp -> binOp
+                              <$ traverse_ @[]
+                                           traverseChar
+                                           (binaryOperatorSymbol binOp))
+                , Traverser' (_BinaryOperation % _4) traverseNode
+                ]
+            Literal{} -> [ Traverser' (_Literal % _2) $ \case
+                Boolean b -> Boolean b
+                    <$ traverse traverseChar (show @String b)
+                Integer i -> Integer i
+                    <$ traverse traverseChar (show @String i) ]
             ExprCstrSite{} -> [ Traverser' (_ExprCstrSite % _2)
                                 $ traverseComponents traverseChar traverseNode
                               ]
@@ -508,7 +524,7 @@ instance ValidInterstitialWhitespace Expr where
         Variable{} -> 0
         Abstraction{} -> 3
         Application{} -> 1
-        Sum{} -> 2
+        BinaryOperation{} -> 2
         Literal{} -> 0
         ExprCstrSite{} -> 0
 
@@ -550,7 +566,19 @@ instance Validity Expr where
                          guard (odd $ length whitespaceFragments)
                          *> whitespaceFragments
                          !!? (length whitespaceFragments `div` 2)))
+            , declare "does not have colliding non-associative operators"
+              . Lens.nullOf
+                  (parentheSizedChildren
+                   . Lens.cosmosOf parentheSizedChildren
+                   . Lens.filtered
+                       (any ((== NotAssociative) . Operators.associativity)
+                        . preview (_BinaryOperation % _3)))
             ]
+      where
+        parentheSizedChildren
+            = uniplate
+            . Lens.filtered
+                ((== 0) . view (hasLens @ExprMeta % #parenthesisLevels))
 
 instance Validity Literal
 
@@ -684,19 +712,21 @@ instance ValidEnumerable Identifier where
 
 instance ValidEnumerable Expr where
     enumerateValid
-        = datatype
-            [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
-            , Abstraction <$> enumerateValidAbstractionMeta 3
-              <*> accessValid
-              <*> accessValid
-            , Application .: setCenterWhitespace <$> accessValid
-              <*> enumerateValidExprMeta 0
-              <*> accessValid
-              <*> accessValid
-            , Sum <$> enumerateValidExprMeta 2 <*> accessValid <*> accessValid
-            , Literal <$> enumerateValidExprMeta 0 <*> accessValid
-            , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
-            ]
+        = datatype [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
+                   , Abstraction <$> enumerateValidAbstractionMeta 3
+                     <*> accessValid
+                     <*> accessValid
+                   , Application .: setCenterWhitespace <$> accessValid
+                     <*> enumerateValidExprMeta 0
+                     <*> accessValid
+                     <*> accessValid
+                   , binaryOperation' <$> enumerateValidExprMeta 2
+                     <*> accessValid
+                     <*> accessValid
+                     <*> accessValid
+                   , Literal <$> enumerateValidExprMeta 0 <*> accessValid
+                   , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
+                   ]
       where
         setCenterWhitespace nonEmptyWhitespace
             = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
@@ -704,6 +734,19 @@ instance ValidEnumerable Expr where
                      (toText . map unWhitespace
                       $ toList @(NonEmpty _) nonEmptyWhitespace)
                      whitespaceFragments
+        -- Make all non-associative operations parenthesized, to prevent collisions
+        binaryOperation' meta left binOp right
+            | Operators.associativity binOp == NotAssociative
+                = BinaryOperation (addParentheses meta) left binOp right
+        binaryOperation' meta left binOp right
+            = BinaryOperation meta left binOp right
+        addParentheses meta@ExprMeta{..}
+            = if parenthesisLevels == 0
+              then meta
+                  & #parenthesisLevels .~ 1
+                  & #standardMeta % #interstitialWhitespace
+                  %~ (("" :) . (++ [ "" ]))
+              else meta
 
 instance ValidEnumerable Literal where
     enumerateValid

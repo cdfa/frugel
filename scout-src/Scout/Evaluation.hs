@@ -159,14 +159,45 @@ evalExpr expr = do
                              ])
                     $ evalExpr body
     evalExpr' i@Literal{} = pure i
-    evalExpr' (Sum meta x y) = do
+    evalExpr' (BinaryOperation meta x binOp y) = do
         ex <- evalExpr x
         ey <- evalExpr y
         case (ex, ey) of
-            (Literal _ (Integer a), Literal _ (Integer b)) -> pure . literal'
-                $ Integer (a + b)
-            _ -> uncurry (Sum meta)
-            <$> traverseOf both (reportAnyTypeErrors IntegerType) (ex, ey)
+            (Literal _ (Integer _), Literal _ (Integer 0))
+                | binOp == Division || binOp == Modulo ->
+                    writerFragment' #errors (BinaryOperation meta ex binOp ey)
+                    $ one DivideByZeroError
+            (Literal _ leftLiteral, Literal _ rightLiteral) ->
+                maybe (typeErrorStub ex ey) (pure . literal')
+                $ case (leftLiteral, binOp, rightLiteral) of
+                    (Integer a, Plus, Integer b) -> Just . Integer $ a + b
+                    (Integer a, Minus, Integer b) -> Just . Integer $ a - b
+                    (Integer a, Times, Integer b) -> Just . Integer $ a * b
+                    (Integer a, Division, Integer b) ->
+                        Just . Integer $ a `div` b
+                    (Integer a, Modulo, Integer b) ->
+                        Just . Integer $ a `mod` b
+                    (Integer a, Equals, Integer b) -> Just . Boolean $ a == b
+                    (Integer a, NotEquals, Integer b) ->
+                        Just . Boolean $ a /= b
+                    (Integer a, LessThan, Integer b) -> Just . Boolean $ a < b
+                    (Integer a, GreaterThan, Integer b) ->
+                        Just . Boolean $ a > b
+                    (Integer a, LessOrEqual, Integer b) ->
+                        Just . Boolean $ a <= b
+                    (Integer a, GreaterOrEqual, Integer b) ->
+                        Just . Boolean $ a >= b
+                    (Boolean a, And, Boolean b) -> Just . Boolean $ a && b
+                    (Boolean a, Or, Boolean b) -> Just . Boolean $ a || b
+                    _ -> Nothing
+            _ -> typeErrorStub ex ey
+      where
+        (expectedLeftType, expectedRightType, _) = binaryOperatorType binOp
+        typeErrorStub ex ey
+            = uncurry (binaryOperation'' binOp meta)
+            <$> traverseOf both
+                           (uncurry reportAnyTypeErrors)
+                           ((expectedLeftType, ex), (expectedRightType, ey))
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
@@ -349,13 +380,31 @@ typeCheck e expectedType = case (e, expectedType) of
     (Abstraction{}, Function) -> Nothing
     (Literal _ Boolean{}, BoolType) -> Nothing
     (Literal _ Integer{}, IntegerType) -> Nothing
-    (Sum{}, IntegerType) -> Nothing
+    (BinaryOperation _ _ binOp _, encounteredType)
+        | view _3 (binaryOperatorType binOp) == encounteredType -> Nothing
     (Abstraction{}, _) -> typeError
-    (Sum{}, _) -> typeError
+    (BinaryOperation{}, _) -> typeError
     (Literal _ Boolean{}, _) -> typeError
     (Literal _ Integer{}, _) -> typeError
   where
     typeError = Just $ TypeMismatchError expectedType e
+
+binaryOperatorType
+    :: BinaryOperator -> (ExpectedType, ExpectedType, ExpectedType)
+binaryOperatorType = \case
+    Plus -> (IntegerType, IntegerType, IntegerType)
+    Minus -> (IntegerType, IntegerType, IntegerType)
+    Times -> (IntegerType, IntegerType, IntegerType)
+    Division -> (IntegerType, IntegerType, IntegerType)
+    Modulo -> (IntegerType, IntegerType, IntegerType)
+    Equals -> (IntegerType, IntegerType, BoolType)
+    NotEquals -> (IntegerType, IntegerType, BoolType)
+    LessThan -> (IntegerType, IntegerType, BoolType)
+    GreaterThan -> (IntegerType, IntegerType, BoolType)
+    LessOrEqual -> (IntegerType, IntegerType, BoolType)
+    GreaterOrEqual -> (IntegerType, IntegerType, BoolType)
+    And -> (BoolType, BoolType, BoolType)
+    Or -> (BoolType, BoolType, BoolType)
 
 numberedIdentifier :: Identifier -> Int -> Identifier
 numberedIdentifier identifier 0 = identifier
@@ -415,6 +464,7 @@ renameShadowedVariables scopedExpr = do
                 . renameShadowedVariables
                 . f
 
+-- This function gets really inefficient with high shadowing numbers. Last fix was trial and error. Rethink and rebuild at some point
 freshSuffix :: Identifier -> Map Identifier Int -> Int
 freshSuffix original env
     = Unsafe.fromJust -- safe because suffixRange is infinite
@@ -430,7 +480,8 @@ freshSuffix original env
           then 0
           else fromMaybe 1 largest
     largest
-        = maximum <.> nonEmpty
+        = maximum
+        <.> nonEmpty
         . mapMaybe
             (\(i, name) ->
              let (trimmed', trailingDigits')

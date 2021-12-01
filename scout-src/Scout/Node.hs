@@ -6,6 +6,7 @@
 module Scout.Node
     ( module Scout.Node
     , module Frugel.CstrSite
+    , module Scout.Operators
     , ValidInterstitialWhitespace(..)
     , Expr(..)
     , Literal(..)
@@ -35,7 +36,7 @@ module Scout.Node
     , _DeclNode
     , _ExprCstrSite
     , _ExprNode
-    , _Sum
+    , _BinaryOperation
     , _Variable
     , _Literal
     , _WhereClause
@@ -81,6 +82,7 @@ import Optics.Extra.Scout  as Optics
 import qualified Relude.Unsafe as Unsafe
 
 import Scout.Internal.Node as Node
+import Scout.Operators
 
 identifier' :: String -> Maybe Identifier
 identifier'
@@ -107,8 +109,11 @@ unsafeAbstraction = abstraction' . Unsafe.fromJust . identifier'
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
 
-sum' :: Expr -> Expr -> Expr
-sum' = Sum $ defaultExprMeta 2
+binaryOperation' :: Expr -> BinaryOperator -> Expr -> Expr
+binaryOperation' = BinaryOperation $ defaultExprMeta 2
+
+binaryOperation'' :: BinaryOperator -> ExprMeta -> Expr -> Expr -> Expr
+binaryOperation'' binOp meta' left = BinaryOperation meta' left binOp
 
 literal' :: Literal -> Expr
 literal' = Literal $ defaultExprMeta 0
@@ -234,8 +239,9 @@ parensInsertTest
     = application'
         (application' (unsafeVariable "n")
                       (unsafeAbstraction "x" $ unsafeVariable "x"))
-        (application' (unsafeVariable "y")
-                      (sum' (unsafeVariable "z") (unsafeVariable "w")))
+        (application'
+             (unsafeVariable "y")
+             (binaryOperation' (unsafeVariable "z") Plus (unsafeVariable "w")))
 
 evalTest :: CstrSite
 evalTest

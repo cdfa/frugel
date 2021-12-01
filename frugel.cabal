@@ -92,6 +92,7 @@ library scout
       Scout.Internal.Program
       Scout.Lexing
       Scout.Node
+      Scout.Operators
       Scout.Orphans.DisplayProjection
       Scout.Orphans.MultiSet
       Scout.Orphans.Stream

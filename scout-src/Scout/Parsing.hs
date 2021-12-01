@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -55,7 +56,8 @@ term
                     [ Boolean
                       <$> (True <$ string "True" <|> False <$ string "False")
                     , Integer <$> decimal
-                    ] <* notFollowedBy alphaNumChar
+                    ]
+                <* notFollowedBy alphaNumChar
               , variable' <$%> identifier
               ]
         , node "an expression node"
@@ -73,26 +75,40 @@ term
 
 expr :: Parser Expr
 expr
-    = makeExprParser
-        term
-        [ [ InfixL (Application . setWhitespace
-                    <$> try (defaultExprMeta 1 <<$> whitespace
-                             <* notFollowedBy -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
-                             (choice [ () <$ char '+'
-                                     , () <$ string "where"
-                                     , () <$ node @WhereClause ""
-                                     , () <$ (() <$% identifier <*% char '=')
-                                     , () <$ node @Decl ""
-                                     , () <$ char ')'
-                                     , eof
-                                     ])))
-          ]
-        , [ InfixL
-                (Sum . setWhitespace
-                 <$> try
-                     (defaultExprMeta 2 <$% pure () <*% char '+' <*% pure ()))
-          ]
+    = makeExprParser term
+    $ [ [ InfixL (Application . setWhitespace
+                  <$> try (defaultExprMeta 1 <<$> whitespace
+                           <* notFollowedBy illegalTrailingApplicationTokens)) -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
         ]
+      , [ binOpParser Or ] -- Todo: unary operations
+      ]
+    ++ (binOpParser <<$>> binaryOperatorPrecedence)
+  where
+    illegalTrailingApplicationTokens
+        = choice
+            [ ()
+              <$ choice (map string
+                         $ [ "where", ")" ]
+                         ++ map binaryOperatorSymbol (concat binaryOperatorPrecedence))
+            , () <$ node @WhereClause ""
+            , () <$ (() <$% identifier <*% char '=')
+            , () <$ node @Decl ""
+            , eof
+            ]
+    binOpParser binOp
+        = parserAssociativity
+            (associativity binOp)
+            (binaryOperation'' binOp . setWhitespace
+             <$> try (defaultExprMeta 2 <$% pure ()
+                      <*% string (binaryOperatorSymbol @String binOp)
+                      <* notFollowedBy (char '=') <*% pure ()))
+
+parserAssociativity
+    :: Associativity -> Parser (a -> a -> a) -> Operator Parser a
+parserAssociativity = \case
+    LeftAssociative -> InfixL
+    RightAssociative -> InfixR
+    NotAssociative -> InfixN
 
 decl :: Parser Decl
 decl = setWhitespace <$> literalDecl <|> declNode
