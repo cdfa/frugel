@@ -179,10 +179,12 @@ data EvaluationError
     | DivideByZeroError
     deriving ( Eq, Show, Ord, Data )
 
-data TypeError = TypeMismatchError ExpectedType Expr
+data TypeError
+    = TypeValueMismatch ExpectedType Expr
+    | LiteralTypesMismatch Literal Literal
     deriving ( Eq, Show, Ord, Data )
 
-data ExpectedType = Function | IntegerType | BoolType
+data ExpectedType = FunctionType | IntegerType | BoolType | AnyType
     deriving ( Eq, Show, Ord, Data )
 
 makeFieldLabelsNoPrefix ''Decl
@@ -399,6 +401,11 @@ instance DisplayProjection Expr
 instance DisplayProjection Decl
 
 instance DisplayProjection WhereClause
+
+instance DisplayProjection Literal where
+    renderDoc = \case
+        Boolean b -> viaShow b
+        Integer i -> viaShow i
 
 instance Decomposable Node where
     traverseComponents traverseChar traverseNode = \case

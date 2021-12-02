@@ -24,11 +24,19 @@ instance DisplayProjection EvaluationError where
         DivideByZeroError -> "Divide-by-zero error"
 
 instance DisplayProjection TypeError where
-    renderDoc (TypeMismatchError expected expr)
-        = "Expected type"
-        <+> pretty expected <> line <> "does not match"
-        <+> annotateComplete
-            (reAnnotate toStandardAnnotation . annPretty $ truncate 5 expr)
+    renderDoc = \case
+        TypeValueMismatch expected expr -> "Expected type"
+            <+> pretty expected <> line <> "does not match"
+            <+> annotateComplete
+                (reAnnotate toStandardAnnotation . annPretty $ truncate 5 expr)
+        LiteralTypesMismatch e1 e2 -> "Could not match types of"
+            <+> renderDoc e1
+            <+> "and"
+            <+> renderDoc e2
 
 instance Pretty ExpectedType where
-    pretty = viaShow
+    pretty = \case
+        FunctionType -> "Function"
+        IntegerType -> "Integer"
+        BoolType -> "Boolean"
+        AnyType -> "Any"

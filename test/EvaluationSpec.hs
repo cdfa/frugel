@@ -120,7 +120,7 @@ expectedFunctionSpec
                                  Plus
                                  (singleExprNodeCstrSite $ unsafeVariable "q"))
              (singleExprNodeCstrSite $ unsafeVariable "x")
-       , fromOccurList [ ( TypeError . TypeMismatchError Function
+       , fromOccurList [ ( TypeError . TypeValueMismatch FunctionType
                            $ binaryOperation'
                                (singleExprNodeCstrSite $ unsafeVariable "q")
                                Plus
@@ -139,8 +139,8 @@ expectedIntSpec
     ?? ( binaryOperation' (singleExprNodeCstrSite k)
                           Plus
                           (singleExprNodeCstrSite s)
-       , fromOccurList [ (TypeError $ TypeMismatchError IntegerType k, 1)
-                       , (TypeError $ TypeMismatchError IntegerType s, 1)
+       , fromOccurList [ (TypeError $ TypeValueMismatch IntegerType k, 1)
+                       , (TypeError $ TypeValueMismatch IntegerType s, 1)
                        ]
        )
 

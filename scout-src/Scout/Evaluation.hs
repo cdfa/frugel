@@ -131,7 +131,7 @@ evalExpr expr = do
             Abstraction{} -> error
                 "Internal evaluation error: object language function was missing meta language function"
             _ -> do
-                checkedEf <- reportAnyTypeErrors Function ef
+                checkedEf <- reportAnyTypeErrors FunctionType ef
                 Application meta checkedEf . deferEvaluation
                     <$> newEvalRef (evalExpr x)
     evalExpr' (Abstraction meta n body) = do
@@ -160,13 +160,14 @@ evalExpr expr = do
         ex <- evalExpr x
         ey <- evalExpr y
         case (ex, ey) of
-            (Literal _ (Integer _), Literal _ (Integer 0))
-                | binOp == Division || binOp == Modulo ->
-                    writerFragment' #errors (BinaryOperation meta ex binOp ey)
-                    $ one DivideByZeroError
             (Literal _ leftLiteral, Literal _ rightLiteral) ->
-                maybe (typeErrorStub ex ey) (pure . literal')
-                $ performBinaryOperation leftLiteral binOp rightLiteral
+                case performBinaryOperation leftLiteral binOp rightLiteral of
+                    Nothing -> typeErrorStub ex ey
+                    Just (Left evalError) -> writerFragment'
+                        #errors
+                        (BinaryOperation meta ex binOp ey)
+                        $ one evalError
+                    Just (Right literal) -> pure $ literal' literal
             _ -> typeErrorStub ex ey
       where
         (expectedLeftType, expectedRightType, _) = binaryOperatorType binOp
@@ -212,23 +213,34 @@ outputOnce valueRef = do
             writer (value, output)
         Right withoutOutput -> pure withoutOutput
 
-performBinaryOperation :: Literal -> BinaryOperator -> Literal -> Maybe Literal
-performBinaryOperation leftLiteral binOp rightLiteral
-    = case (leftLiteral, binOp, rightLiteral) of
-        (Integer a, Plus, Integer b) -> Just . Integer $ a + b
-        (Integer a, Minus, Integer b) -> Just . Integer $ a - b
-        (Integer a, Times, Integer b) -> Just . Integer $ a * b
-        (Integer a, Division, Integer b) -> Just . Integer $ a `div` b
-        (Integer a, Modulo, Integer b) -> Just . Integer $ a `mod` b
-        (Integer a, Equals, Integer b) -> Just . Boolean $ a == b
-        (Integer a, NotEquals, Integer b) -> Just . Boolean $ a /= b
-        (Integer a, LessThan, Integer b) -> Just . Boolean $ a < b
-        (Integer a, GreaterThan, Integer b) -> Just . Boolean $ a > b
-        (Integer a, LessOrEqual, Integer b) -> Just . Boolean $ a <= b
-        (Integer a, GreaterOrEqual, Integer b) -> Just . Boolean $ a >= b
-        (Boolean a, And, Boolean b) -> Just . Boolean $ a && b
-        (Boolean a, Or, Boolean b) -> Just . Boolean $ a || b
-        _ -> Nothing
+performBinaryOperation :: Literal
+    -> BinaryOperator
+    -> Literal
+    -> Maybe (Either EvaluationError Literal)
+performBinaryOperation
+    leftLiteral
+    binOp
+    rightLiteral = case (leftLiteral, binOp, rightLiteral) of
+    (Integer _, _, Integer 0)
+        | binOp `elem` [ Division, Modulo ] -> Just $ Left DivideByZeroError
+    (Integer a, Plus, Integer b) -> Just . Right . Integer $ a + b
+    (Integer a, Minus, Integer b) -> Just . Right . Integer $ a - b
+    (Integer a, Times, Integer b) -> Just . Right . Integer $ a * b
+    (Integer a, Division, Integer b) -> Just . Right . Integer $ a `div` b
+    (Integer a, Modulo, Integer b) -> Just . Right . Integer $ a `mod` b
+    (Integer a, Equals, Integer b) -> Just . Right . Boolean $ a == b
+    (Integer a, NotEquals, Integer b) -> Just . Right . Boolean $ a /= b
+    (Boolean a, Equals, Boolean b) -> Just . Right . Boolean $ a == b
+    (Boolean a, NotEquals, Boolean b) -> Just . Right . Boolean $ a /= b
+    (_, _, _) | binOp `elem` [ Equals, NotEquals ] -> Just . Left . TypeError
+                  $ LiteralTypesMismatch leftLiteral rightLiteral
+    (Integer a, LessThan, Integer b) -> Just . Right . Boolean $ a < b
+    (Integer a, GreaterThan, Integer b) -> Just . Right . Boolean $ a > b
+    (Integer a, LessOrEqual, Integer b) -> Just . Right . Boolean $ a <= b
+    (Integer a, GreaterOrEqual, Integer b) -> Just . Right . Boolean $ a >= b
+    (Boolean a, And, Boolean b) -> Just . Right . Boolean $ a && b
+    (Boolean a, Or, Boolean b) -> Just . Right . Boolean $ a || b
+    _ -> Nothing
 
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
 evalWhereClause whereClause@(WhereClause _ decls)
@@ -369,10 +381,11 @@ reportAnyTypeErrors expectedType e
 
 typeCheck :: Expr -> ExpectedType -> Maybe TypeError
 typeCheck e expectedType = case (e, expectedType) of
+    (_, AnyType) -> Nothing
     (Variable{}, _) -> Nothing
     (Application{}, _) -> Nothing
     (ExprCstrSite{}, _) -> Nothing
-    (Abstraction{}, Function) -> Nothing
+    (Abstraction{}, FunctionType) -> Nothing
     (Literal _ Boolean{}, BoolType) -> Nothing
     (Literal _ Integer{}, IntegerType) -> Nothing
     (UnaryOperation _ Negate _, IntegerType) -> Nothing
@@ -384,7 +397,7 @@ typeCheck e expectedType = case (e, expectedType) of
     (Literal _ Boolean{}, _) -> typeError
     (Literal _ Integer{}, _) -> typeError
   where
-    typeError = Just $ TypeMismatchError expectedType e
+    typeError = Just $ TypeValueMismatch expectedType e
 
 binaryOperatorType
     :: BinaryOperator -> (ExpectedType, ExpectedType, ExpectedType)
@@ -394,8 +407,8 @@ binaryOperatorType = \case
     Times -> (IntegerType, IntegerType, IntegerType)
     Division -> (IntegerType, IntegerType, IntegerType)
     Modulo -> (IntegerType, IntegerType, IntegerType)
-    Equals -> (IntegerType, IntegerType, BoolType)
-    NotEquals -> (IntegerType, IntegerType, BoolType)
+    Equals -> (AnyType, AnyType, BoolType)
+    NotEquals -> (AnyType, AnyType, BoolType)
     LessThan -> (IntegerType, IntegerType, BoolType)
     GreaterThan -> (IntegerType, IntegerType, BoolType)
     LessOrEqual -> (IntegerType, IntegerType, BoolType)
