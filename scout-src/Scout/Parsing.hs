@@ -80,21 +80,27 @@ expr
                   <$> try (defaultExprMeta 1 <<$> whitespace
                            <* notFollowedBy illegalTrailingApplicationTokens)) -- Ugly lookahead to fix problem of succeeding on whitespace between expression and +. Fixable by indentation sensitive parsing, but that requires a TraversableStream instance (or rebuilding the combinators)
         ]
-      , [ binOpParser Or ] -- Todo: unary operations
+      , [ Prefix $ unOpParser Negate ]
       ]
     ++ (binOpParser <<$>> binaryOperatorPrecedence)
   where
     illegalTrailingApplicationTokens
-        = choice
-            [ ()
-              <$ choice (map string
-                         $ [ "where", ")" ]
-                         ++ map binaryOperatorSymbol (concat binaryOperatorPrecedence))
-            , () <$ node @WhereClause ""
-            , () <$ (() <$% identifier <*% char '=')
-            , () <$ node @Decl ""
-            , eof
-            ]
+        = choice [ ()
+                   <$ choice (map string
+                              $ [ "where", ")", "if", "then", "else" ]
+                              ++ map binaryOperatorSymbol
+                                     (concat binaryOperatorPrecedence))
+                 , () <$ node @WhereClause ""
+                 , () <$ (() <$% identifier <*% char '=')
+                 , () <$ node @Decl ""
+                 , eof
+                 ]
+    -- parse multiple unary operators in a row in one go. Otherwise it doesn't work for reasons I have yet to figure out
+    unOpParser unOp
+        = foldr (.) <$> pUnOp
+        <*> many (unOpParser unOp)
+      where
+        pUnOp = unaryOperation' unOp <$ string (unaryOperatorSymbol unOp)
     binOpParser binOp
         = parserAssociativity
             (associativity binOp)

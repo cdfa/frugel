@@ -58,6 +58,9 @@ instance AnnotatedPretty Expr where
             Application _ function arg -> uncurry nestingLine
                 $ both %~ annPretty
                 $ prettyBinary expr function arg
+            UnaryOperation _ unOp subExp -> mappend (unaryOperatorSymbol unOp)
+                . annPretty
+                $ prettyUnary expr subExp
             BinaryOperation _ left binOp right ->
                 (\(left', right') -> annPretty left'
                  `nestingLine` (binaryOperatorSymbol binOp

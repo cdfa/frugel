@@ -36,6 +36,7 @@ module Scout.Node
     , _DeclNode
     , _ExprCstrSite
     , _ExprNode
+    , _UnaryOperation
     , _BinaryOperation
     , _Variable
     , _Literal
@@ -108,6 +109,9 @@ unsafeAbstraction = abstraction' . Unsafe.fromJust . identifier'
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
+
+unaryOperation' :: UnaryOperator -> Expr -> Expr
+unaryOperation' = UnaryOperation $ defaultExprMeta 0
 
 binaryOperation' :: Expr -> BinaryOperator -> Expr -> Expr
 binaryOperation' = BinaryOperation $ defaultExprMeta 2

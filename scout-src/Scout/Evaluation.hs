@@ -150,6 +150,12 @@ evalExpr expr = do
                              ])
                     $ evalExpr body
     evalExpr' i@Literal{} = pure i
+    evalExpr' (UnaryOperation meta Negate x) = do
+        ex <- evalExpr x
+        case ex of
+            Literal exMeta (Integer i) -> pure . Literal exMeta $ Integer (-i)
+            _ -> UnaryOperation meta Negate
+                <$> reportAnyTypeErrors IntegerType ex
     evalExpr' (BinaryOperation meta x binOp y) = do
         ex <- evalExpr x
         ey <- evalExpr y
@@ -369,9 +375,11 @@ typeCheck e expectedType = case (e, expectedType) of
     (Abstraction{}, Function) -> Nothing
     (Literal _ Boolean{}, BoolType) -> Nothing
     (Literal _ Integer{}, IntegerType) -> Nothing
+    (UnaryOperation _ Negate _, IntegerType) -> Nothing
     (BinaryOperation _ _ binOp _, encounteredType)
         | view _3 (binaryOperatorType binOp) == encounteredType -> Nothing
     (Abstraction{}, _) -> typeError
+    (UnaryOperation{}, _) -> typeError
     (BinaryOperation{}, _) -> typeError
     (Literal _ Boolean{}, _) -> typeError
     (Literal _ Integer{}, _) -> typeError

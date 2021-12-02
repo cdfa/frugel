@@ -74,6 +74,7 @@ data Expr
     | Abstraction AbstractionMeta Identifier Expr
     | Application ExprMeta Expr Expr
     | BinaryOperation ExprMeta Expr BinaryOperator Expr
+    | UnaryOperation ExprMeta UnaryOperator Expr
     | Literal ExprMeta Literal
     | ExprCstrSite ExprMeta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data )
@@ -238,6 +239,7 @@ instance Has ExprMeta Expr where
     getter (Variable meta _) = meta
     getter (Application meta _ _) = meta
     getter (BinaryOperation meta _ _ _) = meta
+    getter (UnaryOperation meta _ _) = meta
     getter (Literal meta _) = meta
     getter (ExprCstrSite meta _) = meta
     modifier = over . singular $ traversalVL $ template @_ @ExprMeta
@@ -282,19 +284,28 @@ defaultMeta n
 
 -- Note that expressions may have the precedence of literals when parenthesized
 instance Expression Expr where
-    precedence Abstraction{} = 2 + length binaryOperatorPrecedence
-    precedence (BinaryOperation _ _ binOp _)
-        = 2
-        + fromMaybe missingOperatorError
-                    (findIndex (elem binOp) binaryOperatorPrecedence)
+    precedence e = case e of
+        (BinaryOperation _ _ binOp _) -> precedence' e
+            + fromMaybe missingOperatorError
+                        (findIndex (elem binOp) binaryOperatorPrecedence)
+          where
+            missingOperatorError
+                = error
+                $ show binOp <> " was not in the operator precedence list"
+        _ -> if precedence' e > 2
+            then precedence' e + length binaryOperatorPrecedence - 1
+            else precedence' e
       where
-        missingOperatorError
-            = error $ show binOp <> " was not in the operator precedence list"
-    precedence Application{} = 1
-    precedence Variable{} = 0
-    precedence Literal{} = 0
-    precedence ExprCstrSite{} = 0
+        precedence' :: Expr -> Int
+        precedence' Abstraction{} = 4
+        precedence' UnaryOperation{} = 3
+        precedence' BinaryOperation{} = 2
+        precedence' Application{} = 1
+        precedence' Variable{} = 0
+        precedence' Literal{} = 0
+        precedence' ExprCstrSite{} = 0
     fixity Abstraction{} = Just Prefix
+    fixity (UnaryOperation _ unOp _) = Just $ Operators.fixity unOp
     fixity Application{} = Just Infix
     fixity BinaryOperation{} = Just Infix
     fixity Variable{} = Nothing
@@ -303,6 +314,7 @@ instance Expression Expr where
     associativity Application{} = Just LeftAssociative
     associativity (BinaryOperation _ _ binOp _)
         = Just $ Operators.associativity binOp
+    associativity UnaryOperation{} = Nothing
     associativity Abstraction{} = Nothing
     associativity Variable{} = Nothing
     associativity Literal{} = Nothing
@@ -409,7 +421,7 @@ instance Decomposable Expr where
         | e ^. exprMeta % #parenthesisLevels > 0
             = chainDisJoint e
             $ Disjoint
-                [ keyWordCharTraversal traverseChar '('
+                [ keywordCharTraversal traverseChar '('
                 , whitespaceFragmentTraverser _head traverseChar
                 , Traverser'
                       (refracting (exprMeta % #parenthesisLevels)
@@ -419,7 +431,7 @@ instance Decomposable Expr where
                            (_tail % _init))
                       traverseNode
                 , whitespaceFragmentTraverser _last traverseChar
-                , keyWordCharTraversal traverseChar ')'
+                , keywordCharTraversal traverseChar ')'
                 ]
     traverseComponents traverseChar traverseNode e
         = chainDisJoint e
@@ -430,22 +442,24 @@ instance Decomposable Expr where
             Variable{} -> [ Traverser' (_Variable % _2)
                             $ traverseComponents traverseChar traverseNode
                           ]
-            Abstraction{} -> [ keyWordCharTraversal traverseChar '\\'
+            Abstraction{} -> [ keywordCharTraversal traverseChar '\\'
                              , Traverser' (_Abstraction % _2)
                                $ traverseComponents traverseChar traverseNode
-                             , keyWordCharTraversal traverseChar '='
+                             , keywordCharTraversal traverseChar '='
                              , Traverser' (_Abstraction % _3) traverseNode
                              ]
             Application{} -> [ Traverser' (_Application % _2) traverseNode
                              , Traverser' (_Application % _3) traverseNode
                              ]
-            BinaryOperation{} ->
+            (UnaryOperation _ unOp _) ->
+                [ keywordStringTraversal traverseChar
+                                         (unaryOperatorSymbol unOp)
+                , Traverser' (_UnaryOperation % _3) traverseNode
+                ]
+            (BinaryOperation _ _ binOp _) ->
                 [ Traverser' (_BinaryOperation % _2) traverseNode
-                , Traverser' (_BinaryOperation % _3)
-                             (\binOp -> binOp
-                              <$ traverse_ @[]
-                                           traverseChar
-                                           (binaryOperatorSymbol binOp))
+                , keywordStringTraversal traverseChar
+                                         (binaryOperatorSymbol binOp)
                 , Traverser' (_BinaryOperation % _4) traverseNode
                 ]
             Literal{} -> [ Traverser' (_Literal % _2) $ \case
@@ -464,7 +478,7 @@ instance Decomposable Decl where
             traverseChar
             decl
             [ Traverser' #name (traverseComponents traverseChar traverseNode)
-            , keyWordCharTraversal traverseChar '='
+            , keywordCharTraversal traverseChar '='
             , Traverser' #value traverseNode
             ]
     traverseComponents traverseChar traverseNode (DeclCstrSite meta materials)
@@ -487,10 +501,17 @@ instance Decomposable WhereClause where
         = WhereCstrSite meta
         <$> traverseComponents traverseChar traverseNode materials
 
-keyWordCharTraversal
+keywordCharTraversal
     :: (Is A_Lens k, Functor f) => (t -> f b) -> t -> Traverser' f k NoIx a
-keyWordCharTraversal traverseChar c
+keywordCharTraversal traverseChar c
     = Traverser' (castOptic united) (<$ traverseChar c)
+
+keywordStringTraversal :: (Is A_Lens k, Applicative f)
+    => (a -> f b)
+    -> [a]
+    -> Traverser' f k NoIx s
+keywordStringTraversal traverseChar s
+    = Traverser' (castOptic united) (<$ traverse_ @[] traverseChar s)
 
 intersperseWhitespaceTraversers :: (Applicative f, Has Meta n)
     => (Char -> f Char)
@@ -524,6 +545,7 @@ instance ValidInterstitialWhitespace Expr where
         Variable{} -> 0
         Abstraction{} -> 3
         Application{} -> 1
+        UnaryOperation{} -> 0
         BinaryOperation{} -> 2
         Literal{} -> 0
         ExprCstrSite{} -> 0
@@ -712,21 +734,25 @@ instance ValidEnumerable Identifier where
 
 instance ValidEnumerable Expr where
     enumerateValid
-        = datatype [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
-                   , Abstraction <$> enumerateValidAbstractionMeta 3
-                     <*> accessValid
-                     <*> accessValid
-                   , Application .: setCenterWhitespace <$> accessValid
-                     <*> enumerateValidExprMeta 0
-                     <*> accessValid
-                     <*> accessValid
-                   , binaryOperation' <$> enumerateValidExprMeta 2
-                     <*> accessValid
-                     <*> accessValid
-                     <*> accessValid
-                   , Literal <$> enumerateValidExprMeta 0 <*> accessValid
-                   , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
-                   ]
+        = datatype
+            [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
+            , Abstraction <$> enumerateValidAbstractionMeta 3
+              <*> accessValid
+              <*> accessValid
+            , Application .: setCenterWhitespace <$> accessValid
+              <*> enumerateValidExprMeta 0
+              <*> accessValid
+              <*> accessValid
+            , UnaryOperation <$> enumerateValidExprMeta 0
+              <*> accessValid
+              <*> accessValid
+            , binaryOperation' <$> enumerateValidExprMeta 2
+              <*> accessValid
+              <*> accessValid
+              <*> accessValid
+            , Literal <$> enumerateValidExprMeta 0 <*> accessValid
+            , ExprCstrSite <$> enumerateValidExprMeta 0 <*> accessValid
+            ]
       where
         setCenterWhitespace nonEmptyWhitespace
             = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
