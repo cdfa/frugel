@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -38,7 +37,7 @@ import Relude                 ( group )
 import qualified Relude.Unsafe as Unsafe
 
 import Scout.Internal.EvaluationEnv
-    ( EvaluationEnv(EvaluationEnv), _EvaluationEnv )
+    ( EvaluationEnv(EvaluationEnv), _EvaluationEnv, magnifyShadowingEnv )
 import qualified Scout.Internal.EvaluationEnv as EvaluationEnv
 import qualified Scout.Internal.Node as Node
 import qualified Scout.Internal.Program
@@ -136,18 +135,10 @@ evalExpr expr = do
                 Application meta checkedEf . deferEvaluation
                     <$> newEvalRef (evalExpr x)
     evalExpr' (Abstraction meta n body) = do
-        reifiedFunction
-            <- asks $ \EvaluationEnv{valueEnv, definitions} arg -> do
-                scopedBody <- scope
-                    . magnify
-                        (to $ \shadowingEnv ->
-                         EvaluationEnv { valueEnv = Map.insert n arg valueEnv
-                                       , shadowingEnv
-                                       , definitions = Set.delete n definitions
-                                       })
-                    $ evalExpr body
-                -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
-                renameShadowedVariables scopedBody
+        reifiedFunction <- asks $ \env arg -> do
+            scopedBody <- scope . magnifyShadowingEnv n arg env $ evalExpr body
+            -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
+            renameShadowedVariables scopedBody
         fmap (Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
               . deferEvaluation)
             . newEvalRef
@@ -169,27 +160,7 @@ evalExpr expr = do
                     $ one DivideByZeroError
             (Literal _ leftLiteral, Literal _ rightLiteral) ->
                 maybe (typeErrorStub ex ey) (pure . literal')
-                $ case (leftLiteral, binOp, rightLiteral) of
-                    (Integer a, Plus, Integer b) -> Just . Integer $ a + b
-                    (Integer a, Minus, Integer b) -> Just . Integer $ a - b
-                    (Integer a, Times, Integer b) -> Just . Integer $ a * b
-                    (Integer a, Division, Integer b) ->
-                        Just . Integer $ a `div` b
-                    (Integer a, Modulo, Integer b) ->
-                        Just . Integer $ a `mod` b
-                    (Integer a, Equals, Integer b) -> Just . Boolean $ a == b
-                    (Integer a, NotEquals, Integer b) ->
-                        Just . Boolean $ a /= b
-                    (Integer a, LessThan, Integer b) -> Just . Boolean $ a < b
-                    (Integer a, GreaterThan, Integer b) ->
-                        Just . Boolean $ a > b
-                    (Integer a, LessOrEqual, Integer b) ->
-                        Just . Boolean $ a <= b
-                    (Integer a, GreaterOrEqual, Integer b) ->
-                        Just . Boolean $ a >= b
-                    (Boolean a, And, Boolean b) -> Just . Boolean $ a && b
-                    (Boolean a, Or, Boolean b) -> Just . Boolean $ a || b
-                    _ -> Nothing
+                $ performBinaryOperation leftLiteral binOp rightLiteral
             _ -> typeErrorStub ex ey
       where
         (expectedLeftType, expectedRightType, _) = binaryOperatorType binOp
@@ -234,6 +205,24 @@ outputOnce valueRef = do
             writeIORef valueRef $ Right value
             writer (value, output)
         Right withoutOutput -> pure withoutOutput
+
+performBinaryOperation :: Literal -> BinaryOperator -> Literal -> Maybe Literal
+performBinaryOperation leftLiteral binOp rightLiteral
+    = case (leftLiteral, binOp, rightLiteral) of
+        (Integer a, Plus, Integer b) -> Just . Integer $ a + b
+        (Integer a, Minus, Integer b) -> Just . Integer $ a - b
+        (Integer a, Times, Integer b) -> Just . Integer $ a * b
+        (Integer a, Division, Integer b) -> Just . Integer $ a `div` b
+        (Integer a, Modulo, Integer b) -> Just . Integer $ a `mod` b
+        (Integer a, Equals, Integer b) -> Just . Boolean $ a == b
+        (Integer a, NotEquals, Integer b) -> Just . Boolean $ a /= b
+        (Integer a, LessThan, Integer b) -> Just . Boolean $ a < b
+        (Integer a, GreaterThan, Integer b) -> Just . Boolean $ a > b
+        (Integer a, LessOrEqual, Integer b) -> Just . Boolean $ a <= b
+        (Integer a, GreaterOrEqual, Integer b) -> Just . Boolean $ a >= b
+        (Boolean a, And, Boolean b) -> Just . Boolean $ a && b
+        (Boolean a, Or, Boolean b) -> Just . Boolean $ a || b
+        _ -> Nothing
 
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
 evalWhereClause whereClause@(WhereClause _ decls)
@@ -454,15 +443,14 @@ renameShadowedVariables scopedExpr = do
                             % _2)
                            onDeferredModifier
                            expr
-      where
-        onDeferredModifier f = do
-            fuel <- askLimit
-            shadowingEnv <- ask
-            pure
-                $ usingReaderT shadowingEnv
-                . usingLimiterT fuel
-                . renameShadowedVariables
-                . f
+    onDeferredModifier f = do
+        fuel <- askLimit
+        shadowingEnv <- ask
+        pure
+            $ usingReaderT shadowingEnv
+            . usingLimiterT fuel
+            . renameShadowedVariables
+            . f
 
 -- This function gets really inefficient with high shadowing numbers. Last fix was trial and error. Rethink and rebuild at some point
 freshSuffix :: Identifier -> Map Identifier Int -> Int
