@@ -7,10 +7,24 @@ let
 
   hsPkgs = import ./base.nix { inherit pkgs ghc; };
 
+  floskell = (
+    pkgs.haskell-nix.hackage-package
+      {
+        compiler-nix-name = ghc;
+        name = "floskell";
+        version = "latest";
+        modules = [
+          {
+            packages.floskell.ghcOptions = [ "-threaded" "-with-rtsopts=-N" ];
+          }
+        ];
+      }
+  ).components.exes.floskell;
+
   nix-pre-commit-hooks = import "${sources."pre-commit-hooks.nix"}/nix" { nixpkgs = haskellNix.sources.nixpkgs-unstable; };
   pre-commit-check = nix-pre-commit-hooks.run {
     src = ./.;
-    hooks = with import ./nix/commit-hooks.nix { inherit pkgs; }; {
+    hooks = with import ./nix/commit-hooks.nix { inherit pkgs floskell; }; {
       nixpkgs-fmt.enable = true;
       nix-linter.enable = true;
       hlint.enable = true;
@@ -36,11 +50,11 @@ in
 hsPkgs.shellFor {
   tools = {
     cabal = "3.4.0.0";
-    hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
+    hlint = "latest";
     stan = "latest";
   };
   buildInputs = with pkgs; [
-    haskellPackages.floskell
+    floskell
     ghcid
     stack
     git # required by pre-commit-check shell hook
@@ -70,7 +84,7 @@ hsPkgs.shellFor {
           configureArgs = "-frename --allow-newer=hls-rename-plugin:ghcide";
         }
     ).components.exes.haskell-language-server
-  ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs; });
+  ] ++ builtins.attrValues (import ./nix/scripts.nix { inherit pkgs floskell; });
   withHoogle = false;
   exactDeps = false;
   shellHook = ''
