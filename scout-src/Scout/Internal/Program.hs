@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -163,36 +164,26 @@ instance PrettyPrint Program where
         renderAnnotation Elided' _
             = error "Encountered elided node when attempting to render a pretty printed program for reparsing"
         reparse :: forall n.
-            (Node ~ NodeOf n, Data n, Decomposable n, CstrSiteNode n)
+            (Node ~ NodeOf n, Data n, Decomposable n)
             => Parser n
             -> n
             -> (n, Set ParseError)
         reparse parser node
-            = let cstrSite = decompose node
-              in either
-                     (reparseNestedCstrSites @Program reparse (cstrSite, node)
-                      . fromFoldable)
-                      -- reparsing nested construction sites is a bit ridiculous, but can't find other fast way to get parse errors from parsing nested construction sites
-                     (\newNode ->
-                      ( fst
-                        $ reparseNestedCstrSites @Program
-                                                 reparse
-                                                 (cstrSite, newNode)
-                                                 mempty
-                      , snd
-                        $ reparseNestedCstrSites
-                            @Program
-                            reparse
-                            (cstrSite, setCstrSite cstrSite node)
-                            mempty
-                      ))
-                 $ runParser @Program parser cstrSite
+            = let (newNode, errors)
+                      = reparseNestedCstrSites @Program
+                                               reparse
+                                               (decompose node, node)
+              in either ((newNode, ) . mappend errors . fromFoldable)
+                        (, errors)
+                 . runParser @Program parser
+                 $ decompose newNode
 
 unsafePrettyProgram :: Program -> Doc PrettyAnnotation
 unsafePrettyProgram (ProgramCstrSite _ contents)
-    = prettyCstrSite (error "root construction site PrettyAnnotation evaluated")
-                     annPretty
-                     contents -- should be safe, because root construction site annotation is removed later
+    = prettyCstrSite
+        (error "root construction site PrettyAnnotation evaluated") -- should be safe, because root construction site annotation is removed later
+        annPretty
+        contents
 unsafePrettyProgram Program{..}
     = annPretty expr
     <> nest 2 (foldMap (mappend line' . annPretty) whereClause)

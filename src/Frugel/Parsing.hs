@@ -48,12 +48,10 @@ reparseNestedCstrSites :: forall p n.
     )
     => (ParserOf p (NodeOf n) -> NodeOf n -> (NodeOf n, Set (ParseErrorOf p)))
     -> (ACstrSite (NodeOf p), n)
-    -> Set (ParseErrorOf p)
     -> (n, Set (ParseErrorOf p))
-reparseNestedCstrSites reparse (cstrSite, newNode) errors
+reparseNestedCstrSites reparse (cstrSite, newNode)
     = runWriter
-    $ tell errors
-    >> Lens.itraverseOf
+    $ Lens.itraverseOf
         (Lens.indexing $ template @n @(NodeOf n))
         (\i ->
          writer . second (increaseErrorOffsets i) . reparse (anyNodeParser @p))

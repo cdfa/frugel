@@ -161,8 +161,10 @@ attemptEdit
         -> n
         -> (n, Set (ParseErrorOf p))
     reparse parser node
-        = uncurry (reparseNestedCstrSites @p reparse)
-        . first (fromMaybe (decompose node, node))
+        = (\((newNode, nodeParseErrors), nestedParseErrors) ->
+           (newNode, nodeParseErrors <> nestedParseErrors))
+        . first (reparseNestedCstrSites @p reparse
+                 . fromMaybe (decompose node, node))
         . findSuccessfulParse
         . groupSortOn cstrSiteCount
         . inliningVariations
