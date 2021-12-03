@@ -58,6 +58,11 @@ instance AnnotatedPretty Expr where
             Application _ function arg -> uncurry nestingLine
                 $ both %~ annPretty
                 $ prettyBinary expr function arg
+            IfExpression _ conditional trueExpr falseExpr -> align
+                $ vsep [ "if" <+> annPretty conditional
+                       , "then" <+> annPretty trueExpr
+                       , "else" <+> annPretty (prettyUnary expr falseExpr)
+                       ]
             UnaryOperation _ unOp subExp -> mappend (unaryOperatorSymbol unOp)
                 . annPretty
                 $ prettyUnary expr subExp

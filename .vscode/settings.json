@@ -30,6 +30,7 @@
         "WHNF"
     ],
     "cSpell.ignoreWords": [
+        "Cond",
         "accum",
         "aconcat",
         "aeson",

@@ -100,6 +100,14 @@ instance Infinite integer => ValidEnumerable (NonNegative integer) where
 instance (ValidEnumerable a, ValidEnumerable b) => ValidEnumerable (a, b) where
     enumerateValid = share $ pair accessValid accessValid
 
+instance ( ValidEnumerable a
+         , ValidEnumerable b
+         , ValidEnumerable c
+         , ValidEnumerable d
+         , ValidEnumerable e
+         ) => ValidEnumerable (a, b, c, d, e) where
+    enumerateValid = share $ c1 $ \(a, (b, (c, (d, e)))) -> (a, b, c, d, e)
+
 instance (ValidEnumerable a, ValidEnumerable b)
     => ValidEnumerable (Either a b) where
     enumerateValid = datatype [ c1 Left, c1 Right ]

@@ -31,15 +31,16 @@ module Scout.Node
     , _Identifier
     , _Abstraction
     , _Application
+    , _IfExpression
+    , _UnaryOperation
+    , _BinaryOperation
+    , _Variable
+    , _Literal
     , _Decl
     , _DeclCstrSite
     , _DeclNode
     , _ExprCstrSite
     , _ExprNode
-    , _UnaryOperation
-    , _BinaryOperation
-    , _Variable
-    , _Literal
     , _WhereClause
     , _WhereCstrSite
     , _WhereNode
@@ -109,6 +110,9 @@ unsafeAbstraction = abstraction' . Unsafe.fromJust . identifier'
 
 application' :: Expr -> Expr -> Expr
 application' = Application $ defaultExprMeta 1
+
+ifExpression' :: Expr -> Expr -> Expr -> Expr
+ifExpression' = IfExpression $ defaultExprMeta 5
 
 unaryOperation' :: UnaryOperator -> Expr -> Expr
 unaryOperation' = UnaryOperation $ defaultExprMeta 0
@@ -280,4 +284,16 @@ nonTerminationSafetyTest
                                  false = \x = \y = y
                                  0 = \f = \x = x
                                  1 = \f = \x = f x|]
+                 ]
+
+ifTest :: CstrSite
+ifTest = toCstrSite [ Left [str|if x then if y then y1 else y2 else x2|] ]
+
+factorial :: CstrSite
+factorial
+    = toCstrSite [ Left [str|factorial 3
+                               where
+                                 factorial = \n = if n <= 1
+                                                  then n
+                                                  else n * factorial (n - 1)|]
                  ]

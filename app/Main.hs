@@ -46,16 +46,15 @@ main = do
             = catchJust (guarded (== HeapOverflow)) action handleHeapOverflow
     catchHeapOverflow $ do
         runApp
-            $ startApp
-                App { initialAction = Init
-                    , model = initialModel $ programCstrSite' whereClauseTest
-                    , update = updateModel evalThreadVar
-                    , view = viewApp
-                    , events = defaultEvents
-                    , subs = []
-                    , mountPoint = Nothing
-                    , logLevel = Off
-                    }
+            $ startApp App { initialAction = Init
+                           , model = initialModel $ programCstrSite' factorial
+                           , update = updateModel evalThreadVar
+                           , view = viewApp
+                           , events = defaultEvents
+                           , subs = []
+                           , mountPoint = Nothing
+                           , logLevel = Off
+                           }
         void getLine
 
 updateModel :: MVar (Maybe (ThreadId, Integer))

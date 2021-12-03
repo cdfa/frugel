@@ -150,12 +150,19 @@ evalExpr expr = do
                              ])
                     $ evalExpr body
     evalExpr' i@Literal{} = pure i
-    evalExpr' (UnaryOperation meta Negate x) = do
-        ex <- evalExpr x
-        case ex of
-            Literal exMeta (Integer i) -> pure . Literal exMeta $ Integer (-i)
-            _ -> UnaryOperation meta Negate
-                <$> reportAnyTypeErrors IntegerType ex
+    evalExpr' (IfExpression meta conditional trueExpr falseExpr) = do
+        eCond <- evalExpr conditional
+        case eCond of
+            Literal _ (Boolean b) ->
+                evalExpr $ if b then trueExpr else falseExpr
+            _ -> do
+                checkedCond <- reportAnyTypeErrors BoolType eCond
+                (liftA2 (IfExpression meta checkedCond)
+                 `on` deferEvaluation <.> newEvalRef . evalExpr) trueExpr
+                                                                 falseExpr
+    evalExpr' (UnaryOperation meta Negate x) = evalExpr x >>= \case
+        Literal exMeta (Integer i) -> pure . Literal exMeta $ Integer (-i)
+        ex -> UnaryOperation meta Negate <$> reportAnyTypeErrors IntegerType ex
     evalExpr' (BinaryOperation meta x binOp y) = do
         ex <- evalExpr x
         ey <- evalExpr y
@@ -385,6 +392,7 @@ typeCheck e expectedType = case (e, expectedType) of
     (Variable{}, _) -> Nothing
     (Application{}, _) -> Nothing
     (ExprCstrSite{}, _) -> Nothing
+    (IfExpression{}, _) -> Nothing
     (Abstraction{}, FunctionType) -> Nothing
     (Literal _ Boolean{}, BoolType) -> Nothing
     (Literal _ Integer{}, IntegerType) -> Nothing

@@ -49,6 +49,10 @@ term
           <$> choice
               [ Node.abstraction' <$% char '\\' <*%> identifier <*% char '='
                 <*%> expr
+              , ifExpression' <$% string "if" <*%> expr <*% string "then"
+                <*%> expr
+                <*% string "else"
+                <*%> expr
                 -- Non recursive production rules at the bottom
               , exprCstrSite' (CstrSite empty) <$% string "..."
               , literal'
@@ -96,9 +100,7 @@ expr
                  , eof
                  ]
     -- parse multiple unary operators in a row in one go. Otherwise it doesn't work for reasons I have yet to figure out
-    unOpParser unOp
-        = foldr (.) <$> pUnOp
-        <*> many (unOpParser unOp)
+    unOpParser unOp = foldr (.) <$> pUnOp <*> many (unOpParser unOp)
       where
         pUnOp = unaryOperation' unOp <$ string (unaryOperatorSymbol unOp)
     binOpParser binOp

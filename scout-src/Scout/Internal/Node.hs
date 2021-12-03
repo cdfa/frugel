@@ -73,6 +73,7 @@ data Expr
     = Variable ExprMeta Identifier
     | Abstraction AbstractionMeta Identifier Expr
     | Application ExprMeta Expr Expr
+    | IfExpression ExprMeta Expr Expr Expr
     | BinaryOperation ExprMeta Expr BinaryOperator Expr
     | UnaryOperation ExprMeta UnaryOperator Expr
     | Literal ExprMeta Literal
@@ -240,6 +241,7 @@ instance Has ExprMeta Expr where
     getter (Abstraction AbstractionMeta{..} _ _) = standardExprMeta
     getter (Variable meta _) = meta
     getter (Application meta _ _) = meta
+    getter (IfExpression meta _ _ _) = meta
     getter (BinaryOperation meta _ _ _) = meta
     getter (UnaryOperation meta _ _) = meta
     getter (Literal meta _) = meta
@@ -300,6 +302,7 @@ instance Expression Expr where
       where
         precedence' :: Expr -> Int
         precedence' Abstraction{} = 4
+        precedence' IfExpression{} = 4
         precedence' UnaryOperation{} = 3
         precedence' BinaryOperation{} = 2
         precedence' Application{} = 1
@@ -307,6 +310,7 @@ instance Expression Expr where
         precedence' Literal{} = 0
         precedence' ExprCstrSite{} = 0
     fixity Abstraction{} = Just Prefix
+    fixity IfExpression{} = Just Prefix
     fixity (UnaryOperation _ unOp _) = Just $ Operators.fixity unOp
     fixity Application{} = Just Infix
     fixity BinaryOperation{} = Just Infix
@@ -316,6 +320,7 @@ instance Expression Expr where
     associativity Application{} = Just LeftAssociative
     associativity (BinaryOperation _ _ binOp _)
         = Just $ Operators.associativity binOp
+    associativity IfExpression{} = Nothing
     associativity UnaryOperation{} = Nothing
     associativity Abstraction{} = Nothing
     associativity Variable{} = Nothing
@@ -458,6 +463,13 @@ instance Decomposable Expr where
             Application{} -> [ Traverser' (_Application % _2) traverseNode
                              , Traverser' (_Application % _3) traverseNode
                              ]
+            IfExpression{} -> [ keywordStringTraversal traverseChar "if"
+                              , Traverser' (_IfExpression % _2) traverseNode
+                              , keywordStringTraversal traverseChar "then"
+                              , Traverser' (_IfExpression % _3) traverseNode
+                              , keywordStringTraversal traverseChar "else"
+                              , Traverser' (_IfExpression % _4) traverseNode
+                              ]
             (UnaryOperation _ unOp _) ->
                 [ keywordStringTraversal traverseChar
                                          (unaryOperatorSymbol unOp)
@@ -552,6 +564,7 @@ instance ValidInterstitialWhitespace Expr where
         Variable{} -> 0
         Abstraction{} -> 3
         Application{} -> 1
+        IfExpression{} -> 5
         UnaryOperation{} -> 0
         BinaryOperation{} -> 2
         Literal{} -> 0
@@ -750,6 +763,11 @@ instance ValidEnumerable Expr where
               <*> enumerateValidExprMeta 0
               <*> accessValid
               <*> accessValid
+            , IfExpression .: setIfExpressionWhitespace <$> accessValid
+              <*> enumerateValidExprMeta 0
+              <*> accessValid
+              <*> accessValid
+              <*> accessValid
             , UnaryOperation <$> enumerateValidExprMeta 0
               <*> accessValid
               <*> accessValid
@@ -764,9 +782,14 @@ instance ValidEnumerable Expr where
         setCenterWhitespace nonEmptyWhitespace
             = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
             insertAt (length whitespaceFragments `div` 2)
-                     (toText . map unWhitespace
-                      $ toList @(NonEmpty _) nonEmptyWhitespace)
+                     (fromNonEmptyWhitespace nonEmptyWhitespace)
                      whitespaceFragments
+        setIfExpressionWhitespace nonEmptyWhitespaceFragments@(_, _, _, _, _)
+            = #standardMeta % #interstitialWhitespace
+            .~ map fromNonEmptyWhitespace
+                   (toListOf each nonEmptyWhitespaceFragments)
+        fromNonEmptyWhitespace
+            = toText . map unWhitespace . toList @(NonEmpty _)
         -- Make all non-associative operations parenthesized, to prevent collisions
         binaryOperation' meta left binOp right
             | Operators.associativity binOp == NotAssociative
