@@ -25,20 +25,27 @@ import Scout.Parsing.Error
 import Scout.Parsing.Whitespace
 
 import Text.Megaparsec          as Megaparsec hiding ( ParseError, many, some )
+import Text.Megaparsec.State.Optics ()
 
 identifier :: Parser Identifier
 identifier
     = Identifier .: (:|) <$> letter <*> many alphaNumChar <?> "an identifier"
 
 node :: (IsNode a, NodeOf a ~ Node) => String -> Parser a
-node name = namedToken name $ preview (_Right % nodePrism)
+node name = do
+    n <- namedToken name $ preview (_Right % nodePrism)
+    n <$ case preview _NodeCstrSite n of
+        Just Empty -> do
+            updateParserState (#stateOffset %~ subtract 1)
+            registerFailure
+                (Just . Label $ fromList "an empty construction site")
+                (one . Label $ fromList name)
+        _ -> pure ()
 
 anyNode :: Parser Node
 anyNode
-    = choice [ WhereNode <$> whereClause
-             , DeclNode <$> try decl
-             , ExprNode <$> try expr
-             ]
+    = choice
+        [ WhereNode <$> whereClause, DeclNode <$> try decl, ExprNode <$> expr ]
 
 term :: Parser Expr
 term
@@ -54,7 +61,10 @@ term
                 <*% string "else"
                 <*%> expr
                 -- Non recursive production rules at the bottom
-              , exprCstrSite' (CstrSite empty) <$% string "..."
+              , string "..." >> exprCstrSite' (CstrSite empty) <$% do
+                    updateParserState (#stateOffset %~ subtract 3)
+                    registerFancyFailure . one . ErrorCustom
+                        $ ConsumedEmptyCstrSite "an expression node"
               , literal'
                 <$%> choice
                     [ Boolean

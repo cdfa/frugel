@@ -139,8 +139,24 @@ instance Parseable Program where
     anyNodeParser = anyNode
     runParser parser cstrSite
         = first (fmap (fixErrorOffset @Program cstrSite) . bundleErrors)
-        $ Megaparsec.runParser (parser <* eof) "document" cstrSite
+        $ Megaparsec.runParser (catchDelayedErrors parser <* eof)
+                               "document"
+                               cstrSite
+      where
+        catchDelayedErrors p = do
+            result <- p
+            State{..} <- getParserState
+            updateParserState (#stateParseErrors .~ [])
+            pure
+                (fixErrorOffset @Program cstrSite <$> stateParseErrors, result)
     errorOffset = Parsing.errorOffset
+    consumedEmptyCstrSiteCount (errors, _)
+        = lengthOf
+            (folded
+             % _FancyError
+             % filtered
+                 (has $ _2 % folded % _ErrorCustom % _ConsumedEmptyCstrSite))
+            errors
 
 instance PrettyPrint Program where
     prettyPrint program
@@ -174,7 +190,8 @@ instance PrettyPrint Program where
                                                reparse
                                                (decompose node, node)
               in either ((newNode, ) . mappend errors . fromFoldable)
-                        (, errors)
+                        (\(recoveredErrors, reparsedNode) ->
+                         (reparsedNode, fromList recoveredErrors <> errors))
                  . runParser @Program parser
                  $ decompose newNode
 

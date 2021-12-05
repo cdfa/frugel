@@ -153,6 +153,9 @@ attemptEdit
         , model
           & #program .~ flattenConstructionSites newProgram
           & #errors .~ map ParseError (toList newErrors)
+          & #cursorOffset
+          %~ subtract
+              (consumedEmptyCstrSiteCount @p (toList newErrors, newProgram) * 3)
         )
   where
     reparse :: forall n.
@@ -174,7 +177,11 @@ attemptEdit
         collectResults firstSuccessfulParse@(Just _, _) _
             = firstSuccessfulParse
         collectResults (Nothing, errors) cstrSiteBucket = case rights parses of
-            [n] -> (Just n, newErrors) -- Only count success if it's the only one to be conservative in the presence of ambiguity
+            -- Only count success if it's the only one to be conservative in the presence of ambiguity
+            [(cstrSite, (recoveredErrors, newNode))] ->
+                ( Just (cstrSite, newNode)
+                , newErrors <> fromList recoveredErrors
+                )
             _ -> (Nothing, newErrors)
           where
             newErrors
@@ -215,9 +222,12 @@ inliningVariations = foldr addItem [ fromList [] ] . view _CstrSite
     addItem item@(Left _) variations = cons item <$> variations
     -- It would be more efficient to have the node's inlining variations also saved in the variation where the node's construction site is not inlined
     -- (it's now recomputed in `reparseNestedConstructionSites`)
-    addItem item@(Right node) variations
-        = (if is _NodeCstrSite node then cons item <$> variations else mempty)
-        <> (mappend <$> inliningVariations (decompose node) <*> variations)
+    addItem item@(Right node) variations = case preview _NodeCstrSite node of
+        Just (CstrSite materials) | null materials -> cons item <$> variations
+        Just _ -> (cons item <$> variations)
+            <> (mappend <$> inliningVariations (decompose node) <*> variations)
+        Nothing -> mappend <$> inliningVariations (decompose node)
+            <*> variations
 
 type CstrSiteZipper n = SeqZipper (Either Char (NodeOf n))
 

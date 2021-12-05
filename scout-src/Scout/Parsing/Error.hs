@@ -1,9 +1,9 @@
 -- Error formatting helpers copied from megaparsec, but modified for returning Doc's instead of strings
 {-# LANGUAGE FlexibleContexts #-}
-
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -24,7 +24,16 @@ import Text.Megaparsec.Error
     hiding ( ParseError, errorOffset, parseErrorPretty, parseErrorTextPretty )
 import Text.Megaparsec.Pos
 
-type ParseError = Megaparsec.ParseError CstrSite Void
+type ParseError = Megaparsec.ParseError CstrSite ScoutParseError
+
+newtype ScoutParseError = ConsumedEmptyCstrSite String
+    deriving ( Eq, Show, Ord )
+
+makePrisms ''Megaparsec.ParseError
+
+makePrisms ''ErrorFancy
+
+makePrisms ''ScoutParseError
 
 instance DisplayProjection ParseError where
     renderDoc = parseErrorPretty
@@ -60,10 +69,10 @@ parseErrorTextPretty (TrivialError _ us ps)
           <> line
           <> messageItemsPretty "expecting"
                                 (showErrorItem <$> fromList (toList ps))
-parseErrorTextPretty (FancyError _ xs)
+parseErrorTextPretty (FancyError offset xs)
     = if Set.null xs
       then "unknown fancy parse error"
-      else vsep (showErrorFancy <$> Set.toAscList xs)
+      else vsep (showErrorFancy offset <$> Set.toAscList xs)
 
 -- | Pretty-print an 'ErrorItem'.
 showErrorItem :: ErrorItem (Either Char Node) -> Doc Annotation
@@ -73,8 +82,8 @@ showErrorItem = \case
     EndOfInput -> "end of input"
 
 -- | Pretty-print an 'ErrorFancy'.
-showErrorFancy :: ErrorFancy Void -> Doc Annotation
-showErrorFancy = \case
+showErrorFancy :: Int -> ErrorFancy ScoutParseError -> Doc Annotation
+showErrorFancy offset = \case
     ErrorFail msg -> pretty msg
     ErrorIndentation ord' ref actual -> "incorrect indentation (got "
         <> show (unPos actual)
@@ -87,7 +96,10 @@ showErrorFancy = \case
             LT -> "less than "
             EQ -> "equal to "
             GT -> "greater than "
-    ErrorCustom a -> absurd a
+    ErrorCustom (ConsumedEmptyCstrSite nodeName) -> parseErrorTextPretty
+        $ TrivialError offset
+                       (Just . Label $ fromList "an empty construction site")
+                       (one . Label $ fromList nodeName)
 
 -- | Transforms a list of error messages into their textual representation.
 messageItemsPretty ::

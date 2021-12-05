@@ -6,13 +6,14 @@ import Data.Alphanumeric
 import Data.Char
 import qualified Data.Set as Set
 
-import Prelude     hiding ( some )
+import Prelude       hiding ( some )
 
 import Scout.Node
+import Scout.Parsing.Error
 
 import Text.Megaparsec
 
-type Parser = Parsec Void CstrSite
+type Parser = Parsec ScoutParseError CstrSite
 
 namedToken :: MonadParsec e s m => String -> (Token s -> Maybe a) -> m a
 namedToken name test = token test Set.empty <?> name

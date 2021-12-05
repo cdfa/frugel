@@ -103,6 +103,7 @@ library scout
       Scout.Program
       Scout.Truncatable
       Scout.Unbound
+      Text.Megaparsec.State.Optics
   other-modules:
       BasicEvaluation
   hs-source-dirs:

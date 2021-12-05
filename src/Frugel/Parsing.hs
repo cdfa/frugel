@@ -26,8 +26,9 @@ class Ord (ParseErrorOf p) => Parseable p where
     anyNodeParser :: (ParserOf p) (NodeOf p)
     runParser :: (ParserOf p) n
         -> ACstrSite (NodeOf p)
-        -> Either (NonEmpty (ParseErrorOf p)) n
+        -> Either (NonEmpty (ParseErrorOf p)) ([ParseErrorOf p], n)
     errorOffset :: Lens' (ParseErrorOf p) Int
+    consumedEmptyCstrSiteCount :: ([ParseErrorOf p], n) -> Int
 
 fixErrorOffset :: forall p.
     (Decomposable (NodeOf p), NodeOf p ~ NodeOf (NodeOf p), Parseable p)
