@@ -756,7 +756,8 @@ instance ValidEnumerable Expr where
     enumerateValid
         = datatype
             [ Variable <$> enumerateValidExprMeta 0 <*> accessValid
-            , Abstraction <$> enumerateValidAbstractionMeta 3
+            , splurge 4
+              $ Abstraction <$> enumerateValidAbstractionMeta 3
               <*> accessValid
               <*> accessValid
             , Application .: setCenterWhitespace <$> accessValid
@@ -768,10 +769,12 @@ instance ValidEnumerable Expr where
               <*> accessValid
               <*> accessValid
               <*> accessValid
-            , UnaryOperation <$> enumerateValidExprMeta 0
+            , splurge 2
+              $ UnaryOperation <$> enumerateValidExprMeta 0
               <*> accessValid
               <*> accessValid
-            , binaryOperation' <$> enumerateValidExprMeta 2
+            , splurge 8
+              $ binaryOperation' <$> enumerateValidExprMeta 2
               <*> accessValid
               <*> accessValid
               <*> accessValid
@@ -864,7 +867,7 @@ enumerateValidExprMeta minimumWhitespaceFragments
                           ++ whitespaceFragments
                           ++ map snd parenthesisWhitespace)
                 }) <$> enumerateValidMeta minimumWhitespaceFragments
-    <*> inflation (2 ^)
+    <*> inflation (6 *)
                   []
                   ((:) .: (,) <$> enumerateWhitespace <*> enumerateWhitespace)
 

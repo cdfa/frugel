@@ -22,6 +22,7 @@ instance (ValidEnumerable n, GenValid n) => GenValid (ACstrSite n) where
 
 instance ValidEnumerable n => ValidEnumerable (ACstrSite n) where
     enumerateValid
-        = datatype [ splurge 3 $ pure $ fromList []
-                   , fromList .: (<|) <$> accessValid <*> accessValid
-                   ]
+        = datatype
+            [ splurge 6 $ pure $ fromList []
+            , splurge 3 $ fromList .: (<|) <$> accessValid <*> accessValid
+            ]
