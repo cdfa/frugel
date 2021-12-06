@@ -1,4 +1,0 @@
-:set -interactive-print Text.Show.Pretty.pPrint
-:set prompt "λ> "
-:set prompt-cont "λ| "
-:set -Wno-all -W -Wno-deprecations
