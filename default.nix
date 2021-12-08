@@ -26,7 +26,7 @@ in
         --js_output_file $out/all.min.js
     '';
   };
+  frugel-static = frugel-cross { platform = "musl64"; };
   # frugel-aarch64-darwin = frugel-cross { platform = "aarch64-darwin"; }; Not working due to https://github.com/NixOS/nixpkgs/issues/49526
-  # frugel-gnu64 = frugel-cross { platform = "gnu64"; }; Not working due to https://github.com/NixOS/nixpkgs/issues/56493 ?
   # frugel-mingwW64 = frugel-cross { platform = "mingwW64"; }; Not working due to https://github.com/NixOS/nixpkgs/issues/36200
 }
