@@ -108,6 +108,8 @@ instructions
 #endif
                     ]
               , li_ [] [ "Ctrl+Enter for formatting" ]
+              , li_ []
+                    [ "Remove empty construction sites by inserting a space" ]
               ]
         ]
 
