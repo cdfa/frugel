@@ -103,10 +103,9 @@ evalExpr expr = do
         maybe variableStub (lift2 . outputOnce) valueRefMaybe
       where
         variableStub
-            = writerFragment #errors
-                             ( singleExprNodeCstrSite v
-                             , one $ UnboundVariableError identifier
-                             )
+            = writerFragment
+                #errors
+                (singleExprNodeCstrSite v, one $ FreeVariableError identifier)
     evalExpr' (Application meta f x) = do
         ef <- evalExpr f
         case ef of

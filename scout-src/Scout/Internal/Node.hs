@@ -174,7 +174,7 @@ data FocusedNodeEvaluation
 -- This lives here because of dependency on Expr
 data EvaluationError
     = TypeError TypeError
-    | UnboundVariableError Identifier
+    | FreeVariableError Identifier
     | ConflictingDefinitionsError Identifier
     | OutOfFuelError Expr
     | DivideByZeroError

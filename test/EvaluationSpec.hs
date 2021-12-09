@@ -47,7 +47,7 @@ spec = describe "Evaluation" $ do
     partialApplicationSpec
     expectedFunctionSpec
     expectedIntSpec
-    unBoundVariableSpec
+    freeVariableSpec
     cstrSiteSpec
     abstractionRenamingSpec
     freeVariableCaptureAvoidanceSpec
@@ -56,25 +56,25 @@ spec = describe "Evaluation" $ do
 -- Simple test
 simpleEvalSpec :: Spec
 simpleEvalSpec
-    = it "evaluates `s k k q` to `[`q`]` and reports a single UnboundVariableError for `q`"
+    = it "evaluates `s k k q` to `[`q`]` and reports a single FreeVariableError for `q`"
     $ runEval'
         evalExpr
         (application' (application' (application' s k) k) (unsafeVariable "q"))
     >>= shouldBe
     ?? ( singleExprNodeCstrSite $ unsafeVariable "q"
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "q", 1) ]
        )
 
 -- Evaluation is lazy
 lazinessSpec :: Spec
 lazinessSpec
-    = it "lazily evaluates `(\\u = q) ⊥ to `[`q`]` and reports a single UnboundVariableError for `q`"
+    = it "lazily evaluates `(\\u = q) ⊥ to `[`q`]` and reports a single FreeVariableError for `q`"
     $ runEval' evalExpr
                (application' (unsafeAbstraction "u" (unsafeVariable "q"))
                              (error "should not be evaluated"))
     >>= shouldBe
     ?? ( singleExprNodeCstrSite $ unsafeVariable "q"
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "q", 1) ]
        )
 
 -- Call-by-need
@@ -102,7 +102,7 @@ partialApplicationSpec
     = it "continues evaluation in abstraction bodies when they are not fully applied in the result, e.g. `k q` evaluates to `\\y = [`q`]`"
     $ runEval' evalExpr (application' k $ unsafeVariable "q") >>= shouldBe
     ?? ( unsafeAbstraction "y" . singleExprNodeCstrSite $ unsafeVariable "q"
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "q", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "q", 1) ]
        )
 
 expectedFunctionSpec :: Spec
@@ -127,8 +127,8 @@ expectedFunctionSpec
                                (singleExprNodeCstrSite $ unsafeVariable "q")
                          , 1
                          )
-                       , (UnboundVariableError $ unsafeIdentifier "q", 2)
-                       , (UnboundVariableError $ unsafeIdentifier "x", 1)
+                       , (FreeVariableError $ unsafeIdentifier "q", 2)
+                       , (FreeVariableError $ unsafeIdentifier "x", 1)
                        ]
        )
 
@@ -144,12 +144,12 @@ expectedIntSpec
                        ]
        )
 
-unBoundVariableSpec :: Spec
-unBoundVariableSpec
-    = it "reports an UnboundVariableError when it encounters a unbound variable, e.g. `x`"
+freeVariableSpec :: Spec
+freeVariableSpec
+    = it "reports an UnboundVariableError when it encounters a free variable, e.g. `x`"
     $ runEval' evalExpr (unsafeVariable "x") >>= shouldBe
     ?? ( singleExprNodeCstrSite $ unsafeVariable "x"
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "x", 1) ]
        )
 
 cstrSiteSpec :: Spec
@@ -167,7 +167,7 @@ cstrSiteSpec
              [ Left 'c'
              , Right . ExprNode . singleExprNodeCstrSite $ unsafeVariable "x"
              ]
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "x", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "x", 1) ]
        )
 
 abstractionRenamingSpec :: Spec
@@ -186,7 +186,7 @@ freeVariableCaptureAvoidanceSpec
     = it "renames binders to prevent them from capturing free variables"
     $ runEval' evalExpr (application' k $ unsafeVariable "y") >>= shouldBe
     ?? ( unsafeAbstraction "y1" . singleExprNodeCstrSite $ unsafeVariable "y"
-       , fromOccurList [ (UnboundVariableError $ unsafeIdentifier "y", 1) ]
+       , fromOccurList [ (FreeVariableError $ unsafeIdentifier "y", 1) ]
        )
 
 -- for some reason, we get a "thread blocked indefinitely in an MVar operation" when one of these tests fails 
