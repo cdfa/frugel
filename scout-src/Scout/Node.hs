@@ -253,7 +253,7 @@ parensInsertTest
 
 evalTest :: CstrSite
 evalTest
-    = toCstrSite [ Left [str|fact2 (succ (succ 1))
+    = toCstrSite [ Left [str|fact2 (succ (succ one))
                                where
                                  i = \x = x
                                  k = \x = \y = x
@@ -261,15 +261,15 @@ evalTest
                                  o = \x = x x
                                  true = \x = \y = x
                                  false = \x = \y = y
-                                 0 = \f = \x = x
-                                 1 = \f = \x = f x
+                                 zero = \f = \x = x
+                                 one = \f = \x = f x
                                  succ = \n = \f = \x = f (n f x)
                                  pred = \n = \f = \x = n (\g = \h = h (g f)) (\u = x) (\u = u)
                                  mul = \m = \n = \f = m (n f)
                                  is0 = \n = n (\x = false) true
                                  Y = \f = (\x = f (x x)) (\x = f (x x))
-                                 fact = Y (\f = \n = (is0 n) 1 (mul n (f (pred n))))
-                                 fact2 = \n = (is0 n) 1 (mul n (fact2 (pred n)))
+                                 fact = Y (\f = \n = (is0 n) one (mul n (f (pred n))))
+                                 fact2 = \n = (is0 n) one (mul n (fact2 (pred n)))
                                  fact3 = fact2|]
                  ]
 
