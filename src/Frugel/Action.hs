@@ -222,12 +222,9 @@ inliningVariations = foldr addItem [ fromList [] ] . view _CstrSite
     addItem item@(Left _) variations = cons item <$> variations
     -- It would be more efficient to have the node's inlining variations also saved in the variation where the node's construction site is not inlined
     -- (it's now recomputed in `reparseNestedConstructionSites`)
-    addItem item@(Right node) variations = case preview _NodeCstrSite node of
-        Just (CstrSite materials) | null materials -> cons item <$> variations
-        Just _ -> (cons item <$> variations)
-            <> (mappend <$> inliningVariations (decompose node) <*> variations)
-        Nothing -> mappend <$> inliningVariations (decompose node)
-            <*> variations
+    addItem item@(Right node) variations
+        = (if is _NodeCstrSite node then cons item <$> variations else mempty)
+        <> (mappend <$> inliningVariations (decompose node) <*> variations)
 
 type CstrSiteZipper n = SeqZipper (Either Char (NodeOf n))
 
