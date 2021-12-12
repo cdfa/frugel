@@ -20,7 +20,6 @@ import Data.Data
 import Data.Data.Lens
 import Data.Has
 import Data.Hidden
-import Data.List              ( maximum )
 import qualified Data.Map     as Map
 import Data.Map.Optics
 import Data.MultiSet          ( MultiSet )
@@ -455,7 +454,8 @@ renameShadowedVariables scopedExpr = do
             name
             _ -> do
             suffix <- asks $ freshSuffix name
-            let newIdentifier = numberedIdentifier name suffix
+            let newIdentifier
+                    = numberedIdentifier (fst $ splitNumericSuffix name) suffix
             fmap (Abstraction meta newIdentifier . deferEvaluation)
                 . newEvalRef
                 $ do
@@ -485,25 +485,10 @@ freshSuffix :: Identifier -> Map Identifier Int -> Int
 freshSuffix original env
     = Unsafe.fromJust -- safe because suffixRange is infinite
     . getFirst
-    $ foldMap (\x -> First $ if all (x >) largest then Just x else Nothing)
-              suffixRange
+    $ foldMap (\x -> First . maybe (Just x) (const Nothing)
+               $ Map.lookup (numberedIdentifier trimmed x) env) suffixRange
   where
-    suffixRange
-        = enumFrom . maybe suffixRangeStartDefault succ
-        $ Map.lookup original env
-    suffixRangeStartDefault
-        = if and ((>) <$> readMaybe trailingDigits <*> largest) --- || null trailingDigits
-          then 0
-          else fromMaybe 1 largest
-    largest
-        = maximum
-        <.> nonEmpty
-        . mapMaybe
-            (\(i, name) ->
-             let (trimmed', trailingDigits')
-                     = splitNumericSuffix $ numberedIdentifier i name
-             in guard (trimmed == trimmed') >> readMaybe @Int trailingDigits')
-        $ toList env
-    (trimmed, trailingDigits) = splitNumericSuffix original
+    suffixRange = enumFrom . maybe 0 succ $ Map.lookup original env
+    (trimmed, _) = splitNumericSuffix original
 
 
