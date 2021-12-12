@@ -47,9 +47,7 @@ class NodeOf n ~ NodeOf (NodeOf n) => Decomposable n where
     -- Preserves node when cursor is at start or end. Primarily useful for nodes starting or ending with a character (e.g. lambda and parenthesis).
     conservativelyDecompose :: Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
     default conservativelyDecompose
-        :: IsNode n => Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
-    conservativelyDecompose _ n
-        | hasn't (_NodeCstrSite % _CstrSite % folded) n = Nothing
+        :: NodePrism n => Int -> n -> Maybe (Int, ACstrSite (NodeOf n))
     conservativelyDecompose cstrSiteOffset n = case cstrSiteOffset of
         0 -> Just (0, singletonCstrSite)
         l | l == length (toList $ decompose n) -> Just (1, singletonCstrSite)
