@@ -454,8 +454,7 @@ renameShadowedVariables scopedExpr = do
             name
             _ -> do
             suffix <- asks $ freshSuffix name
-            let newIdentifier
-                    = numberedIdentifier (fst $ splitNumericSuffix name) suffix
+            let newIdentifier = numberedIdentifier name suffix
             fmap (Abstraction meta newIdentifier . deferEvaluation)
                 . newEvalRef
                 $ do
