@@ -47,19 +47,20 @@ instructionsView Model{..}
     = div_
         [ class_ "box content" ]
         [ div_ [ class_ "buttons" ]
-               [ button_
-                     [ class_ "button" ]
-                     [ span_ [ class_ "icon", onClick ToggleHelp ] [ "🛈" ] ]
-               , span_ [] $ conditionalViews showHelp [ instructions, br_ [] ]
-               , text "Fuel for limited evaluation: "
-               , input_ [ type_ "number"
-                        , value_ . Miso.ms $ show @String fuelLimit
-                        , onChange (ChangeFuelLimit
-                                    . fromMaybe fuelLimit
-                                    . readMaybe
-                                    . Miso.fromMisoString)
-                        ]
-               ]
+          $ button_ [ class_ "button" ]
+                    [ span_ [ class_ "icon", onClick ToggleHelp ] [ "🛈" ] ]
+          : conditionalViews showHelp [ instructions ]
+          ++ [ span_ []
+                     [ text "Fuel for limited evaluation: "
+                     , input_ [ type_ "number"
+                              , value_ . Miso.ms $ show @String fuelLimit
+                              , onChange (ChangeFuelLimit
+                                          . fromMaybe fuelLimit
+                                          . readMaybe
+                                          . Miso.fromMisoString)
+                              ]
+                     ]
+             ]
         , div_ [ class_ "buttons" ]
                [ button_ [ onClick PrettyPrint, class_ "button" ]
                          [ text "Format" ]
@@ -72,13 +73,13 @@ ghcjsPerformanceWarning :: View action
 
 #if defined(ghcjs_HOST_OS)
 ghcjsPerformanceWarning
-    = div_ []
-           [ text [str|WARNING: the web version of Frugel is very slow!
+    = p_ []
+         [ text [str|WARNING: the web version of Frugel is very slow!
                        Please consider one of |]
-           , a_ [ href_ "https://github.com/cdfa/frugel/releases" ]
-                [ "the native versions" ]
-           , "."
-           ]
+         , a_ [ href_ "https://github.com/cdfa/frugel/releases" ]
+              [ "the native versions" ]
+         , "."
+         ]
 
 #else
 ghcjsPerformanceWarning = span_ [] []
@@ -87,7 +88,7 @@ ghcjsPerformanceWarning = span_ [] []
 instructions :: View action
 instructions
     = div_
-        [ style_ $ "display" =: "inline-block" ]
+        []
         [ ghcjsPerformanceWarning
         , text [str|This is a very minimal editor.
                     The only implemented actions are:|]
