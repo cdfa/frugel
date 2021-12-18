@@ -47,11 +47,20 @@ instructionsView Model{..}
     = div_
         [ class_ "box content" ]
         [ div_ [ class_ "buttons" ]
-          $ button_ [ class_ "button" ]
-                    [ span_ [ class_ "icon", onClick ToggleHelp ] [ "🛈" ] ]
+          $ button_ [ class_ "button", onClick ToggleHelp ]
+                    [ span_ [ class_ "icon" ] [ "🛈" ] ]
           : conditionalViews showHelp [ instructions ]
           ++ [ span_ []
-                     [ text "Fuel for limited evaluation: "
+                     [ label_ [ class_ "checkbox" ]
+                              [ input_ [ type_ "checkbox"
+                                       , onChecked
+                                         $ const ToggleLimitEvaluationByDefault
+                                       , styleInline_ "margin-right: .4rem;"
+                                       ]
+                              , text "Limit evaluation with fuel by default"
+                              ]
+                     , br_ []
+                     , text "Fuel for limited evaluation: "
                      , input_ [ type_ "number"
                               , value_ . Miso.ms $ show @String fuelLimit
                               , onChange (ChangeFuelLimit

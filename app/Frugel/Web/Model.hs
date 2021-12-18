@@ -24,6 +24,7 @@ initialModel :: Program -> Model
 initialModel p
     = Model { editableDataVersion = 0
             , fuelLimit = 10 -- how long this evaluation with this fuel limit takes is very dependent on the program being evaluated. With this, evaluating `fact2 ...` took 0.43 seconds
+            , limitEvaluationByDefault = False
             , selectedNodeEvaluationIndex = 0
             , errors = []
             , showHelp = True
@@ -72,9 +73,11 @@ partialFromFrugelModel fuel
                 , errors = map fromFrugelError errors
                       ++ map (uncurry $ flip EvaluationError)
                              (MultiSet.toOccurList evalErrors)
-                , evaluationStatus = case fuel of
-                      Only _ -> PartiallyEvaluated
-                      Infinity -> Evaluated
+                , evaluationStatus = if limitEvaluationByDefault
+                      then Evaluated
+                      else case fuel of
+                          Only _ -> PartiallyEvaluated
+                          Infinity -> Evaluated
                 , evaluationOutput = EvaluationOutput { .. }
                 , ..
                 }

@@ -19,6 +19,7 @@ data Action
     | ChangeFieldRenderDepth RenderDepthField Int
     | ToggleDefinitionsView
     | ToggleHelp
+    | ToggleLimitEvaluationByDefault
     deriving ( Show, Eq )
 
 data AsyncAction

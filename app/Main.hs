@@ -80,6 +80,8 @@ updateModel evalThreadVar GenerateRandom model
         sink . AsyncAction $ NewProgramGenerated newFrugelModel
         reEvaluate evalThreadVar newFrugelModel model sink
 updateModel _ (Log msg) model = effectSub model . const . consoleLog $ show msg
+updateModel evalThreadVar ToggleLimitEvaluationByDefault model
+    = reEvaluateModel evalThreadVar $ #limitEvaluationByDefault %~ not $ model
 updateModel evalThreadVar (ChangeFocusedNodeEvaluationIndex indexAction) model
     = effectSub (hideSelectedNodeEvaluation newModel) $ \sink -> liftIO
     . bracketNonTermination (view #editableDataVersion newModel) evalThreadVar
@@ -168,22 +170,28 @@ reEvaluate :: MVar (Maybe (ThreadId, Integer))
     -> Model
     -> Sink Action
     -> IO ()
-reEvaluate evalThreadVar
-           newFrugelModel
-           model@Model{fuelLimit, editableDataVersion}
-           sink
-    = unlessFinishedIn
-        500000 -- half a second
-        -- forcing is safe because evaluation had fuel limit
-        (yieldModel sink . forceMainExpression
-         =<< partialFromFrugelModel (Only fuelLimit) model newFrugelModel)
-    . bracketNonTermination (succ editableDataVersion) evalThreadVar
-    -- forcing is safe because inside bracketNonTermination
-    $ catch (yieldWithForcedMainExpression sink
-             =<< fromFrugelModel model newFrugelModel)
-            (\(e :: SomeException) -> do
-                 sink $ AsyncAction $ EvaluationAborted $ show e
-                 throwIO e)
+reEvaluate
+    evalThreadVar
+    newFrugelModel
+    model@Model{fuelLimit, editableDataVersion, limitEvaluationByDefault}
+    sink
+    = if limitEvaluationByDefault
+      then reportExceptions $ yieldModel sink =<< partialModel
+      else unlessFinishedIn 500000 -- half a second
+                            (yieldModel sink =<< partialModel)
+          . bracketNonTermination (succ editableDataVersion) evalThreadVar
+          -- forcing is safe because inside bracketNonTermination
+          $ reportExceptions (yieldWithForcedMainExpression sink
+                              =<< fromFrugelModel model newFrugelModel)
+  where
+    -- forcing is safe because evaluation has fuel limit
+    partialModel
+        = forceMainExpression
+        <$> partialFromFrugelModel (Only fuelLimit) model newFrugelModel
+    reportExceptions action
+        = catch action (\(e :: SomeException) -> do
+                            sink $ AsyncAction $ EvaluationAborted $ show e
+                            throwIO e)
 
 yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
 yieldWithForcedMainExpression sink newModel

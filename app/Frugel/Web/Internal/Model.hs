@@ -22,6 +22,7 @@ data Model
             , errors :: [Error]
             , showHelp :: Bool
             , fuelLimit :: Int
+            , limitEvaluationByDefault :: Bool
             , selectedNodeEvaluationIndex :: Int
             , mainExpressionRenderDepth :: Int
             , selectedNodeValueRenderDepth :: Int
