@@ -29,8 +29,6 @@ import qualified Miso
 
 import Optics.Extra.Scout
 
-import Prelude
-
 import Scout                            hiding ( Evaluated )
 
 import Test.QuickCheck.Gen
@@ -175,22 +173,26 @@ reEvaluate
     newFrugelModel
     model@Model{fuelLimit, editableDataVersion, limitEvaluationByDefault}
     sink
-    = if limitEvaluationByDefault
-      then reportExceptions $ yieldModel sink =<< partialModel
-      else unlessFinishedIn 500000 -- half a second
-                            (yieldModel sink =<< partialModel)
-          . bracketNonTermination (succ editableDataVersion) evalThreadVar
-          -- forcing is safe because inside bracketNonTermination
+    = bracketNonTermination (succ editableDataVersion) evalThreadVar
+    $ if limitEvaluationByDefault
+      then reportExceptions
+          $ yieldWithForcedMainExpression sink =<< partialModel
+      else unlessFinishedIn
+          500000 -- half a second
+          (yieldWithForcedMainExpression sink =<< partialModel)
+          . cancelPartialEvaluationOnException
           $ reportExceptions (yieldWithForcedMainExpression sink
                               =<< fromFrugelModel model newFrugelModel)
   where
-    -- forcing is safe because evaluation has fuel limit
-    partialModel
-        = forceMainExpression
-        <$> partialFromFrugelModel (Only fuelLimit) model newFrugelModel
+    partialModel = partialFromFrugelModel (Only fuelLimit) model newFrugelModel
     reportExceptions action
         = catch action (\(e :: SomeException) -> do
                             sink $ AsyncAction $ EvaluationAborted $ show e
+                            throwIO e)
+    cancelPartialEvaluationOnException action partialThreadVar
+        = catch action (\(e :: SomeException) -> do
+                            void . traverse killThread
+                                =<< tryReadMVar partialThreadVar
                             throwIO e)
 
 yieldWithForcedMainExpression :: Sink Action -> Model -> IO ()
