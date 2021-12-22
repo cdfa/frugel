@@ -30,9 +30,10 @@ instance Ord (Hidden a) where
     _ <= _ = True
 
 instance Typeable a => Data (Hidden a) where
-    gunfold _ _ _ = undefined
+    gfoldl _ z c = z c
+    gunfold _ _ _ = error "gunfold used on Hidden"
     toConstr x = mkConstr (dataTypeOf x) "Hidden" [] Prefix
-    dataTypeOf _ = mkDataType "Data.Hidden.Hidden" []
+    dataTypeOf _ = mkNoRepType "Hidden"
 
 instance Validity (Hidden a) where
     validate _ = valid
