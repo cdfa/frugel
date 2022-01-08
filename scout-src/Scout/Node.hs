@@ -217,9 +217,6 @@ frugelId' = toCstrSite [ Left "\\x=", Right . ExprNode $ unsafeVariable "x" ]
 whitespaceId :: CstrSite
 whitespaceId = toCstrSite [ Left "\  \tx \n=x  \tn" ]
 
-app :: CstrSite
-app = [ Left 'x', Right . ExprNode $ unsafeVariable "x", Left 'x' ]
-
 parensTest :: CstrSite
 parensTest
     = toCstrSite

@@ -105,33 +105,31 @@ evalExpr expr = do
             = writerFragment
                 #errors
                 (singleExprNodeCstrSite v, one $ FreeVariableError identifier)
-    evalExpr' (Application meta f x) = do
-        ef <- evalExpr f
-        case ef of
-            Abstraction
-                AbstractionMeta{reified = Just (Hidden reifiedFunction)}
-                _
-                _ -> maybe applicationStub pure =<< draw successfulApplication
-              where
-                successfulApplication = do
+    evalExpr' app@(Application meta f x)
+        = (=<<) (maybe applicationStub pure) . draw . fmap Limited $ do
+            ef <- evalExpr f
+            case ef of
+                Abstraction
+                    AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+                    _
+                    _ -> do
                     xRef <- newEvalRef $ evalExpr x
-                    Limited <$> magnify #shadowingEnv (reifiedFunction xRef)
-                applicationStub
-                    = writerFragment
-                        #errors
-                        ( exprCstrSite' $ fromList [ Right $ ExprNode newApp ]
-                        , one $ OutOfFuelError newApp
-                        )
-                newApp
-                    = Application meta ef
-                    $ hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel
-                    $ x
-            Abstraction{} -> error
-                "Internal evaluation error: object language function was missing meta language function"
-            _ -> do
-                checkedEf <- reportAnyTypeErrors FunctionType ef
-                Application meta checkedEf . deferEvaluation
-                    <$> newEvalRef (evalExpr x)
+                    magnify #shadowingEnv (reifiedFunction xRef)
+                Abstraction{} -> error
+                    "Internal evaluation error: object language function was missing meta language function"
+                _ -> do
+                    checkedEf <- reportAnyTypeErrors FunctionType ef
+                    Application meta checkedEf . deferEvaluation
+                        <$> newEvalRef (evalExpr x)
+      where
+        applicationStub
+            = writerFragment
+                #errors
+                ( singleExprNodeCstrSite . uncurry (Application meta)
+                  $ both % hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel
+                  $ (f, x)
+                , one $ OutOfFuelError app
+                )
     evalExpr' (Abstraction meta n body) = do
         reifiedFunction <- asks $ \env arg -> do
             scopedBody <- scope . magnifyShadowingEnv n arg env $ evalExpr body

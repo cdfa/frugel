@@ -78,9 +78,9 @@ instance AnnotatedPretty Expr where
         (prettyUnary, prettyBinary)
             = makeExprPrettyPrinter (exprMeta % #parenthesisLevels %~ max 1)
         stubIfNotEvaluated prettyNode n
-            = maybe (prettyNode n) (annotate Elided' . pretty)
-            . guarded (/= Evaluated)
-            $ view (hasLens @ExprMeta % #evaluationStatus) n
+            = case n ^. hasLens @ExprMeta % #evaluationStatus of
+                Evaluated -> prettyNode n
+                evaluationStatus -> annotate Elided' $ pretty evaluationStatus
 
 instance AnnotatedPretty Decl where
     annPretty = prettyNodeWithMeta $ \case
