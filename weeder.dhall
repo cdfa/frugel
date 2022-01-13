@@ -6,6 +6,7 @@
   , "^Control.Limited.*"
   , "^Data.Constrained.*"
   , "^Optics.Writer.*"
+  , "^Optics.Extra.*"
   , "^Scout.Node.*"
   , "^Optics.ReadOnly.VL.*"
   , "^BasicEvaluation.*"

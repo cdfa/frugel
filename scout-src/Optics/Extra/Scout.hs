@@ -67,6 +67,15 @@ afailing' firstOptic secondOptic
 
 infixl 3 `afailing'`
 
+fromAFold :: (Is k A_Getter, Is l An_AffineFold)
+    => Optic' k js s a
+    -> Optic' l is s a
+    -> Getter s a
+fromAFold getter' afold = to $ \s -> fromMaybe (view getter' s)
+    $ preview afold s
+
+infixl 3 `fromAFold`
+
 cosmosOf :: forall k a. Is k A_Fold => Optic' k NoIx a a -> Fold a a
 cosmosOf l = simple `summing` castOptic @A_Fold l % cosmosOf l
 

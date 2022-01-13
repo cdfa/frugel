@@ -1,21 +1,20 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
-
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Scout.Internal.EvaluationEnv where
 
+import Control.Limited
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
-import Generic.Data
 
 import Optics
 
@@ -26,9 +25,9 @@ data EvaluationEnv
                       -- used for tracking all bindings up to the first application (renameShadowedVariables takes over from there)
                     , shadowingEnv :: ShadowingEnv
                     , definitions :: Set Identifier
+                    , initialFuel :: Limit
+                    , skipNextOutOfFuel :: Bool
                     }
-    deriving ( Generic )
-    deriving ( Semigroup, Monoid ) via (Generically EvaluationEnv)
 
 makeFieldLabelsNoPrefix ''EvaluationEnv
 
@@ -40,9 +39,11 @@ magnifyShadowingEnv :: Magnify m n EvaluationEnv ShadowingEnv
     -> EvaluationEnv
     -> m c
     -> n c
-magnifyShadowingEnv n arg EvaluationEnv{valueEnv, definitions}
+magnifyShadowingEnv n arg EvaluationEnv{shadowingEnv = _, ..}
     = magnify . to $ \shadowingEnv ->
     EvaluationEnv { valueEnv = Map.insert n arg valueEnv
                   , shadowingEnv
                   , definitions = Set.delete n definitions
+                  , initialFuel
+                  , skipNextOutOfFuel
                   }

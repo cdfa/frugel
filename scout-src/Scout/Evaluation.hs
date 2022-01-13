@@ -97,16 +97,18 @@ evalExpr expr = do
                     writeIORef evalRef . Left $ writer (value, output)
                     pure value
                 Right value -> pure value
-    evalExpr' v@(Variable _ identifier) = do
+    evalExpr' varTerm@(Variable _ identifier) = do
         valueRefMaybe <- gview (#valueEnv % at identifier)
         maybe variableStub (lift2 . outputOnce) valueRefMaybe
       where
         variableStub
-            = writerFragment
-                #errors
-                (singleExprNodeCstrSite v, one $ FreeVariableError identifier)
-    evalExpr' app@(Application meta f x)
-        = (=<<) (maybe applicationStub pure) . draw . fmap Limited $ do
+            = writerFragment #errors
+                             ( singleExprNodeCstrSite varTerm
+                             , one $ FreeVariableError identifier
+                             )
+    evalExpr' appTerm@(Application meta f x)
+        = (=<<) (maybe (fuelRanOut applicationStub skipApp) pure) . draw
+        $ Limited <$> do
             ef <- evalExpr f
             case ef of
                 Abstraction
@@ -123,13 +125,15 @@ evalExpr expr = do
                         <$> newEvalRef (evalExpr x)
       where
         applicationStub
-            = writerFragment
-                #errors
-                ( singleExprNodeCstrSite . uncurry (Application meta)
-                  $ both % hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel
-                  $ (f, x)
-                , one $ OutOfFuelError app
-                )
+            = failedReduction (OutOfFuelError appTerm)
+            $ (Application meta
+               `on` hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel) f
+                                                                        x
+        skipApp = do
+            xRef <- newEvalRef $ evalExpr x
+            failedReduction (OutOfFuelError appTerm)
+                $ Application meta f -- evaluated f causes too much clutter
+                $ deferEvaluation xRef
     evalExpr' (Abstraction meta n body) = do
         reifiedFunction <- asks $ \env arg -> do
             scopedBody <- scope . magnifyShadowingEnv n arg env $ evalExpr body
@@ -145,33 +149,52 @@ evalExpr expr = do
                              , #shadowingEnv % at n ?~ 0
                              ])
                     $ evalExpr body
-    evalExpr' i@Literal{} = pure i
-    evalExpr' (IfExpression meta conditional trueExpr falseExpr) = do
-        eCond <- evalExpr conditional
-        case eCond of
-            Literal _ (Boolean b) ->
-                evalExpr $ if b then trueExpr else falseExpr
-            _ -> do
-                checkedCond <- reportAnyTypeErrors BoolType eCond
-                (liftA2 (IfExpression meta checkedCond)
-                 `on` deferEvaluation <.> newEvalRef . evalExpr) trueExpr
-                                                                 falseExpr
+    evalExpr' l@Literal{} = pure l
+    evalExpr' ifTerm@(IfExpression meta conditional trueExpr falseExpr)
+        = (=<<) (maybe (fuelRanOut ifExprStub skipIfExpr) pure) . draw
+        $ Limited <$> do
+            eCond <- evalExpr conditional
+            case eCond of
+                Literal _ (Boolean b) ->
+                    evalExpr $ if b then trueExpr else falseExpr
+                _ -> do
+                    checkedCond <- reportAnyTypeErrors BoolType eCond
+                    (liftA2 (IfExpression meta checkedCond)
+                     `on` deferEvaluation <.> newEvalRef . evalExpr) trueExpr
+                                                                     falseExpr
+      where
+        ifExprStub
+            = failedReduction (OutOfFuelError ifTerm)
+            . uncurry3 (IfExpression meta)
+            $ each % hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel
+            $ (conditional, trueExpr, falseExpr)
+        skipIfExpr = do
+            condRef <- newEvalRef $ evalExpr conditional
+            trueExprRef <- newEvalRef $ evalExpr trueExpr
+            falseExprRef <- newEvalRef $ evalExpr falseExpr
+            failedReduction (OutOfFuelError ifTerm)
+                $ uncurry3 (IfExpression meta)
+                $ over each
+                       deferEvaluation
+                       (condRef, trueExprRef, falseExprRef)
+        uncurry3 f (a, b, c) = f a b c
     evalExpr' (UnaryOperation meta Negate x) = evalExpr x >>= \case
         Literal exMeta (Integer i) -> pure . Literal exMeta $ Integer (-i)
         ex -> UnaryOperation meta Negate <$> reportAnyTypeErrors IntegerType ex
-    evalExpr' (BinaryOperation meta x binOp y) = do
-        ex <- evalExpr x
-        ey <- evalExpr y
-        case (ex, ey) of
-            (Literal _ leftLiteral, Literal _ rightLiteral) ->
-                case performBinaryOperation leftLiteral binOp rightLiteral of
-                    Nothing -> typeErrorStub ex ey
-                    Just (Left evalError) -> writerFragment'
-                        #errors
-                        (BinaryOperation meta ex binOp ey)
-                        $ one evalError
-                    Just (Right literal) -> pure $ literal' literal
-            _ -> typeErrorStub ex ey
+    evalExpr' binTerm@(BinaryOperation meta x binOp y)
+        = (=<<) (maybe (fuelRanOut binOpStub skipBinOp) pure) . draw
+        $ Limited <$> do
+            ex <- evalExpr x
+            ey <- evalExpr y
+            case (ex, ey) of
+                (Literal _ leftLiteral, Literal _ rightLiteral) ->
+                    case performBinaryOperation leftLiteral binOp rightLiteral of
+                        Nothing -> typeErrorStub ex ey
+                        Just (Left evalError) -> failedReduction
+                            evalError
+                            (BinaryOperation meta ex binOp ey)
+                        Just (Right literal) -> pure $ literal' literal
+                _ -> typeErrorStub ex ey
       where
         (expectedLeftType, expectedRightType, _) = binaryOperatorType binOp
         typeErrorStub ex ey
@@ -179,6 +202,19 @@ evalExpr expr = do
             <$> traverseOf both
                            (uncurry reportAnyTypeErrors)
                            ((expectedLeftType, ex), (expectedRightType, ey))
+        binOpStub
+            = failedReduction (OutOfFuelError binTerm)
+            $ (flip (BinaryOperation meta) binOp
+               `on` hasLens @ExprMeta % #evaluationStatus .~ OutOfFuel) x
+                                                                        y
+        skipBinOp = do
+            xRef <- newEvalRef $ evalExpr x
+            yRef <- newEvalRef $ evalExpr y
+            failedReduction (OutOfFuelError binTerm)
+                $ BinaryOperation meta
+                                  (deferEvaluation xRef)
+                                  binOp
+                                  (deferEvaluation yRef)
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
@@ -215,6 +251,19 @@ outputOnce valueRef = do
             writeIORef valueRef $ Right value
             writer (value, output)
         Right withoutOutput -> pure withoutOutput
+
+fuelRanOut :: Evaluation a -> Evaluation a -> Evaluation a
+fuelRanOut exprStub
+           reduction = ifM (gviews #skipNextOutOfFuel not) exprStub $ do
+    initialFuel <- gview #initialFuel
+    local (#skipNextOutOfFuel .~ False) . lift
+        $ usingLimiterT initialFuel reduction
+
+failedReduction
+    :: (MonadWriter EvaluationOutput m) => EvaluationError -> Expr -> m Expr
+failedReduction evalError failedRedex
+    = writerFragment #errors
+                     (singleExprNodeCstrSite failedRedex, one evalError)
 
 performBinaryOperation :: Literal
     -> BinaryOperator
@@ -277,7 +326,13 @@ evalScope decls = do
             <> toMapOf (folded % (#name `fanout` like 0) % ito id) decls
         newDefinitionsSet = definitions <> setOf (folded % #name) decls
         fromValueEnv
-            = review _EvaluationEnv . (, newShadowingEnv, newDefinitionsSet)
+            = review _EvaluationEnv
+            . (
+              , newShadowingEnv
+              , newDefinitionsSet
+              , initialFuel
+              , skipNextOutOfFuel
+              )
         newValueEnv
             = mappend valueEnv <.> itraverse evalDecl
             $ toMapOf (folded % (#name `fanout` #value) % ito id) decls
@@ -309,12 +364,7 @@ evalScope decls = do
                 $ fromList [ Right . ExprNode $ variable' name ]
             evaluationStub :: MonadWriter EvaluationOutput m => m Expr
             evaluationStub
-                = writerFragment
-                    #errors
-                    ( exprCstrSite'
-                      $ fromList [ Right . ExprNode $ variable' name ]
-                    , one recursionLimitReachedError
-                    )
+                = failedReduction recursionLimitReachedError $ variable' name
             recursionLimitReachedError = OutOfFuelError $ variable' name
 
 evalProgram :: Program -> Evaluation Program
@@ -335,11 +385,12 @@ evalProgram (ProgramCstrSite meta cstrSite)
 -- May be feasible when we use hypertypes to parametrise the tree
 runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     => Maybe Int
+    -> Bool
     -> Limit
     -> (a -> Evaluation a)
     -> a
     -> IO (a, (MultiSet EvaluationError, Seq FocusedNodeEvaluation))
-runEval cursorOffset fuel eval x
+runEval cursorOffset skipFirstOutOfFuel fuel eval x
     = traverseOf _2
                  ((view #errors &&& view #focusedNodeEvaluations)
                   <.> fst
@@ -348,9 +399,13 @@ runEval cursorOffset fuel eval x
     =<< runWriterT
         (template @_ @Expr normaliseExpr
          =<< (usingReaderT
-                  (mempty { EvaluationEnv.shadowingEnv = Map.fromSet (const 0)
-                                $ freeVariables mempty x
-                          })
+                  (EvaluationEnv { shadowingEnv = Map.fromSet (const 0)
+                                       $ freeVariables mempty x
+                                 , valueEnv = mempty
+                                 , definitions = mempty
+                                 , initialFuel = fuel
+                                 , skipNextOutOfFuel = skipFirstOutOfFuel
+                                 })
               . usingLimiterT fuel
               . eval
               $ maybe id focusNodeUnderCursor cursorOffset x))

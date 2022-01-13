@@ -66,8 +66,12 @@ partialFromFrugelModel :: Limit -> Model -> Frugel.Model Program -> IO Model
 partialFromFrugelModel fuel
                        Model{program = _, cursorOffset = _, errors = _, ..}
                        Frugel.Model{..} = do
-    (evaluated, (evalErrors, focusedNodeEvaluations))
-        <- runEval (Just cursorOffset) fuel evalProgram program
+    (evaluated, (evalErrors, focusedNodeEvaluations)) <- runEval
+        (Just cursorOffset)
+        limitEvaluationByDefault
+        fuel
+        evalProgram
+        program
     pure
         $ Model { editableDataVersion = editableDataVersion + 1
                 , errors = map fromFrugelError errors

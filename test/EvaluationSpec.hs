@@ -37,7 +37,7 @@ runEval' :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     => (a -> Evaluation a)
     -> a
     -> IO (a, MultiSet EvaluationError)
-runEval' eval = second fst <.> runEval Nothing Infinity eval
+runEval' eval = second fst <.> runEval Nothing False Infinity eval
 
 spec :: Spec
 spec = describe "Evaluation" $ do
