@@ -22,10 +22,11 @@ instance Truncatable Node where
         WhereNode whereClause -> WhereNode $ truncate depth whereClause
 
 instance Truncatable Expr where
-    truncate depth e
-        | depth <= 0 = elideExpr e -- use evaluation status for expr, because inspecting it's meta forces the constructor
+    truncate depth expr
+        | depth <= 0 = elideExpr expr -- use evaluation status for expr, because inspecting it's meta forces the constructor
     truncate depth (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta $ truncate depth cstrSite
+    truncate depth expr@IfExpression{} | depth <= 3 = elideExpr expr
     truncate depth expr@IfExpression{}
         = expr & traversalVL uniplate %~ truncate (depth - 4)
     truncate depth expr = expr & traversalVL uniplate %~ truncate (pred depth)
