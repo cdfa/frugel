@@ -23,7 +23,7 @@ import Scout               hiding ( Evaluated, EvaluationStatus )
 initialModel :: Program -> Model
 initialModel p
     = Model { editableDataVersion = 0
-            , fuelLimit = 10 -- how long this evaluation with this fuel limit takes is very dependent on the program being evaluated. With this, evaluating `fact2 ...` took 0.43 seconds
+            , fuelLimit = 20
             , limitEvaluationByDefault = False
             , selectedNodeEvaluationIndex = 0
             , errors = []
