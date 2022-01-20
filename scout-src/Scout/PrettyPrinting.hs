@@ -28,8 +28,14 @@ prettyCstrSite :: Node
     -> (Node -> Doc PrettyAnnotation)
     -> CstrSite
     -> Doc PrettyAnnotation
-prettyCstrSite n
-    = renderCstrSite' (annotateInConstruction' n) annotateComplete'
+prettyCstrSite n prettyNode
+    = renderCstrSite' (annotateInConstruction' n) annotateComplete' prettyNode
+    -- remove leading whitespace on newlines, because indenting is managed by the pretty printer
+    . fromList @CstrSite
+    . intercalate [ Left '\n' ]
+    . map (dropWhile (\c -> c == Left ' ' || c == Left '\t'))
+    . splitOn (Left '\n')
+    . toList
 
 annotateInConstruction' :: Node -> Doc PrettyAnnotation -> Doc PrettyAnnotation
 annotateInConstruction' n = annotate $ CompletionAnnotation' n InConstruction
