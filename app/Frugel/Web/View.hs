@@ -102,7 +102,7 @@ instructions
         , text [str|This is a very minimal editor.
                     The only implemented actions are:|]
         , ul_ [ style_ $ "margin-bottom" =: "1em" ]
-              [ li_ [] [ "insertion by typing as usual" ]
+              [ li_ [] [ "insertion and deletion works as usual" ]
               , li_ []
                     [ "cursor movement with arrow keys"
 #if !defined(ghcjs_HOST_OS)
