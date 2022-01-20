@@ -395,7 +395,8 @@ runEval cursorOffset skipFirstOutOfFuel fuel eval x
                  ((view #errors &&& view #focusedNodeEvaluations)
                   <.> fst
                   <.> runWriterT . template @_ @Expr normaliseExpr)
-    . over (traversalVL (template @_ @Expr)) removeReifiedFunctions
+    . over (traversalVL (template @_ @Expr))
+           (onPostEvalSubExprs (removeReifiedFunction . resetParenthesisLevels))
     =<< runWriterT
         (template @_ @Expr normaliseExpr
          =<< (usingReaderT
@@ -409,25 +410,26 @@ runEval cursorOffset skipFirstOutOfFuel fuel eval x
               . usingLimiterT fuel
               . eval
               $ maybe id focusNodeUnderCursor cursorOffset x))
+  where
+    removeReifiedFunction = _Abstraction % _1 % #reified .~ Nothing
+    resetParenthesisLevels :: Expr -> Expr
+    resetParenthesisLevels = hasLens @ExprMeta % #parenthesisLevels .~ 0
 
-removeReifiedFunctions :: Expr -> Expr
-removeReifiedFunctions
-    expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
+onPostEvalSubExprs :: (Expr -> Expr) -> Expr -> Expr
+onPostEvalSubExprs f
+                   expr = case expr ^. hasLens @ExprMeta % #evaluationStatus of
     EvaluationDeferred _ -> expr
         & hasLens @ExprMeta
         % #evaluationStatus
         % _EvaluationDeferred
         % _Hidden
         % _2
-        %~ (pure . removeReifiedFunction . removeReifiedFunctions <=<)
+        %~ (pure . f . onPostEvalSubExprs f <=<)
     Elided _ -> expr
         & hasLens @ExprMeta % #evaluationStatus % _Elided % _Hidden
-        %~ removeReifiedFunction . removeReifiedFunctions
-    Evaluated -> removeReifiedFunction
-        $ over (traversalVL uniplate) removeReifiedFunctions expr
+        %~ f . onPostEvalSubExprs f
+    Evaluated -> f $ over (traversalVL uniplate) (onPostEvalSubExprs f) expr
     OutOfFuel -> expr
-  where
-    removeReifiedFunction = _Abstraction % _1 % #reified .~ Nothing
 
 reportAnyTypeErrors
     :: MonadWriter EvaluationOutput m => ExpectedType -> Expr -> m Expr

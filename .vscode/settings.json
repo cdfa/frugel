@@ -46,6 +46,7 @@
         "deepseq",
         "dquotes",
         "exts",
+        "fibi",
         "fmap",
         "foldl",
         "foldr",
