@@ -163,7 +163,6 @@ instance PrettyPrint Program where
         = second toList
         . reparse programParser
         . flip setCstrSite program
-        . liftNestedCstrSiteOuterWhitespace
         . renderSimplyDecorated (fromList . map Left . toString)
                                 renderAnnotation
         . removeRootCstrSiteAnnotation -- remove root construction site annotation, because a ExprNode won't be accepted as a program
