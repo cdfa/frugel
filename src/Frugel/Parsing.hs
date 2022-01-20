@@ -35,9 +35,9 @@ fixErrorOffset :: forall p.
     => ACstrSite (NodeOf p)
     -> ParseErrorOf p
     -> ParseErrorOf p
-fixErrorOffset (CstrSite materials) = errorOffset @p %~ \offset -> offset
+fixErrorOffset (CstrSite components) = errorOffset @p %~ \offset -> offset
     + sumOf (folded % _Right % to (pred . textLength))
-            (Seq.take (offset - 1) materials)
+            (Seq.take (offset - 1) components)
 
 reparseNestedCstrSites :: forall p n.
     ( Data n
@@ -63,10 +63,10 @@ reparseNestedCstrSites reparse (cstrSite, newNode)
         +~ fst
             (Seq.filter (isRight . snd) (leadingCumulativeTextLengths cstrSite)
              `Seq.index` i)
-    -- not exactly a prefix sum; first element of pair is text length of construction materials before the item in the right element
-    leadingCumulativeTextLengths (CstrSite materials)
+    -- not exactly a prefix sum; first element of pair is text length of construction components before the item in the right element
+    leadingCumulativeTextLengths (CstrSite components)
         = snd
         $ mapAccumL
             (\l item -> (l + either (const 1) textLength item, (l, item)))
             0
-            materials
+            components

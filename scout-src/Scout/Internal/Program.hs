@@ -219,9 +219,9 @@ instance Decomposable Program where
                                   (unpacked % traversed %%~ traverseChar))
     traverseComponents traverseChar
                        traverseNode
-                       (ProgramCstrSite meta materials)
+                       (ProgramCstrSite meta components)
         = ProgramCstrSite meta
-        <$> traverseComponents traverseChar traverseNode materials
+        <$> traverseComponents traverseChar traverseNode components
 
 instance DisplayProjection Program
 

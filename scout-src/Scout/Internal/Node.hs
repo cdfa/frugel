@@ -500,9 +500,9 @@ instance Decomposable Decl where
             , keywordCharTraversal traverseChar '='
             , Traverser' #value traverseNode
             ]
-    traverseComponents traverseChar traverseNode (DeclCstrSite meta materials)
+    traverseComponents traverseChar traverseNode (DeclCstrSite meta components)
         = DeclCstrSite meta
-        <$> traverseComponents traverseChar traverseNode materials
+        <$> traverseComponents traverseChar traverseNode components
 
 instance Decomposable WhereClause where
     traverseComponents traverseChar
@@ -516,9 +516,11 @@ instance Decomposable WhereClause where
                         (<$ traverse_ @[] traverseChar "where")
              : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) traverseNode)
                     (toList decls))
-    traverseComponents traverseChar traverseNode (WhereCstrSite meta materials)
+    traverseComponents traverseChar
+                       traverseNode
+                       (WhereCstrSite meta components)
         = WhereCstrSite meta
-        <$> traverseComponents traverseChar traverseNode materials
+        <$> traverseComponents traverseChar traverseNode components
 
 keywordCharTraversal
     :: (Is A_Lens k, Functor f) => (t -> f b) -> t -> Traverser' f k NoIx a

@@ -171,8 +171,8 @@ liftNestedCstrSiteOuterWhitespace
             = first (fromMaybe mempty)
             $ passthrough
                 (_Right % _NodeCstrSite % _CstrSite)
-                ((\(leadingWhitespace', (trailingWhitespace', newMaterials)) ->
-                  ((leadingWhitespace', trailingWhitespace'), newMaterials))
+                ((\(leadingWhitespace', (trailingWhitespace', newComponents)) ->
+                  ((leadingWhitespace', trailingWhitespace'), newComponents))
                  . second (spanr isWhitespaceItem)
                  . spanl isWhitespaceItem)
                 item
