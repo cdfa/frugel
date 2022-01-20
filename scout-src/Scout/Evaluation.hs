@@ -112,11 +112,11 @@ evalExpr expr = do
             ef <- evalExpr f
             case ef of
                 Abstraction
-                    AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+                    AbstractionMeta{reified = Just (Hidden metaLangFunction)}
                     _
                     _ -> do
                     xRef <- newEvalRef $ evalExpr x
-                    magnify #shadowingEnv (reifiedFunction xRef)
+                    magnify #shadowingEnv (metaLangFunction xRef)
                 Abstraction{} -> error
                     "Internal evaluation error: object language function was missing meta language function"
                 _ -> do
@@ -135,11 +135,11 @@ evalExpr expr = do
                 $ Application meta f -- evaluated f causes too much clutter
                 $ deferEvaluation xRef
     evalExpr' (Abstraction meta n body) = do
-        reifiedFunction <- asks $ \env arg -> do
+        metaLangFunction <- asks $ \env arg -> do
             scopedBody <- scope . magnifyShadowingEnv n arg env $ evalExpr body
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
             renameShadowedVariables scopedBody
-        fmap (Abstraction (meta & #reified ?~ Hidden reifiedFunction) n
+        fmap (Abstraction (meta & #reified ?~ Hidden metaLangFunction) n
               . deferEvaluation)
             . newEvalRef
             $ do
@@ -395,8 +395,9 @@ runEval cursorOffset skipFirstOutOfFuel fuel eval x
                  ((view #errors &&& view #focusedNodeEvaluations)
                   <.> fst
                   <.> runWriterT . template @_ @Expr normaliseExpr)
-    . over (traversalVL (template @_ @Expr))
-           (onPostEvalSubExprs (removeReifiedFunction . resetParenthesisLevels))
+    . over
+        (traversalVL (template @_ @Expr))
+        (onPostEvalSubExprs (removeMetaLangFunction . resetParenthesisLevels))
     =<< runWriterT
         (template @_ @Expr normaliseExpr
          =<< (usingReaderT
@@ -411,7 +412,7 @@ runEval cursorOffset skipFirstOutOfFuel fuel eval x
               . eval
               $ maybe id focusNodeUnderCursor cursorOffset x))
   where
-    removeReifiedFunction = _Abstraction % _1 % #reified .~ Nothing
+    removeMetaLangFunction = _Abstraction % _1 % #reified .~ Nothing
     resetParenthesisLevels :: Expr -> Expr
     resetParenthesisLevels = hasLens @ExprMeta % #parenthesisLevels .~ 0
 
@@ -505,7 +506,7 @@ renameShadowedVariables scopedExpr = do
     renameShadowedVariables' = \case
         expr | expr ^. exprMeta % #evaluationStatus == OutOfFuel -> pure expr
         Abstraction
-            meta@AbstractionMeta{reified = Just (Hidden reifiedFunction)}
+            meta@AbstractionMeta{reified = Just (Hidden metaLangFunction)}
             name
             _ -> do
             suffix <- asks $ freshSuffix name
@@ -514,7 +515,7 @@ renameShadowedVariables scopedExpr = do
                 . newEvalRef
                 $ do
                     stubRef <- newIORef . pure $ variable' newIdentifier
-                    local (at name ?~ suffix) $ reifiedFunction stubRef
+                    local (at name ?~ suffix) $ metaLangFunction stubRef
         Abstraction{} -> error
             "Internal evaluation error: object language function was missing meta language function"
         expr -> traversalVL uniplate %%~ renameShadowedVariables'

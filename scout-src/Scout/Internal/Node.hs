@@ -105,11 +105,11 @@ type instance NodeOf Decl = Node
 
 type instance NodeOf WhereClause = Node
 
--- This has to live her instead of in Meta because ReifiedFunction depends on Expr
+-- This has to live her instead of in Meta because MetaLangFunction depends on Expr
 -- Could be removed by using data-diverse for Meta
 data AbstractionMeta
     = AbstractionMeta { standardExprMeta :: ExprMeta
-                      , reified :: Maybe (Hidden ReifiedFunction)
+                      , reified :: Maybe (Hidden MetaLangFunction)
                       }
     deriving ( Eq, Ord, Show, Generic, Data, Has ExprMeta )
 
@@ -142,7 +142,7 @@ data EvaluationStatus
     | OutOfFuel
     deriving ( Eq, Ord, Show, Generic, Data )
 
-type ReifiedFunction
+type MetaLangFunction
     = EvaluationRef Expr
     -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
 

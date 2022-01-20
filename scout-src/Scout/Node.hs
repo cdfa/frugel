@@ -19,7 +19,7 @@ module Scout.Node
     , ExprMeta(ExprMeta)
     , Meta(Meta)
     , EvaluationStatus(..)
-    , ReifiedFunction
+    , MetaLangFunction
     , ScopedEvaluation
     , ShadowingEnv
     , EvaluationRef
