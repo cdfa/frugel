@@ -13,7 +13,14 @@ class Truncatable a where
     truncate :: Int -> a -> a
 
 instance Truncatable (ACstrSite Node) where
-    truncate depth = _CstrSite % mapped % _Right %~ truncate (pred depth)
+    truncate depth cstrSite
+        = if depth < completeNodesCount
+          then toCstrSite [ Left "..." ]
+          else cstrSite
+              & _CstrSite % mapped % _Right
+              %~ truncate (depth - completeNodesCount)
+      where
+        completeNodesCount = lengthOf (_CstrSite % folded % _Right) cstrSite
 
 instance Truncatable Node where
     truncate depth n = case n of
@@ -26,9 +33,10 @@ instance Truncatable Expr where
         | depth <= 0 = elideExpr expr -- use evaluation status for expr, because inspecting it's meta forces the constructor
     truncate depth (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta $ truncate depth cstrSite
-    truncate depth expr@IfExpression{} | depth <= 3 = elideExpr expr
     truncate depth expr@IfExpression{}
-        = expr & traversalVL uniplate %~ truncate (depth - 4)
+        = if depth < 4
+          then elideExpr expr
+          else expr & traversalVL uniplate %~ truncate (depth - 4)
     truncate depth expr = expr & traversalVL uniplate %~ truncate (pred depth)
 
 instance Truncatable Decl where
