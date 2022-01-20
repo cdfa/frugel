@@ -294,3 +294,44 @@ factorial
                                                   then n
                                                   else n * factorial (n - 1)|]
                  ]
+
+evilFactorial :: CstrSite
+evilFactorial
+    = toCstrSite [ Left [str|evilFactorial 6
+                               where
+                                 evilFactorial = \n = if n <= 1
+                                                  then n
+                                                  else if n == 3
+                                                       then evilFactorial n * n
+                                                       else id n * evilFactorial (n - 1)
+                                 id = \x = x|]
+                 ]
+
+fibonacci :: CstrSite
+fibonacci
+    = toCstrSite [ Left [str|fib 4
+                               where
+                               fib = \x =
+                                   if x <= 0
+                                       then 0
+                                       else if x <= 1
+                                           then 1
+                                           else fib (x - 1) + fib (x - 2)
+                               fib2 = \n = fibi2 n 0 1
+                               fibi2 = \n = \a = \b = if n <= 0 then a else fibi2 (n - 1) b (a + b)|]
+                 ]
+
+evenOdd :: CstrSite
+evenOdd
+    = toCstrSite [ Left [str|even 5
+                               where
+                                 even = \x = if x == 0 then True else odd (x - 1)
+                                 odd = \x = if x == 0 then False else even (x - 1)|]
+                 ]
+
+gcdTest :: CstrSite
+gcdTest
+    = toCstrSite [ Left [str|gcd 12 9
+                               where
+                                 gcd = \a = \b = if b == 0 then a else gcd b (a % b)|]
+                 ]
