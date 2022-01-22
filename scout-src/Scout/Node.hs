@@ -303,7 +303,7 @@ evilFactorial
                                                   then n
                                                   else if n == 3
                                                        then evilFactorial n * n
-                                                       else id n * evilFactorial (n - 1)
+                                                       else evilFactorial (n - 1) * id n
                                  id = \x = x|]
                  ]
 
