@@ -150,8 +150,7 @@ hideMainExpression
     = hideEvaluationOutputField $ #evaluationOutput % #evaluated % #expr
 
 hideSelectedNodeEvaluation :: Model -> Model
-hideSelectedNodeEvaluation
-    = hideSelectedNodeValue . hideSelectedNodeDefinitions
+hideSelectedNodeEvaluation = hideSelectedNodeValue . hideSelectedNodeContext
 
 hideSelectedNodeValue :: Model -> Model
 hideSelectedNodeValue
