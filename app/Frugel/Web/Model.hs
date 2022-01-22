@@ -50,8 +50,7 @@ initialModel p
 updateWithFrugelModel :: Frugel.Model Program -> Model -> Model
 updateWithFrugelModel Frugel.Model{..}
                       Model{program = _, cursorOffset = _, errors = _, ..}
-    = hideEvaluationOutput
-    $ Model { editableDataVersion = editableDataVersion + 1
+    = Model { editableDataVersion = editableDataVersion + 1
             , program
             , cursorOffset
             , errors = map fromFrugelError errors
@@ -141,9 +140,6 @@ forceSelectedNodeField field fieldNodes model
                      % allEvaluatedChildren)
                     model)
           model
-
-hideEvaluationOutput :: Model -> Model
-hideEvaluationOutput = hideMainExpression . hideSelectedNodeEvaluation
 
 hideMainExpression :: Model -> Model
 hideMainExpression

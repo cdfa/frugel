@@ -103,6 +103,7 @@ updateModel evalThreadVar (ChangeFieldRenderDepth field newDepth) model
           . bracketNonTermination (view #editableDataVersion model + 1)
                                   evalThreadVar
           $ do
+              -- TODO: we should not need to reevaluate here
               reEvaluatedModel
                   <- fromFrugelModel newModel (toFrugelModel model)
               yieldModel sink $ forceFieldValues field reEvaluatedModel
@@ -160,7 +161,9 @@ reEvaluateFrugelModel :: MVar (Maybe (ThreadId, Integer))
     -> Model
     -> Effect Action Model
 reEvaluateFrugelModel evalThreadVar frugelModel model
-    = effectSub (updateWithFrugelModel frugelModel model) . (liftIO .)
+    = effectSub (set #evaluationStatus PartiallyEvaluated
+                 $ updateWithFrugelModel frugelModel model)
+    . (liftIO .)
     $ reEvaluate evalThreadVar frugelModel model
 
 reEvaluate :: MVar (Maybe (ThreadId, Integer))
