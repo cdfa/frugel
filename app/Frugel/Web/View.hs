@@ -47,8 +47,7 @@ instructionsView Model{..}
     = div_
         [ class_ "box content" ]
         [ div_ [ class_ "buttons" ]
-          $ button_ [ class_ "button", onClick ToggleHelp ]
-                    [ span_ [ class_ "icon" ] [ "🛈" ] ]
+          $ button_ [ class_ "button", onClick ToggleHelp ] [ "?" ]
           : conditionalViews showHelp [ instructions ]
           ++ [ span_ []
                      [ label_ [ class_ "checkbox" ]
