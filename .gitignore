@@ -1,4 +1,5 @@
 result*
+demo exes*
 .pre-commit-config.yaml
 .hie
 

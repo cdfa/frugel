@@ -288,7 +288,7 @@ ifTest = toCstrSite [ Left [str|if x then if y then y1 else y2 else x2|] ]
 
 factorial :: CstrSite
 factorial
-    = toCstrSite [ Left [str|factorial 3
+    = toCstrSite [ Left [str|factorial 6
                                where
                                  factorial = \n = if n <= 1
                                                   then n
@@ -334,4 +334,9 @@ gcdTest
     = toCstrSite [ Left [str|gcd 12 9
                                where
                                  gcd = \a = \b = if b == 0 then a else gcd b (a % b)|]
+                 ]
+
+varNameExample :: CstrSite
+varNameExample
+    = toCstrSite [ Left [str|(\f = f 2 + 8) (\numerator = \denominator = numerator / denominator)|]
                  ]
