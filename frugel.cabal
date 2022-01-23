@@ -5,7 +5,7 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           frugel
-version:        0.0.1.1
+version:        0.0.2.0
 description:    A frugal projectional editor for Live Programming
 homepage:       https://github.com/cdfa/frugel#readme
 bug-reports:    https://github.com/cdfa/frugel/issues
