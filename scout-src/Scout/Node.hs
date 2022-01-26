@@ -329,14 +329,19 @@ evenOdd
                                  odd = \x = if x == 0 then False else even (x - 1)|]
                  ]
 
-gcdTest :: CstrSite
-gcdTest
+badGcdTest :: CstrSite
+badGcdTest
     = toCstrSite [ Left [str|gcd 12 9
                                where
-                                 gcd = \a = \b = if b == 0 then a else gcd b (a % b)|]
+                                 gcd = \a = \b = if b == 0 then b else gcd b (a % b)|]
                  ]
 
 varNameExample :: CstrSite
 varNameExample
-    = toCstrSite [ Left [str|(\f = f 2 + 8) (\numerator = \denominator = numerator / denominator)|]
+    = toCstrSite [ Left [str|(\f = 1 + ...) clamp
+                               where
+                                 clamp = \lowerBound = \value = \upperBound = 
+                                     min upperBound (max value lowerBound)
+                                 min = \x = \y = if x <= y then x else y
+                                 max = \x = \y = if x >= y then x else y|]
                  ]
