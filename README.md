@@ -12,4 +12,4 @@ See my master thesis for more details (to be published).
 
 ## Usage
 
-Visit https://cdfa.github.io/react-turn-reveal/ to try it out online, or download one of the native binaries from the [releases](releases) (RECOMMENDED due to bad performance of the web version).
+Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](releases) (RECOMMENDED due to bad performance of the web version).
