@@ -8,8 +8,48 @@ Frugel is an error tolerant live programming environment. With this we mean:
 With this combination, programmers can easily observe up-to-date dynamic context around errors, which is valuable for debugging and verification and generally "fuses" the edit-compile-run cycle.
 
 To do this, the environment uses "construction sites" to isolate errors.
-See my master thesis for more details (to be published).
+See my [master's thesis](https://cdfa.github.io/frugel/thesis.pdf) for more details.
+
+At the moment, I do not have the time and energy to develop this prototype further.
+Please create an issue or pick an existing one if you would like to contribute.
 
 ## Usage
 
 Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](releases) (RECOMMENDED due to bad performance of the web version).
+When running native executables, the `www` folder should be in the working directory.
+
+A [demo video](https://archive.org/details/demo_20220123) and [a presentation](https://archive.org/details/presentation_202201) can be found on the Internet Archive.
+The demo video shows the features of the programming environment in action with some examples.
+The presentation gives an overview of the design and motivations.
+
+## Building
+
+You can build the programming environment with either `stack`, `cabal` or `nix`. Building with cabal has only been tested on Windows and the stack configuration was only tested on OSX. Nix is the only supported system for building the web-version and nix may provide better reproducibility than cabal or stack.
+
+### Nix
+
+I recommend adding Frugel's package cache to you nix configuration with `cachix use frugel`.
+Building was tested with nix version `2.3.16`.
+Build native executables for Linux (musl64) with `nix-build -A frugel-static`.
+The web version can be built with `nix-build -A frugel-web`.
+Building the web version may take more than 16GB of RAM. Part of this may be swapped.
+
+### Stack
+
+At the moment, the stack configuration in the main branch is supposed to be used in the `shell.nix` development environment.
+For an stand-alone stack configuration, see [this PR](https://github.com/cdfa/frugel/pull/3).
+
+### Cabal
+
+```
+cabal build
+```
+
+## Contributing
+
+I recommend using the `shell.nix` environment when working on this project.
+It includes several tools and git hooks.
+I will try to provide complete documentation of the development environment on my machine soon.
+
+The current implementation of evaluation is a bit of a mess (abuse of the `ExprMeta` fields), since I was in a rush to finish it.
+A less confusing version that implements some core functionality can be found in `scout-src/BasicEvaluation.hs`.
