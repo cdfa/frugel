@@ -36,8 +36,9 @@ Building the web version may take more than 16GB of RAM. Part of this may be swa
 
 ### Stack
 
-At the moment, the stack configuration in the main branch is supposed to be used in the `shell.nix` development environment.
-For an stand-alone stack configuration, see [this PR](https://github.com/cdfa/frugel/pull/3).
+```
+stack build
+```
 
 ### Cabal
 
