@@ -90,4 +90,5 @@ hsPkgs.shellFor {
   shellHook = ''
     ${pre-commit-check.shellHook}
   '';
+  STACK_YAML = "nix-stack.yaml";
 }
