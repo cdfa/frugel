@@ -1,12 +1,10 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Frugel.Web.View where
 
 import qualified Data.Sequence as Seq
-import Data.String.Interpolation
 
 import Frugel              hiding ( Model(..) )
 import Frugel.Web.Action
@@ -82,9 +80,12 @@ ghcjsPerformanceWarning :: View action
 #if defined(ghcjs_HOST_OS)
 ghcjsPerformanceWarning
     = p_ []
-         [ text [str|WARNING: the web version of Frugel is very slow!
-                       Please consider one of |]
-         , a_ [ href_ "https://github.com/cdfa/frugel/releases" ]
+         [ "WARNING: the web version of Frugel is very slow!"
+         , br_ []
+         , "Please consider one of "
+         , a_ [ href_ "https://github.com/cdfa/frugel/releases"
+              , target_ "_blank"
+              ]
               [ "the native versions" ]
          , "."
          ]
@@ -98,8 +99,23 @@ instructions
     = div_
         []
         [ ghcjsPerformanceWarning
-        , text [str|This is a very minimal editor.
-                    The only implemented actions are:|]
+        , div_ []
+               [ "This is a very minimal error-tolerant live programming environment."
+               ]
+        , div_ []
+               [ "See the "
+               , a_ [ href_ "https://archive.org/details/demo_20220123"
+                    , target_ "_blank"
+                    ]
+                    [ "demo video" ]
+               , " or "
+               , a_ [ href_ "https://archive.org/details/presentation_202201"
+                    , target_ "_blank"
+                    ]
+                    [ "this presentation" ]
+               , " for it's features."
+               ]
+        , div_ [] [ "The only implemented actions are:" ]
         , ul_ [ style_ $ "margin-bottom" =: "1em" ]
               [ li_ [] [ "insertion and deletion works as usual" ]
               , li_ []
@@ -109,6 +125,7 @@ instructions
                           [ li_ []
                                 [ "Use Alt+<arrow key> to prevent scrolling the page. (see "
                                 , a_ [ href_ "https://github.com/dmjio/miso/issues/668"
+                                     , target_ "_blank"
                                      ]
                                      [ "#668" ]
                                 , ")"
