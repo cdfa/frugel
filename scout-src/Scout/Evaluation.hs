@@ -56,7 +56,7 @@ evalCstrSite cstrSite = do
             (_CstrSite
              % folded
              % _Right
-             % (_DeclNode `summing` _WhereNode % _WhereClause % _2 % folded))
+             % (_DefNode `summing` _WhereNode % _WhereClause % _2 % folded))
             cstrSite
     newCstrSite <- local (const newEnv)
         $ cstrSite & _CstrSite % traversed % _Right %%~ \case
@@ -295,21 +295,21 @@ performBinaryOperation
     _ -> Nothing
 
 evalWhereClause :: WhereClause -> Evaluation (EvaluationEnv, WhereClause)
-evalWhereClause whereClause@(WhereClause _ decls)
-    = (, whereClause) <$> evalScope decls
+evalWhereClause whereClause@(WhereClause _ defs)
+    = (, whereClause) <$> evalScope defs
 evalWhereClause (WhereCstrSite meta cstrSite)
     = second (WhereCstrSite meta) <$> evalCstrSite cstrSite
 
--- todo: return evaluated decls
+-- todo: return evaluated defs
 -- With this way of implementing limited recursion, the bound expressions get evaluated again with every recursive application, which would not be necessary if recursion was not limited.
 -- I can't find a better way to do it for now, because limited recursion implies that the results of evaluation can change (when the limit is reached).
 -- You would somehow need to change the value the evaluation of a bound variable resulted in after the fact.
 -- Other options include limiting all uses of bound expressions (instead of recursive uses) or maybe something with graph-reduction.
-evalScope :: Foldable t => t Decl -> Evaluation EvaluationEnv
-evalScope decls = do
+evalScope :: Foldable t => t Definition -> Evaluation EvaluationEnv
+evalScope defs = do
     fuelLimit <- askLimit
-    evaluatedDecls <- newIORef mempty
-    newEnv <- liftIO . usingLimiterT fuelLimit . computeNewEnv evaluatedDecls
+    evaluatedDefs <- newIORef mempty
+    newEnv <- liftIO . usingLimiterT fuelLimit . computeNewEnv evaluatedDefs
         =<< ask
     writerFragment
         #errors
@@ -317,14 +317,14 @@ evalScope decls = do
   where
     repeated
         = mapMaybe (preview $ _tail % _head) . group . sort
-        $ toListOf (folded % #name) decls
-    computeNewEnv evaluatedDecls EvaluationEnv{..}
+        $ toListOf (folded % #name) defs
+    computeNewEnv evaluatedDefs EvaluationEnv{..}
         = fromValueEnv <$> newValueEnv
       where
         newShadowingEnv
             = shadowingEnv
-            <> toMapOf (folded % (#name `fanout` like 0) % ito id) decls
-        newDefinitionsSet = definitions <> setOf (folded % #name) decls
+            <> toMapOf (folded % (#name `fanout` like 0) % ito id) defs
+        newDefinitionsSet = definitions <> setOf (folded % #name) defs
         fromValueEnv
             = review _EvaluationEnv
             . (
@@ -334,9 +334,9 @@ evalScope decls = do
               , skipNextOutOfFuel
               )
         newValueEnv
-            = mappend valueEnv <.> itraverse evalDecl
-            $ toMapOf (folded % (#name `fanout` #value) % ito id) decls
-        evalDecl name value = do
+            = mappend valueEnv <.> itraverse evalDef
+            $ toMapOf (folded % (#name `fanout` #value) % ito id) defs
+        evalDef name value = do
             valueEither <- if name `elem` repeated
                 then pure . Left . pure $ duplicateDefinitionStub
                 else Left . fromMaybe evaluationStub
@@ -350,14 +350,14 @@ evalScope decls = do
                         (pure . usingReaderT (fromValueEnv iteratedEnv))
                     $ do
                         evaluated
-                            <- Set.member name <$> readIORef evaluatedDecls
+                            <- Set.member name <$> readIORef evaluatedDefs
                         if evaluated
                             then censoring #errors
                                            (MultiSet.filter
                                                 (== recursionLimitReachedError))
                                 $ evalExpr value
                             else do
-                                modifyIORef evaluatedDecls (Set.insert name)
+                                modifyIORef evaluatedDefs (Set.insert name)
                                 evalExpr value
             duplicateDefinitionStub
                 = exprCstrSite'

@@ -86,22 +86,21 @@ nodeChildrenVL f = _ConstrainedVL $ Lens.re @Dynamic _Dynamic nodeChildren'
             (program :: Program)
         DL.Dynamic node -> traverseNode node
         DL.Dynamic expr -> traverseExpr expr
-        DL.Dynamic decl -> traverseExpr decl
+        DL.Dynamic def -> traverseExpr def
         DL.Dynamic whereClause -> traverseExpr whereClause
         _ -> error "nodeChildrenVL used on non-Node type"
     traverseCstrSite = traverseOf_ (_CstrSite % folded % _Right) $ \case
         ExprNode e -> f $ Constrained e
-        DeclNode e -> f $ Constrained e
+        DefNode e -> f $ Constrained e
         WhereNode e -> f $ Constrained e
     traverseNode = \case
         ExprNode e -> traverseExpr e
-        DeclNode d -> traverseDecl d
+        DefNode d -> traverseDef d
         WhereNode w -> traverseWhereClause w
     traverseExpr (ExprCstrSite _ cstrSite) = traverseCstrSite cstrSite
     traverseExpr expr
         = Lens.traverseOf_ (uniplate . Lens.to Constrained) f expr
-    traverseDecl (DeclCstrSite _ cstrSite) = traverseCstrSite cstrSite
-    traverseDecl decl = traverseOf_ (#value % to Constrained) f decl
+    traverseDef (DefCstrSite _ cstrSite) = traverseCstrSite cstrSite
+    traverseDef def = traverseOf_ (#value % to Constrained) f def
     traverseWhereClause (WhereCstrSite _ cstrSite) = traverseCstrSite cstrSite
-    traverseWhereClause (WhereClause _ decls)
-        = traverse_ (f . Constrained) decls
+    traverseWhereClause (WhereClause _ defs) = traverse_ (f . Constrained) defs

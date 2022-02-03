@@ -12,7 +12,7 @@ module Scout.Node
     , Literal(..)
     , CstrSite
     , Identifier(..)
-    , Decl(Decl, DeclCstrSite)
+    , Definition(Def, DefCstrSite)
     , Node(..)
     , WhereClause(..)
     , AbstractionMeta(AbstractionMeta)
@@ -36,9 +36,9 @@ module Scout.Node
     , _BinaryOperation
     , _Variable
     , _Literal
-    , _Decl
-    , _DeclCstrSite
-    , _DeclNode
+    , _Def
+    , _DefCstrSite
+    , _DefNode
     , _ExprCstrSite
     , _ExprNode
     , _WhereClause
@@ -51,7 +51,7 @@ module Scout.Node
     , _FocusedNodeEvaluation
     , exprMeta
     , exprCstrSite'
-    , declCstrSite'
+    , defCstrSite'
     , whereCstrSite'
     , defaultExprMeta
     , defaultMeta
@@ -126,14 +126,14 @@ binaryOperation'' binOp meta' left = BinaryOperation meta' left binOp
 literal' :: Literal -> Expr
 literal' = Literal $ defaultExprMeta 0
 
-decl' :: Identifier -> Expr -> Decl
-decl' = Decl $ defaultMeta 2
+def' :: Identifier -> Expr -> Definition
+def' = Def $ defaultMeta 2
 
-unsafeDecl :: String -> Expr -> Decl
-unsafeDecl = decl' . Unsafe.fromJust . identifier'
+unsafeDef :: String -> Expr -> Definition
+unsafeDef = def' . Unsafe.fromJust . identifier'
 
-whereClause' :: NonEmpty Decl -> WhereClause
-whereClause' decls = WhereClause (defaultMeta $ length decls) decls
+whereClause' :: NonEmpty Definition -> WhereClause
+whereClause' defs = WhereClause (defaultMeta $ length defs) defs
 
 defaultAbstractionMeta :: Int -> AbstractionMeta
 defaultAbstractionMeta n
@@ -229,11 +229,11 @@ whereClauseTest
                  , Left "\n  u = w"
                  ]
 
-declNodeTest :: CstrSite
-declNodeTest
+defNodeTest :: CstrSite
+defNodeTest
     = toCstrSite
         [ Left "x where "
-        , Right . DeclNode $ unsafeDecl "y" $ unsafeVariable "z" -- , whereClause' = []
+        , Right . DefNode $ unsafeDef "y" $ unsafeVariable "z" -- , whereClause' = []
         ]
 
 sumTest :: CstrSite

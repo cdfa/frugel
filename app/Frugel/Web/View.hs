@@ -225,7 +225,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                  . map (div_ []
                         . renderPretty
                         . truncate contextRenderDepth
-                        . uncurry decl')
+                        . uncurry def')
                  . toList
                  $ view #variables selectedNodeEvaluation
                ]
@@ -252,7 +252,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                       . map (div_ []
                              . renderPretty
                              . truncate contextRenderDepth
-                             . uncurry decl')
+                             . uncurry def')
                       . toList
                       $ view #definitions selectedNodeEvaluation
                     ]

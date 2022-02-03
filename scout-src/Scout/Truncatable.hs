@@ -25,7 +25,7 @@ instance Truncatable (ACstrSite Node) where
 instance Truncatable Node where
     truncate depth n = case n of
         ExprNode expr -> ExprNode $ truncate depth expr
-        DeclNode decl -> DeclNode $ truncate depth decl
+        DefNode def -> DefNode $ truncate depth def
         WhereNode whereClause -> WhereNode $ truncate depth whereClause
 
 instance Truncatable Expr where
@@ -39,11 +39,11 @@ instance Truncatable Expr where
           else expr & traversalVL uniplate %~ truncate (depth - 4)
     truncate depth expr = expr & traversalVL uniplate %~ truncate (pred depth)
 
-instance Truncatable Decl where
-    truncate depth decl | depth <= 0 = elide decl
-    truncate depth (DeclCstrSite meta cstrSite)
-        = DeclCstrSite meta $ truncate depth cstrSite
-    truncate depth decl = decl & #value %~ truncate (pred depth)
+instance Truncatable Definition where
+    truncate depth def | depth <= 0 = elide def
+    truncate depth (DefCstrSite meta cstrSite)
+        = DefCstrSite meta $ truncate depth cstrSite
+    truncate depth def = def & #value %~ truncate (pred depth)
 
 instance Truncatable WhereClause where
     truncate depth whereClause | depth <= 0 = elide whereClause

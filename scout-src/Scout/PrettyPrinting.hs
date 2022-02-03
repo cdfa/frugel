@@ -48,7 +48,7 @@ class AnnotatedPretty a where
 
 instance AnnotatedPretty Node where
     annPretty (ExprNode expr) = annPretty expr
-    annPretty (DeclNode decl) = annPretty decl
+    annPretty (DefNode def) = annPretty def
     annPretty (WhereNode w) = annPretty w
 
 instance AnnotatedPretty Expr where
@@ -88,17 +88,17 @@ instance AnnotatedPretty Expr where
                 Evaluated -> prettyNode n
                 evaluationStatus -> annotate Elided' $ pretty evaluationStatus
 
-instance AnnotatedPretty Decl where
+instance AnnotatedPretty Definition where
     annPretty = prettyNodeWithMeta $ \case
-        Decl{..} -> pretty name `nestingLine` equals <+> annPretty value
-        d@(DeclCstrSite _ contents) ->
-            prettyCstrSite (DeclNode d) annPretty contents
+        Def{..} -> pretty name `nestingLine` equals <+> annPretty value
+        d@(DefCstrSite _ contents) ->
+            prettyCstrSite (DefNode d) annPretty contents
 
     -- <> annPretty whereClause
 instance AnnotatedPretty WhereClause where
     annPretty = prettyNodeWithMeta $ \case
-        (WhereClause _ decls) -> "where"
-            <> nest 2 (line <> vsep (map annPretty $ toList decls))
+        (WhereClause _ defs) -> "where"
+            <> nest 2 (line <> vsep (map annPretty $ toList defs))
         whereClause@(WhereCstrSite _ contents) ->
             prettyCstrSite (WhereNode whereClause) annPretty contents
 

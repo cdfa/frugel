@@ -45,7 +45,7 @@ node name = do
 anyNode :: Parser Node
 anyNode
     = choice
-        [ WhereNode <$> whereClause, DeclNode <$> try decl, ExprNode <$> expr ]
+        [ WhereNode <$> whereClause, DefNode <$> try def, ExprNode <$> expr ]
 
 term :: Parser Expr
 term
@@ -106,7 +106,7 @@ expr
                                      (concat binaryOperatorPrecedence))
                  , () <$ node @WhereClause ""
                  , () <$ (() <$% identifier <*% char '=')
-                 , () <$ node @Decl ""
+                 , () <$ node @Definition ""
                  , eof
                  ]
     -- parse multiple unary operators in a row in one go. Otherwise it doesn't work for reasons I have yet to figure out
@@ -128,14 +128,14 @@ parserAssociativity = \case
     RightAssociative -> InfixR
     NotAssociative -> InfixN
 
-decl :: Parser Decl
-decl = setWhitespace <$> literalDecl <|> declNode
+def :: Parser Definition
+def = setWhitespace <$> literalDef <|> defNode
   where
-    literalDecl = Node.decl' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
-    declNode = node "a declaration node"
+    literalDef = Node.def' <$%> identifier <*% char '=' <*%> expr -- <*%> whereClause
+    defNode = node "a definition node"
 
 whereClause :: Parser WhereClause
 whereClause = whereNode <|> setWhitespace <$> literalWhere -- it's important that whereNode is tried first, because literalWhere succeeds on empty input
   where
-    literalWhere = Node.whereClause' <<$>> (string "where" *%> wSome decl)
+    literalWhere = Node.whereClause' <<$>> (string "where" *%> wSome def)
     whereNode = node "a where clause node"

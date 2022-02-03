@@ -62,7 +62,7 @@ import Test.QuickCheck.Modifiers
 
 type CstrSite = ACstrSite Node
 
-data Node = ExprNode Expr | DeclNode Decl | WhereNode WhereClause
+data Node = ExprNode Expr | DefNode Definition | WhereNode WhereClause
     deriving ( Eq, Ord, Show, Generic, Data )
 
 newtype Identifier = Identifier (NonEmpty Alphanumeric)
@@ -83,14 +83,14 @@ data Expr
 data Literal = Boolean Bool | Integer Integer
     deriving ( Eq, Ord, Show, Generic, Data )
 
-data Decl
-    = Decl { meta :: Meta, name :: Identifier, value :: Expr }
+data Definition
+    = Def { meta :: Meta, name :: Identifier, value :: Expr }
       -- , whereClause :: WhereClause
-    | DeclCstrSite Meta CstrSite
+    | DefCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
 data WhereClause
-    = WhereClause Meta (NonEmpty Decl) | WhereCstrSite Meta CstrSite
+    = WhereClause Meta (NonEmpty Definition) | WhereCstrSite Meta CstrSite
     deriving ( Eq, Ord, Show, Generic, Data, Has Meta )
 
 type instance NodeOf Node = Node
@@ -101,7 +101,7 @@ type instance NodeOf Expr = Node
 
 type instance NodeOf Literal = Node
 
-type instance NodeOf Decl = Node
+type instance NodeOf Definition = Node
 
 type instance NodeOf WhereClause = Node
 
@@ -188,7 +188,7 @@ data TypeError
 data ExpectedType = FunctionType | IntegerType | BoolType | AnyType
     deriving ( Eq, Show, Ord, Data )
 
-makeFieldLabelsNoPrefix ''Decl
+makeFieldLabelsNoPrefix ''Definition
 
 makeFieldLabelsNoPrefix ''AbstractionMeta
 
@@ -198,7 +198,7 @@ makePrisms ''Identifier
 
 makePrisms ''Expr
 
-makePrisms ''Decl
+makePrisms ''Definition
 
 makePrisms ''WhereClause
 
@@ -220,7 +220,7 @@ instance LabelOptic "exprMeta" An_AffineFold Node Node ExprMeta ExprMeta where
 instance LabelOptic "exprMeta" An_AffineFold Expr Expr ExprMeta ExprMeta where
     labelOptic = castOptic hasLens
 
-instance LabelOptic "exprMeta" An_AffineFold Decl Decl ExprMeta ExprMeta where
+instance LabelOptic "exprMeta" An_AffineFold Definition Definition ExprMeta ExprMeta where
     labelOptic = castOptic $ noIx ignored
 
 instance LabelOptic "exprMeta" An_AffineFold WhereClause WhereClause ExprMeta ExprMeta where
@@ -231,10 +231,10 @@ instance LabelOptic "context" A_Traversal FocusedNodeEvaluation FocusedNodeEvalu
 
 instance Has Meta Node where
     getter (ExprNode n) = getter n
-    getter (DeclNode n) = getter n
+    getter (DefNode n) = getter n
     getter (WhereNode n) = getter n
     modifier f n@(ExprNode _) = n & _ExprNode %~ modifier f
-    modifier f n@(DeclNode _) = n & _DeclNode %~ modifier f
+    modifier f n@(DefNode _) = n & _DefNode %~ modifier f
     modifier f n@(WhereNode _) = n & _WhereNode %~ modifier f
 
 instance Has ExprMeta Expr where
@@ -259,15 +259,15 @@ instance Has Meta AbstractionMeta where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
--- declMeta :: Lens' Decl Meta
--- declMeta = hasLens
+-- defMeta :: Lens' Def Meta
+-- defMeta = hasLens
 -- whereClauseMeta :: Lens' WhereClause Meta
 -- whereClauseMeta = hasLens
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
 
-declCstrSite' :: CstrSite -> Decl
-declCstrSite' = DeclCstrSite $ defaultMeta 0
+defCstrSite' :: CstrSite -> Definition
+defCstrSite' = DefCstrSite $ defaultMeta 0
 
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
@@ -335,7 +335,7 @@ instance IsNode Node
 
 instance IsNode Expr
 
-instance IsNode Decl
+instance IsNode Definition
 
 instance IsNode WhereClause
 
@@ -345,8 +345,8 @@ instance NodePrism Node where
 instance NodePrism Expr where
     nodePrism = _ExprNode
 
-instance NodePrism Decl where
-    nodePrism = _DeclNode
+instance NodePrism Definition where
+    nodePrism = _DefNode
 
 instance NodePrism WhereClause where
     nodePrism = _WhereNode
@@ -354,12 +354,12 @@ instance NodePrism WhereClause where
 instance CstrSiteNode Node where
     setCstrSite cstrSite = \case
         ExprNode expr -> ExprNode $ setCstrSite cstrSite expr
-        DeclNode expr -> DeclNode $ setCstrSite cstrSite expr
+        DefNode expr -> DefNode $ setCstrSite cstrSite expr
         WhereNode expr -> WhereNode $ setCstrSite cstrSite expr
     _NodeCstrSite
         = singular
         $ (_ExprNode % _NodeCstrSite)
-        `adjoin` (_DeclNode % _NodeCstrSite)
+        `adjoin` (_DefNode % _NodeCstrSite)
         `adjoin` (_WhereNode % _NodeCstrSite)
 
 instance CstrSiteNode Expr where
@@ -370,9 +370,9 @@ instance CstrSiteNode Expr where
             ((== 0) . view (_1 % #parenthesisLevels)) -- safe, because value with predicate is disjoint from focus
         % _2
 
-instance CstrSiteNode Decl where
-    setCstrSite = const . declCstrSite'
-    _NodeCstrSite = _DeclCstrSite % _2
+instance CstrSiteNode Definition where
+    setCstrSite = const . defCstrSite'
+    _NodeCstrSite = _DefCstrSite % _2
 
 instance CstrSiteNode WhereClause where
     setCstrSite = const . whereCstrSite'
@@ -396,14 +396,14 @@ instance Pretty EvaluationStatus where
 instance DisplayProjection Node where
     -- _NodeCstrSite of Node finds construction sites from the nodes and would skip any overridden renderDoc definitions, though there are none now
     renderDoc (ExprNode expr) = renderDoc expr
-    renderDoc (DeclNode decl) = renderDoc decl
+    renderDoc (DefNode def) = renderDoc def
     renderDoc (WhereNode whereClause) = renderDoc whereClause
 
 -- At the moment, `renderDoc e` will not place additional parentheses to ensure the rendered program reflects the AST according to the grammar and associativity/fixity of the operators
 -- This functionality could be copied from the pretty printing definition if needed
 instance DisplayProjection Expr
 
-instance DisplayProjection Decl
+instance DisplayProjection Definition
 
 instance DisplayProjection WhereClause
 
@@ -416,8 +416,8 @@ instance Decomposable Node where
     traverseComponents traverseChar traverseNode = \case
         ExprNode expr ->
             ExprNode <$> traverseComponents traverseChar traverseNode expr
-        DeclNode decl ->
-            DeclNode <$> traverseComponents traverseChar traverseNode decl
+        DefNode def ->
+            DefNode <$> traverseComponents traverseChar traverseNode def
         WhereNode whereClause -> WhereNode
             <$> traverseComponents traverseChar traverseNode whereClause
 
@@ -490,24 +490,24 @@ instance Decomposable Expr where
                                 $ traverseComponents traverseChar traverseNode
                               ]
 
-instance Decomposable Decl where
-    traverseComponents traverseChar traverseNode decl@Decl{}
-        = chainDisJoint decl . Disjoint
+instance Decomposable Definition where
+    traverseComponents traverseChar traverseNode def@Def{}
+        = chainDisJoint def . Disjoint
         $ intersperseWhitespaceTraversers
             traverseChar
-            decl
+            def
             [ Traverser' #name (traverseComponents traverseChar traverseNode)
             , keywordCharTraversal traverseChar '='
             , Traverser' #value traverseNode
             ]
-    traverseComponents traverseChar traverseNode (DeclCstrSite meta components)
-        = DeclCstrSite meta
+    traverseComponents traverseChar traverseNode (DefCstrSite meta components)
+        = DefCstrSite meta
         <$> traverseComponents traverseChar traverseNode components
 
 instance Decomposable WhereClause where
     traverseComponents traverseChar
                        traverseNode
-                       whereClause@(WhereClause _ decls)
+                       whereClause@(WhereClause _ defs)
         = chainDisJoint whereClause . Disjoint
         $ intersperseWhitespaceTraversers
             traverseChar
@@ -515,7 +515,7 @@ instance Decomposable WhereClause where
             (Traverser' (castOptic united)
                         (<$ traverse_ @[] traverseChar "where")
              : imap (\i _ -> Traverser' (_WhereClause % _2 % ix i) traverseNode)
-                    (toList decls))
+                    (toList defs))
     traverseComponents traverseChar
                        traverseNode
                        (WhereCstrSite meta components)
@@ -572,14 +572,14 @@ instance ValidInterstitialWhitespace Expr where
         Literal{} -> 0
         ExprCstrSite{} -> 0
 
-instance ValidInterstitialWhitespace Decl where
+instance ValidInterstitialWhitespace Definition where
     validInterstitialWhitespace = \case
-        Decl{} -> 2
-        DeclCstrSite{} -> 0
+        Def{} -> 2
+        DefCstrSite{} -> 0
 
 instance ValidInterstitialWhitespace WhereClause where
     validInterstitialWhitespace = \case
-        WhereClause _ decls -> length decls
+        WhereClause _ defs -> length defs
         WhereCstrSite{} -> 0
 
 instance Validity Node
@@ -626,7 +626,7 @@ instance Validity Expr where
 
 instance Validity Literal
 
-instance Validity Decl where
+instance Validity Definition where
     validate
         = mconcat [ genericValidate
                   , validateInterstitialWhitespace validInterstitialWhitespace
@@ -709,7 +709,7 @@ instance GenValid Literal where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No validity requirements
 
-instance GenValid Decl where
+instance GenValid Definition where
     genValid = sized uniformValid
     shrinkValid = shrinkValidStructurallyWithoutExtraFiltering -- No filtering required, because shrinking Meta maintains the number of interstitial whitespace fragments
 
@@ -746,7 +746,7 @@ instance GenValid EvaluationStatus where
     shrinkValid = const []
 
 instance ValidEnumerable Node where
-    enumerateValid = datatype [ c1 ExprNode, c1 DeclNode, c1 WhereNode ]
+    enumerateValid = datatype [ c1 ExprNode, c1 DefNode, c1 WhereNode ]
 
 instance ValidEnumerable Identifier where
     enumerateValid
@@ -815,22 +815,20 @@ instance ValidEnumerable Literal where
                    , Integer . getNonNegative <$> accessValid
                    ]
 
-instance ValidEnumerable Decl where
-    enumerateValid
-        = datatype [ addMeta (uncurry . Decl), addMeta DeclCstrSite ]
+instance ValidEnumerable Definition where
+    enumerateValid = datatype [ addMeta (uncurry . Def), addMeta DefCstrSite ]
 
 instance ValidEnumerable WhereClause where
     enumerateValid
-        = datatype
-            [ (\decls -> WhereClause
-                   (defaultMeta 0) { interstitialWhitespace = map
-                                         (toText
-                                          . map unWhitespace
-                                          . toList @(NonEmpty _)
-                                          . fst)
-                                         $ toList decls
-                                   }
-               $ fmap snd decls) <$> accessValid, addMeta WhereCstrSite ]
+        = datatype [ (\defs -> WhereClause
+                          (defaultMeta 0) { interstitialWhitespace = map
+                                                (toText
+                                                 . map unWhitespace
+                                                 . toList @(NonEmpty _)
+                                                 . fst)
+                                                $ toList defs
+                                          }
+                      $ fmap snd defs) <$> accessValid, addMeta WhereCstrSite ]
 
 -- Not generally safe, see note `addMetaWith`
 addMeta

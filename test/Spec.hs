@@ -21,5 +21,5 @@ main = sydTest $ do
         genValidSpec @ExprMeta
         genValidSpec @Identifier
         genValidSpec @WhereClause
-        genValidSpec @Decl
+        genValidSpec @Definition
     EvaluationSpec.spec
