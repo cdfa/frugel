@@ -66,13 +66,13 @@ instance ValidEnumerable BinaryOperator where
 
 binaryOperatorPrecedence :: [[BinaryOperator]]
 binaryOperatorPrecedence
-        = [ [ Times, Division ]
-          , [ Plus, Minus, Modulo ]
-          , [ LessThan, GreaterThan, LessOrEqual, GreaterOrEqual ]
-          , [ Equals, NotEquals ]
-          , [ And ]
-          , [ Or ]
-          ]
+    = [ [ Times, Division ]
+      , [ Plus, Minus, Modulo ]
+      , [ LessThan, GreaterThan, LessOrEqual, GreaterOrEqual ]
+      , [ Equals, NotEquals ]
+      , [ And ]
+      , [ Or ]
+      ]
 
 unaryOperatorSymbol :: IsString p => UnaryOperator -> p
 unaryOperatorSymbol Negate = "-"
