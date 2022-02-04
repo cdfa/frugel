@@ -37,10 +37,10 @@ library
       Frugel.Parsing
       Frugel.PrettyPrinting
       Optics.Extra.Frugel
-      Prelude
   other-modules:
-      Paths_frugel
+      Prelude
   hs-source-dirs:
+      prelude
       src
   default-extensions:
       OverloadedStrings
@@ -105,8 +105,10 @@ library scout
       Scout.Unbound
       Text.Megaparsec.State.Optics
   other-modules:
+      Prelude
       BasicEvaluation
   hs-source-dirs:
+      prelude
       scout-src
   default-extensions:
       OverloadedStrings
@@ -152,6 +154,7 @@ library scout
 executable frugel-exe
   main-is: Main.hs
   other-modules:
+      Prelude
       Control.Timeout
       Frugel.Web.Action
       Frugel.Web.Event
@@ -162,6 +165,7 @@ executable frugel-exe
       Frugel.Web.View.Rendering
       Language.Javascript.JSaddle.Warp.Extra
   hs-source-dirs:
+      prelude
       app
   default-extensions:
       OverloadedStrings
@@ -178,6 +182,7 @@ executable frugel-exe
     , frugel
     , lens
     , miso >=1.8.0.0 && <1.9
+    , mtl
     , multiset
     , pretty-show
     , prettyprinter >=1.7.0 && <1.8
@@ -200,9 +205,11 @@ test-suite frugel-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Prelude
       Data.NonNegative.GenValidity
       EvaluationSpec
   hs-source-dirs:
+      prelude
       test
   default-extensions:
       OverloadedStrings
@@ -218,6 +225,7 @@ test-suite frugel-test
     , genvalidity
     , genvalidity-containers
     , genvalidity-sydtest
+    , mtl
     , multiset
     , relude >=1.0.0.0
     , scout

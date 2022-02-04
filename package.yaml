@@ -20,6 +20,7 @@ description: A frugal projectional editor for Live Programming
 
 dependencies:
   - relude >= 1.0.0.0
+  - mtl
 
 ghc-options:
   - -Wall
@@ -39,7 +40,10 @@ default-extensions:
   - DeriveGeneric
 
 library:
-  source-dirs: src
+  source-dirs:
+    - prelude # In separate directory to share with other components to resolve issues with implicit prelude in ghci (also see https://github.com/commercialhaskell/stack/issues/3862)
+    - src
+  other-modules: Prelude
   when:
     - condition: impl(ghcjs)
       then:
@@ -53,7 +57,6 @@ library:
     - optics ^>= 0.4
     - optics-vl ^>= 0.2.1
     - lens
-    - mtl
 
 internal-libraries:
   scout:
@@ -65,8 +68,12 @@ internal-libraries:
           dependencies: base-noprelude >= 4.7 && < 5
       - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
         other-modules: Paths_frugel
-    source-dirs: scout-src
-    other-modules: BasicEvaluation
+    source-dirs:
+      - prelude
+      - scout-src
+    other-modules:
+      - Prelude
+      - BasicEvaluation
     dependencies:
       - frugel
       - megaparsec ^>= 9.0.1
@@ -77,7 +84,6 @@ internal-libraries:
       - it-has
       - optics ^>= 0.4
       - lens
-      - mtl
       - multiset
       - genvalidity
       - validity-text
@@ -98,7 +104,9 @@ internal-libraries:
 executables:
   frugel-exe:
     main: Main.hs
-    source-dirs: app
+    source-dirs:
+      - prelude
+      - app
     ghc-options:
       - -threaded
       - -rtsopts
@@ -137,7 +145,9 @@ executables:
 tests:
   frugel-test:
     main: Spec.hs
-    source-dirs: test
+    source-dirs:
+      - prelude
+      - test
     ghc-options:
       - -threaded
       - -rtsopts

@@ -12,7 +12,7 @@ with pkgs;
     enable = false;
     name = "Floskell config change";
     description = "Reformatting all Haskell files because the Floskell config has changed";
-    entry = "${bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${coreutils}/bin/ls {app,src,test,scout-src}/**/*.hs | ${gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
+    entry = "${bash}/bin/bash -c 'shopt -s globstar; ${floskell}/bin/floskell $(${coreutils}/bin/ls {prelude,app,src,test,scout-src}/**/*.hs | ${gnused}/bin/sed \"/src\\/Optics\\/External/d\")'";
     files = "floskell.json$";
     pass_filenames = false;
   };
