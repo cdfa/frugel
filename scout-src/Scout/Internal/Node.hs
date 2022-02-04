@@ -600,8 +600,8 @@ instance Validity Expr where
             [ genericValidate
             , validateInterstitialWhitespace validInterstitialWhitespace
             , declare "has non-empty center whitespace fragment"
-              . fromMaybe True
-              . preview
+              . fromAffineFold
+                  True
                   (_Application
                    % _1
                    % #standardMeta
