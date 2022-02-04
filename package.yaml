@@ -16,7 +16,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description: A frugal projectional editor for Live Programming
+description: An Error-tolerant Live Programming Environment
 
 dependencies:
   - relude >= 1.0.0.0

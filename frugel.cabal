@@ -6,7 +6,7 @@ cabal-version: 2.0
 
 name:           frugel
 version:        0.0.2.0
-description:    A frugal projectional editor for Live Programming
+description:    An Error-tolerant Live Programming Environment
 homepage:       https://github.com/cdfa/frugel#readme
 bug-reports:    https://github.com/cdfa/frugel/issues
 author:         Colin de Roos
