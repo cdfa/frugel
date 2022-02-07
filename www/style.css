@@ -74,3 +74,11 @@ span {
 ul {
   margin-top: 0;
 }
+
+.horizontal-scroll {
+  overflow-x: auto;
+}
+
+*.column {
+  min-width: 0;
+}

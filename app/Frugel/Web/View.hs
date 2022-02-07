@@ -24,17 +24,14 @@ import Scout               hiding ( Evaluated )
 -- Constructs a virtual DOM from a model
 viewApp :: Model -> View Action
 viewApp model
-    = div_
-        [ class_ "code has-background-white-bis" ]
-        [ styleSheet "bulma.min.css"
-        , styleSheet "style.css"
-        , div_ [ class_ "columns" ]
-          $ map
-              (div_ [ class_ "column" ])
-              [ [ instructionsView model, editorView model, errorsView model ]
-              , [ evaluatedView model ]
-              ]
-        ]
+    = div_ [ class_ "code has-background-white-bis columns"
+           , style_ $ "width" =: "100vw"
+           ]
+    $ [ styleSheet "bulma.min.css", styleSheet "style.css" ]
+    ++ map (div_ [ class_ "column" ])
+           [ [ instructionsView model, editorView model, errorsView model ]
+           , [ evaluatedView model ]
+           ]
 
         --    , webPrint $ ppShow model
 styleSheet :: Miso.MisoString -> View action
@@ -140,15 +137,17 @@ instructions
 editorView :: Model -> View Action
 editorView Model{..}
     = codeRoot []
-    . renderDocStream
-    . insertCursor cursorOffset
-    . layoutPretty defaultLayoutOptions
-    $ renderDoc program
+               [ div_ [ class_ "horizontal-scroll" ]
+                 . renderDocStream
+                 . insertCursor cursorOffset
+                 . layoutPretty defaultLayoutOptions
+                 $ renderDoc program
+               ]
 
 errorsView :: Model -> View action
 errorsView Model{..}
     = div_ [] . conditionalViews (not $ null errors)
-    $ map (pre_ [ class_ "box has-background-danger-light" ]
+    $ map (pre_ [ class_ "box has-background-danger-light horizontal-scroll" ]
            . renderDocStream
            . layoutPretty defaultLayoutOptions
            . renderDoc)
@@ -168,7 +167,7 @@ evaluatedView model@Model{..}
              , div_ [ class_ "card-header-vertical-padding" ]
                     [ "depth: ", renderDepthInput MainExpression model ]
              ]
-      , div_ [ class_ "card-content" ]
+      , div_ [ class_ "card-content horizontal-scroll" ]
              [ div_ [ class_ "content" ]
                . renderDocStream
                . reAnnotateS toStandardAnnotation
@@ -220,7 +219,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
                , div_ [ class_ "card-header-vertical-padding" ]
                       [ "depth: ", renderDepthInput SelectedNodeContext model ]
                ]
-        , div_ [ class_ "card-content" ]
+        , div_ [ class_ "card-content horizontal-scroll" ]
                [ div_ [ class_ "content" ]
                  . map (div_ []
                         . renderPretty
@@ -247,7 +246,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
              ]
          : conditionalViews
              (not (view #definitionsViewCollapsed model))
-             [ div_ [ class_ "card-content" ]
+             [ div_ [ class_ "card-content horizontal-scroll" ]
                     [ div_ [ class_ "content" ]
                       . map (div_ []
                              . renderPretty
@@ -262,7 +261,7 @@ selectedNodeEvaluationView selectedNodeEvaluation model@Model{..}
               , div_ [ class_ "card-header-vertical-padding" ]
                      [ "depth: ", renderDepthInput SelectedNodeValue model ]
               ]
-       , div_ [ class_ "card-content" ]
+       , div_ [ class_ "card-content horizontal-scroll" ]
               [ div_ [ class_ "content" ]
                 . renderPretty
                 . truncate selectedNodeValueRenderDepth
