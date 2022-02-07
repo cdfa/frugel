@@ -135,8 +135,8 @@ data Meta
 data EvaluationStatus
     = Evaluated
     | EvaluationDeferred (Hidden ( EvaluationRef Expr
-                                 , ScopedEvaluation Expr
-                                   -> ScopedEvaluation Expr
+                                 , DeferredEvaluation Expr
+                                   -> DeferredEvaluation Expr
                                  ))
     | Elided (Hidden Expr)
     | OutOfFuel
@@ -144,13 +144,13 @@ data EvaluationStatus
 
 type MetaLangFunction
     = EvaluationRef Expr
-    -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
+    -> LimiterT (ReaderT ShadowingEnv DeferredEvaluation) Expr
 
-type EvaluationRef a = IORef (Either (ScopedEvaluation a) a)
+type EvaluationRef a = IORef (Either (DeferredEvaluation a) a)
 
 -- For making explicit that something should not be given a environment, but gets it from it's scope
 -- Use MultiSets until errors have locations (probably easiest to do with abstract syntax graph with error nodes)
-type ScopedEvaluation = WriterT EvaluationOutput IO
+type DeferredEvaluation = WriterT EvaluationOutput IO
 
 type ShadowingEnv = Map Identifier Int
 

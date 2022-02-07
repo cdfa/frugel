@@ -47,7 +47,7 @@ import Scout.Unbound
 
 import System.IO.Unsafe
 
-type Evaluation = LimiterT (ReaderT EvaluationEnv ScopedEvaluation)
+type Evaluation = LimiterT (ReaderT EvaluationEnv DeferredEvaluation)
 
 evalCstrSite :: CstrSite -> Evaluation (EvaluationEnv, CstrSite)
 evalCstrSite cstrSite = do
@@ -92,8 +92,8 @@ evalExpr expr = do
         dereference evalRef = do
             refContents <- readIORef evalRef
             case refContents of
-                Left scopedValue -> do
-                    (value, output) <- runWriterT scopedValue
+                Left deferredValue -> do
+                    (value, output) <- runWriterT deferredValue
                     writeIORef evalRef . Left $ writer (value, output)
                     pure value
                 Right value -> pure value
@@ -136,9 +136,10 @@ evalExpr expr = do
                 $ deferEvaluation xRef
     evalExpr' (Abstraction meta n body) = do
         metaLangFunction <- asks $ \env arg -> do
-            scopedBody <- scope . magnifyShadowingEnv n arg env $ evalExpr body
+            deferredBody
+                <- scope . magnifyShadowingEnv n arg env $ evalExpr body
             -- each renameShadowedVariables invocation renames all binders, so only the last one's result's is actually used
-            renameShadowedVariables scopedBody
+            renameShadowedVariables deferredBody
         fmap (Abstraction (meta & #reified ?~ Hidden metaLangFunction) n
               . deferEvaluation)
             . newEvalRef
@@ -218,7 +219,7 @@ evalExpr expr = do
     evalExpr' (ExprCstrSite meta cstrSite)
         = ExprCstrSite meta . snd <$> evalCstrSite cstrSite
 
-normaliseExpr :: Expr -> ScopedEvaluation Expr
+normaliseExpr :: Expr -> DeferredEvaluation Expr
 normaliseExpr expr
     = mapWriterT unsafeInterleaveIO
     $ case expr ^. hasLens @ExprMeta % #evaluationStatus of
@@ -231,7 +232,7 @@ normaliseExpr expr
         OutOfFuel -> pure expr
 
 newEvalRef :: MonadIO m
-    => LimiterT (ReaderT r ScopedEvaluation) a
+    => LimiterT (ReaderT r DeferredEvaluation) a
     -> LimiterT (ReaderT r m) (EvaluationRef a)
 newEvalRef = mapLimiterT . mapReaderT $ newIORef . Left
 
@@ -244,8 +245,8 @@ outputOnce :: (MonadIO (t m), MonadTrans t, Monad m, MonadWriter w (t m))
     => IORef (Either (WriterT w m a) a)
     -> t m a
 outputOnce valueRef = do
-    scopedValue <- readIORef valueRef
-    case scopedValue of
+    deferredValue <- readIORef valueRef
+    case deferredValue of
         Left withOutput -> do
             (value, output) <- lift $ runWriterT withOutput
             writeIORef valueRef $ Right value
@@ -381,7 +382,7 @@ evalProgram (ProgramCstrSite meta cstrSite)
     = ProgramCstrSite meta . snd <$> evalCstrSite cstrSite
 
 -- fuel is used at applications and recursion and specifies a depth of the computation rather than a length
--- It's possible to run this in ST instead of IO, but we would need an extra type parameter on ScopedEvaluation and therefor on Expression
+-- It's possible to run this in ST instead of IO, but we would need an extra type parameter on DeferredEvaluation and therefor on Expression
 -- May be feasible when we use hypertypes to parametrise the tree
 runEval :: (Decomposable a, NodeOf a ~ Node, Unbound a, Data a)
     => Maybe Int
@@ -495,10 +496,10 @@ focusNodeUnderCursor cursorOffset n
     focus :: Has Meta n => n -> n
     focus = hasLens @Meta % #focused .~ True
 
-renameShadowedVariables :: ScopedEvaluation Expr
-    -> LimiterT (ReaderT ShadowingEnv ScopedEvaluation) Expr
-renameShadowedVariables scopedExpr = do
-    (expr, output) <- liftIO $ runWriterT scopedExpr
+renameShadowedVariables :: DeferredEvaluation Expr
+    -> LimiterT (ReaderT ShadowingEnv DeferredEvaluation) Expr
+renameShadowedVariables deferredExpr = do
+    (expr, output) <- liftIO $ runWriterT deferredExpr
     join
         $ curry writer <$> renameShadowedVariables' expr
         <*> template @_ @Expr renameShadowedVariables' output

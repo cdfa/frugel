@@ -20,7 +20,7 @@ module Scout.Node
     , Meta(Meta)
     , EvaluationStatus(..)
     , MetaLangFunction
-    , ScopedEvaluation
+    , DeferredEvaluation
     , ShadowingEnv
     , EvaluationRef
     , EvaluationOutput(EvaluationOutput)
