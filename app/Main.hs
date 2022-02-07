@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -95,24 +96,23 @@ updateModel evalThreadVar (ChangeFocusedNodeEvaluationIndex indexAction) model
             Decrement -> max 0 . pred . min (focusNodeValuesCount - 1)
     focusNodeValuesCount
         = Seq.length $ view (#evaluationOutput % #focusedNodeEvaluations) model
-updateModel evalThreadVar (ChangeFieldRenderDepth field newDepth) model
-    = if field == SelectedNodeValue || contextInView model
-      then effectSub
+updateModel evalThreadVar
+            (ChangeFieldRenderDepth field newDepth)
+            model@Model{..}
+    = if limitEvaluationByDefault
+      then noEff $ renderDepthFieldLens field .~ newDepth $ model
+      else effectSub
           (hideFieldValues field newModel & #editableDataVersion +~ 1)
           $ \sink -> liftIO
           . bracketNonTermination (view #editableDataVersion model + 1)
                                   evalThreadVar
           $ do
-              -- TODO: we should not need to reevaluate here
+              -- Instead of reevaluating here, it would be more efficient to find and append the extra errors the deeper evaluation produces
               reEvaluatedModel
                   <- fromFrugelModel newModel (toFrugelModel model)
               yieldModel sink $ forceFieldValues field reEvaluatedModel
-      else noEff $ renderDepthFieldLens field .~ newDepth $ model
   where
-    newModel
-        = model
-        & #evaluationStatus .~ PartiallyEvaluated
-        & renderDepthFieldLens field .~ newDepth
+    newModel = model & renderDepthFieldLens field .~ newDepth
 updateModel evalThreadVar (ChangeFuelLimit newLimit) model
     = reEvaluateModel evalThreadVar $ #fuelLimit .~ max 0 newLimit $ model
 -- reEvaluate to type error locations
