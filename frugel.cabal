@@ -16,6 +16,11 @@ license:        GPL-3
 build-type:     Simple
 extra-source-files:
     README.md
+data-files:
+    bulma.min.css
+    style.css
+    index.html
+data-dir:       www
 
 source-repository head
   type: git
@@ -164,6 +169,7 @@ executable frugel-exe
       Frugel.Web.View.Elements
       Frugel.Web.View.Rendering
       Language.Javascript.JSaddle.Warp.Extra
+      Paths_frugel
   hs-source-dirs:
       prelude
       app
@@ -194,6 +200,8 @@ executable frugel-exe
   else
     build-depends:
         base-noprelude >=4.7 && <5
+      , directory
+      , filepath
       , jsaddle >=0.9.8 && <0.10
       , jsaddle-warp ==0.9.*
       , wai-app-static >=3.1.7 && <3.2

@@ -9,6 +9,12 @@ copyright: "2021 Colin de Roos"
 extra-source-files:
   - README.md
 
+data-dir: www
+data-files:
+  - bulma.min.css
+  - style.css
+  - index.html
+
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
@@ -139,8 +145,8 @@ executables:
             - websockets ^>= 0.12.7
             - warp ^>= 3.3.17
             - wai-app-static ^>= 3.1.7
-      - condition: false # Work around hpack issue https://github.com/sol/hpack/issues/303
-        other-modules: Paths_frugel
+            - directory
+            - filepath
 
 tests:
   frugel-test:

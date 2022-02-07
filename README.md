@@ -15,8 +15,7 @@ Please create an issue or pick an existing one if you would like to contribute.
 
 ## Usage
 
-Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](releases) (RECOMMENDED due to bad performance of the web version).
-When running native executables, the `www` folder should be in the working directory.
+Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](../releases) (Recommended due to bad performance of the web version).
 
 A [demo video](https://archive.org/details/demo_20220123) and [a presentation](https://archive.org/details/presentation_202201) can be found on the Internet Archive.
 The demo video shows the features of the programming environment in action with some examples.
@@ -45,6 +44,15 @@ stack build
 ```
 cabal build
 ```
+
+## Installation
+
+Binaries from the [Releases page](../releases) can be installed manually.
+
+Regarding package managers, `stack install` and `cabal install` should work out of the box.
+You can install one of the nix derivations from `default.nix` with `nix-env -f default.nix -iA <derivation>`, e.g. ``nix-env -f default.nix -iA frugel-exe`.
+If you add Frugel's package cache (see "Building"), you can also directly install a static Linux binary with `nix-env -i <path>`, where the `<path>` is mentioned in the release notes.
+Note that older binaries may not be available in the cache.
 
 ## Contributing
 

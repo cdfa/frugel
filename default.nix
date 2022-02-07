@@ -27,6 +27,7 @@ in
     '';
   };
   frugel-static = frugel-cross { platform = "musl64"; };
+  frugel-exe = hsPkgs.frugel.components.exes.frugel-exe;
   # frugel-aarch64-darwin = frugel-cross { platform = "aarch64-darwin"; }; Not working due to https://github.com/NixOS/nixpkgs/issues/49526
   # frugel-mingwW64 = frugel-cross { platform = "mingwW64"; }; Not working due to https://github.com/NixOS/nixpkgs/issues/36200
 }
