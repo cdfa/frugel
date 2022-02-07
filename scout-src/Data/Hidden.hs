@@ -1,7 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-{-# OPTIONS_GHC -Wno-deprecations #-}
-
 module Data.Hidden where
 
 import Data.Data
@@ -24,7 +22,7 @@ instance Eq (Hidden a) where
     _ == _ = True -- What is hidden should not matter
 
 instance Show (Hidden a) where
-    show _ = "Hidden"
+    show _ = error "Attempt to show a Hidden value"
 
 instance Ord (Hidden a) where
     _ <= _ = True
