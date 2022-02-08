@@ -109,7 +109,7 @@ unsafeAbstraction :: String -> Expr -> Expr
 unsafeAbstraction = abstraction' . Unsafe.fromJust . identifier'
 
 application' :: Expr -> Expr -> Expr
-application' = Application $ defaultExprMeta 1
+application' = Application defaultApplicationMeta
 
 ifExpression' :: Expr -> Expr -> Expr -> Expr
 ifExpression' = IfExpression $ defaultExprMeta 5

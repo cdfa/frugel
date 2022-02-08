@@ -259,10 +259,6 @@ instance Has Meta AbstractionMeta where
 exprMeta :: Lens' Expr ExprMeta
 exprMeta = hasLens
 
--- defMeta :: Lens' Def Meta
--- defMeta = hasLens
--- whereClauseMeta :: Lens' WhereClause Meta
--- whereClauseMeta = hasLens
 exprCstrSite' :: CstrSite -> Expr
 exprCstrSite' = ExprCstrSite $ defaultExprMeta 0
 
@@ -271,6 +267,10 @@ defCstrSite' = DefCstrSite $ defaultMeta 0
 
 whereCstrSite' :: CstrSite -> WhereClause
 whereCstrSite' = WhereCstrSite $ defaultMeta 0
+
+defaultApplicationMeta :: ExprMeta
+defaultApplicationMeta
+    = defaultExprMeta 1 & #standardMeta % #interstitialWhitespace .~ [ " " ]
 
 defaultExprMeta :: Int -> ExprMeta
 defaultExprMeta n
