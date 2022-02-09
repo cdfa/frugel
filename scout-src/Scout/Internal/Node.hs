@@ -789,12 +789,15 @@ instance ValidEnumerable Expr where
             insertAt (length whitespaceFragments `div` 2)
                      (fromNonEmptyWhitespace nonEmptyWhitespace)
                      whitespaceFragments
-        setIfExpressionWhitespace nonEmptyWhitespaceFragments@(_, _, _, _, _)
-            = #standardMeta % #interstitialWhitespace
-            .~ map fromNonEmptyWhitespace
-                   (toListOf each nonEmptyWhitespaceFragments)
         fromNonEmptyWhitespace
             = toText . map unWhitespace . toList @(NonEmpty _)
+        setIfExpressionWhitespace nonEmptyWhitespaceFragments@(_, _, _, _, _)
+            = #standardMeta % #interstitialWhitespace %~ \whitespaceFragments ->
+            (\(prefix, suffix) -> prefix
+             <> toListOf (each % to fromNonEmptyWhitespace)
+                         nonEmptyWhitespaceFragments
+             <> suffix)
+            $ splitAt (length whitespaceFragments `div` 2) whitespaceFragments
         -- Make all non-associative operations parenthesized, to prevent collisions
         binaryOperation' meta left binOp right
             | Operators.associativity binOp == NotAssociative
