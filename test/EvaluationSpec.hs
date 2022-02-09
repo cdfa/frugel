@@ -175,7 +175,7 @@ abstractionRenamingSpec
     = it "renames binders to prevent them from capturing variables in expressions substituted into them"
     $ runEval' evalExpr (application' (churchOne "f" "x") (churchOne "f" "x"))
     >>= shouldBe
-    ?? (churchOne "x" "x1", mempty)
+    ?? (churchOne "x" "x11", mempty)
   where
     churchOne f x
         = unsafeAbstraction f . unsafeAbstraction x
