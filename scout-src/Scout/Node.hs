@@ -150,11 +150,19 @@ singleExprNodeCstrSite = exprCstrSite' . one . Right . ExprNode
 splitNumericSuffix :: Identifier -> (Identifier, [Char])
 splitNumericSuffix identifier
     = swap
-    $ (_Identifier % _UnNonEmpty)
-    `passthrough` (swap
-                   . second (map unAlphanumeric)
-                   . spanEnd (isDigit . unAlphanumeric))
+    $ _Identifier
+    `passthrough` (bimap (map unAlphanumeric)
+                         (fromMaybe invalidIdentifierError . nonEmpty)
+                   . swap
+                   . spanEnd (isDigit . unAlphanumeric)
+                   . toList)
     $ identifier
+  where
+    invalidIdentifierError
+        = error
+        $ "invalid identifier \""
+        <> show identifier
+        <> "\" consists only of numbers"
 
 liftNestedCstrSiteOuterWhitespace :: CstrSite -> CstrSite
 liftNestedCstrSiteOuterWhitespace
