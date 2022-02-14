@@ -47,9 +47,9 @@ initialModel p
         . Frugel.prettyPrint
         $ Frugel.initialModel p
 
-updateWithFrugelModel :: Frugel.Model Program -> Model -> Model
-updateWithFrugelModel Frugel.Model{..}
-                      Model{program = _, cursorOffset = _, errors = _, ..}
+setWithFrugelModel :: Frugel.Model Program -> Model -> Model
+setWithFrugelModel Frugel.Model{..}
+                   Model{program = _, cursorOffset = _, errors = _, ..}
     = Model { editableDataVersion = editableDataVersion + 1
             , program
             , cursorOffset
@@ -85,8 +85,8 @@ partialFromFrugelModel fuel
                 , ..
                 }
 
-updateWithFrugelErrors :: [Frugel.Error Program] -> Model -> Model
-updateWithFrugelErrors newErrors
+setFrugelErrors :: [Frugel.Error Program] -> Model -> Model
+setFrugelErrors newErrors
     = chain [ #editableDataVersion +~ 1, #errors %~ \oldErrors ->
     rights (map matchFrugelError oldErrors) ++ map fromFrugelError newErrors ]
 

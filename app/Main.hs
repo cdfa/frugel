@@ -137,8 +137,7 @@ updateModel evalThreadVar ToggleDefinitionsView model
 updateModel evalThreadVar (GenericAction genericAction) model
     = case editResult of
         Success -> reEvaluateFrugelModel evalThreadVar newFrugelModel model
-        Failure -> noEff
-            $ updateWithFrugelErrors (view #errors newFrugelModel) model
+        Failure -> noEff $ setFrugelErrors (view #errors newFrugelModel) model
   where
     (editResult, newFrugelModel)
         = Frugel.updateModel genericAction $ toFrugelModel model
@@ -148,7 +147,7 @@ updateModel _ (AsyncAction asyncAction) model = case asyncAction of
         then noEff newModel
         else effectSub model . const $ pure ()
     NewProgramGenerated frugelModel ->
-        noEff $ updateWithFrugelModel frugelModel model
+        noEff $ setWithFrugelModel frugelModel model
     EvaluationAborted msg -> noEff $ #evaluationStatus .~ Aborted msg $ model
 
 reEvaluateModel
@@ -162,7 +161,7 @@ reEvaluateFrugelModel :: MVar (Maybe (ThreadId, Integer))
     -> Effect Action Model
 reEvaluateFrugelModel evalThreadVar frugelModel model
     = effectSub (set #evaluationStatus PartiallyEvaluated
-                 $ updateWithFrugelModel frugelModel model)
+                 $ setWithFrugelModel frugelModel model)
     . (liftIO .)
     $ reEvaluate evalThreadVar frugelModel model
 

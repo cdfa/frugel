@@ -49,12 +49,12 @@ makeFieldLabelsNoPrefix ''Model
 makeFieldLabelsNoPrefix ''EvaluationOutput
 
 instance LabelOptic "selectedNodeEvaluation" An_AffineTraversal Model Model FocusedNodeEvaluation FocusedNodeEvaluation where
-    labelOptic = atraversal matcher updater
+    labelOptic = atraversal matcher setter
       where
         matcher model@Model{..}
             = matching (selectedNodeEvaluation' selectedNodeEvaluationIndex)
                        model
-        updater model@Model{..}
+        setter model@Model{..}
             = flip (set $ selectedNodeEvaluation' selectedNodeEvaluationIndex)
                    model
         selectedNodeEvaluation' i
