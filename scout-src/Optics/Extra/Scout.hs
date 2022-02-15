@@ -1,8 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Optics.Extra.Scout
     ( module Optics.Extra.Scout
@@ -10,11 +8,13 @@ module Optics.Extra.Scout
     , module Optics.ReadOnly.Intro
     , module Optics.ReadOnly.VL
     , module Optics.ReadOnly.FunctorOptic
+    , module Optics.Fallible
     ) where
 
 import Data.Has
 
 import Optics.Extra.Frugel    hiding ( foldVL )
+import Optics.Fallible
 import Optics.ReadOnly.FunctorOptic
 import Optics.ReadOnly.Intro
 import Optics.ReadOnly.VL
@@ -43,22 +43,6 @@ concatByPrism p = concatBy (preview p) (review p)
 
 hasLens :: Has a s => Lens' s a
 hasLens = lens getter (\t b -> modifier (const b) t)
-
-afailing' :: ( Is k An_AffineTraversal
-             , Is k A_Traversal
-             , Is l An_AffineTraversal
-             , Is l A_Traversal
-             )
-    => Optic k is s s a b
-    -> Optic l js s s a b
-    -> AffineTraversal s s a b
-afailing' firstOptic secondOptic
-    = atraversal
-        (either (matching secondOptic) Right . matching firstOptic)
-        (\s b -> fromMaybe s
-         $ failover firstOptic (const b) s <|> failover secondOptic (const b) s)
-
-infixl 3 `afailing'`
 
 fromAffineFold :: Is k An_AffineFold => a -> Optic' k is s a -> s -> a
 fromAffineFold a afold = fromMaybe a . preview afold

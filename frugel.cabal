@@ -84,6 +84,7 @@ library scout
       Data.Whitespace
       Frugel.CstrSite.ValidEnumerable
       Optics.Extra.Scout
+      Optics.Fallible
       Optics.ReadOnly.FunctorOptic
       Optics.ReadOnly.Intro
       Optics.ReadOnly.VL

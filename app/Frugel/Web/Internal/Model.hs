@@ -60,4 +60,4 @@ instance LabelOptic "selectedNodeEvaluation" An_AffineTraversal Model Model Focu
         selectedNodeEvaluation' i
             = #evaluationOutput
             % #focusedNodeEvaluations
-            % (ix i `afailing'` _last)
+            % (ix i `gfailing` _last)
