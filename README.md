@@ -15,8 +15,7 @@ Please create an issue or pick an existing one if you would like to contribute.
 
 ## Installation
 
-Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](../releases) (Recommended due to bad performance of the web version).
-Binaries from the [Releases page](../releases) can be installed manually.
+Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the [native binaries](https://github.com/cdfa/frugel/releases) (Recommended due to bad performance of the web version).
 
 Regarding package managers, `stack install` and `cabal install` should work out of the box.
 You can install one of the nix derivations from `default.nix` with `nix-env -f default.nix -iA <derivation>`, e.g. ``nix-env -f default.nix -iA frugel-exe`.
