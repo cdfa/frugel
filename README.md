@@ -13,9 +13,17 @@ See my [master's thesis](https://cdfa.github.io/frugel/thesis.pdf) for more deta
 At the moment, I do not have the time and energy to develop this prototype further.
 Please create an issue or pick an existing one if you would like to contribute.
 
-## Usage
+## Installation
 
 Visit https://cdfa.github.io/frugel/ to try it out online, or download one of the native binaries from the [releases](../releases) (Recommended due to bad performance of the web version).
+Binaries from the [Releases page](../releases) can be installed manually.
+
+Regarding package managers, `stack install` and `cabal install` should work out of the box.
+You can install one of the nix derivations from `default.nix` with `nix-env -f default.nix -iA <derivation>`, e.g. ``nix-env -f default.nix -iA frugel-exe`.
+If you add Frugel's package cache (see "Building"), you can also directly install a static Linux binary with `nix-env -i <path>`, where the `<path>` is mentioned in the release notes.
+Note that older binaries may not be available in the cache.
+
+## Usage
 
 A [demo video](https://archive.org/details/demo_20220123) and [a presentation](https://archive.org/details/presentation_202201) can be found on the Internet Archive.
 The demo video shows the features of the programming environment in action with some examples.
@@ -23,7 +31,7 @@ The presentation gives an overview of the design and motivations.
 
 ## Building
 
-You can build the programming environment with either `stack`, `cabal` or `nix`. Building with cabal has only been tested on Windows and the stack configuration was only tested on OSX. Nix is the only supported system for building the web-version and nix may provide better reproducibility than cabal or stack.
+You can build the programming environment with either `stack`, `cabal` or `nix`. Building with cabal has only been tested on Windows and the stack configuration was only tested on OSX. Nix is the only supported system for building the web-version and may provide better reproducibility than cabal or stack.
 
 ### Nix
 
@@ -44,15 +52,6 @@ stack build
 ```
 cabal build
 ```
-
-## Installation
-
-Binaries from the [Releases page](../releases) can be installed manually.
-
-Regarding package managers, `stack install` and `cabal install` should work out of the box.
-You can install one of the nix derivations from `default.nix` with `nix-env -f default.nix -iA <derivation>`, e.g. ``nix-env -f default.nix -iA frugel-exe`.
-If you add Frugel's package cache (see "Building"), you can also directly install a static Linux binary with `nix-env -i <path>`, where the `<path>` is mentioned in the release notes.
-Note that older binaries may not be available in the cache.
 
 ## Contributing
 
